@@ -9,6 +9,7 @@ Require-Bundle: org.knime.base;bundle-version="[3.0.0,4.0.0)",
  org.apache.cxf.cxf-rt-frontend-jaxrs;bundle-version="[3.0.7,4.0.0)",
  org.apache.cxf.cxf-rt-rs-client;bundle-version="[3.0.7,4.0.0)",
  org.apache.cxf.cxf-rt-rs-extension-providers;bundle-version="[3.0.7,4.0.0)",
- org.apache.cxf.cxf-rt-transports-http;bundle-version="[3.0.7,4.0.0)"
+ org.apache.cxf.cxf-rt-transports-http;bundle-version="[3.0.7,4.0.0)",
+ javax.ws.rs-api;bundle-version="2.0.1"
 Bundle-RequiredExecutionEnvironment: JavaSE-1.8
 Bundle-ActivationPolicy: lazy
