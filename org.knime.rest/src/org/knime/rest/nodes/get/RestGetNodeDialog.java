@@ -48,22 +48,52 @@
  */
 package org.knime.rest.nodes.get;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.awt.BorderLayout;
+import java.awt.Container;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
+import java.awt.Frame;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.Insets;
+import java.awt.Window;
+import java.awt.event.ActionEvent;
+import java.awt.event.KeyEvent;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
+import javax.swing.AbstractAction;
+import javax.swing.Box;
+import javax.swing.BoxLayout;
 import javax.swing.ButtonGroup;
+import javax.swing.DefaultCellEditor;
+import javax.swing.JButton;
 import javax.swing.JCheckBox;
+import javax.swing.JComboBox;
+import javax.swing.JComponent;
+import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JRadioButton;
+import javax.swing.JScrollPane;
 import javax.swing.JSpinner;
 import javax.swing.JTable;
+import javax.swing.JTextField;
+import javax.swing.KeyStroke;
 import javax.swing.SpinnerNumberModel;
-import javax.swing.table.DefaultTableModel;
+import javax.swing.SwingUtilities;
+import javax.swing.border.TitledBorder;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
+import javax.swing.table.DefaultTableCellRenderer;
+import javax.swing.table.TableColumn;
+import javax.swing.text.JTextComponent;
 
 import org.knime.core.data.DataTableSpec;
+import org.knime.core.data.DataType;
 import org.knime.core.data.StringValue;
+import org.knime.core.data.def.IntCell;
+import org.knime.core.data.def.StringCell;
 import org.knime.core.data.uri.URIDataValue;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeDialogPane;
@@ -72,8 +102,9 @@ import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.NotConfigurableException;
 import org.knime.core.node.util.ColumnSelectionPanel;
 import org.knime.core.node.util.StringHistoryPanel;
-import org.knime.rest.nodes.get.RestGetSettings.RequestHeaderKeyItem;
-import org.knime.rest.nodes.get.RestGetSettings.ResponseHeaderItem;
+import org.knime.core.util.Pair;
+import org.knime.rest.nodes.get.RestGetSettings.ParameterKind;
+import org.knime.rest.nodes.get.RestGetSettings.ReferenceType;
 
 /**
  *
@@ -105,15 +136,39 @@ final class RestGetNodeDialog extends NodeDialogPane {
     private final JCheckBox m_sslIgnoreHostnameMismatches = new JCheckBox("Ignore hostname mismatches"),
             m_sslTrustAll = new JCheckBox("Trust all certificates");
 
-    private final DefaultTableModel m_requestHeadersModel =
-        new DefaultTableModel(new String[]{"Header key", "Value", "Kind"}, 0),
-            m_responseHeadersModel = new DefaultTableModel(new String[]{"Header key", "Column name"}, 0);
+    private final RequestTableModel m_requestHeadersModel = new RequestTableModel();
 
-    private final JTable m_requestHeaders = new JTable(m_requestHeadersModel), m_responseHeaders = new JTable(m_responseHeadersModel);
+    private final JButton m_requestAddRow = new JButton("Add header parameter"),
+            m_requestEditRow = new JButton("Edit header parameter"),
+            m_requestDeleteRow = new JButton("Remove header parameter");
+
+    private final ResponseTableModel m_responseHeadersModel = new ResponseTableModel();
+
+    private final JTable m_requestHeaders = new JTable(m_requestHeadersModel),
+            m_responseHeaders = new JTable(m_responseHeadersModel);
+
+    private final JButton m_responseAddRow = new JButton("Add header parameter"),
+            m_responseEditRow = new JButton("Edit header parameter"),
+            m_responseDeleteRow = new JButton("Remove header parameter");
 
     private final JCheckBox m_extractAllHeaders = new JCheckBox("Extract all headers");
 
     private final StringHistoryPanel m_bodyColumnName = new StringHistoryPanel("GET body");
+
+    private final JComboBox<String> m_requestHeaderKey = createEditableComboBox(),
+            m_requestHeaderValue = createEditableComboBox();
+
+    private final JComboBox<ReferenceType> m_requestHeaderValueType = new JComboBox<>(ReferenceType.values());
+
+    private final JComboBox<ParameterKind> m_requestHeaderKeyType =
+        new JComboBox<>(new ParameterKind[]{ParameterKind.Header});
+
+    private JComboBox<String> m_responseHeaderKey = createEditableComboBox();
+
+    private JTextField m_responseColumnName = new JTextField(20);
+
+    private JComboBox<DataType> m_responseValueType =
+        new JComboBox<DataType>(new DataType[]{StringCell.TYPE, IntCell.TYPE});
 
     /**
      *
@@ -128,18 +183,61 @@ final class RestGetNodeDialog extends NodeDialogPane {
     /**
      * @return
      */
+    private static JComboBox<String> createEditableComboBox() {
+        final JComboBox<String> ret = new JComboBox<>();
+        ret.setEditable(true);
+        return ret;
+    }
+
+    /**
+     * @return
+     */
     private JPanel createConnectionSettingsTab() {
-        final JPanel ret = new JPanel();
-        ret.add(m_constantUriOption);
-        ret.add(m_constantUri);
-        ret.add(m_uriColumnOption);
-        ret.add(m_uriColumn);
-        ret.add(m_useDelay);
-        ret.add(m_delay);
-        ret.add(new JLabel("Concurrency: "));
-        ret.add(m_concurrency);
-        ret.add(m_sslIgnoreHostnameMismatches);
-        ret.add(m_sslTrustAll);
+        final JPanel ret = new JPanel(new GridBagLayout());
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.insets = new Insets(2, 4, 2, 4);
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.weightx = 0;
+        gbc.weighty = 0;
+        ret.add(m_constantUriOption, gbc);
+        gbc.gridx++;
+        gbc.weightx = 1;
+        ret.add(m_constantUri, gbc);
+        gbc.gridx = 0;
+        gbc.gridy++;
+        gbc.weightx = 0;
+        ret.add(m_uriColumnOption, gbc);
+        gbc.gridx++;
+        gbc.weightx = 1;
+        ret.add(m_uriColumn, gbc);
+        gbc.gridx = 0;
+        gbc.gridy++;
+        gbc.weightx = 0;
+        ret.add(m_useDelay, gbc);
+        gbc.gridx++;
+        gbc.weightx = 1;
+        ret.add(m_delay, gbc);
+        gbc.gridx = 0;
+        gbc.gridy++;
+        gbc.weightx = 0;
+        ret.add(new JLabel("Concurrency: "), gbc);
+        gbc.gridx++;
+        gbc.weightx = 1;
+        ret.add(m_concurrency, gbc);
+        gbc.gridx = 0;
+        gbc.gridy++;
+        gbc.gridwidth = 2;
+        gbc.weightx = 1;
+        final JPanel sslPanel = new JPanel();
+        sslPanel.setBorder(new TitledBorder("SSL"));
+        sslPanel.setLayout(new BoxLayout(sslPanel, BoxLayout.PAGE_AXIS));
+        sslPanel.add(m_sslIgnoreHostnameMismatches);
+        sslPanel.add(m_sslTrustAll);
+        ret.add(sslPanel, gbc);
+        gbc.weighty = 1;
+        ret.add(new JPanel(), gbc);
 
         m_useDelay.addActionListener(e -> m_delay.setEnabled(m_useDelay.isSelected()));
         m_constantUriOption.addActionListener(e -> {
@@ -150,7 +248,184 @@ final class RestGetNodeDialog extends NodeDialogPane {
             m_uriColumn.setEnabled(m_uriColumnOption.isSelected());
             m_constantUri.setEnabled(!m_uriColumnOption.isSelected());
         });
+        m_uriColumnOption.setSelected(true);
+        m_constantUriOption.setSelected(true);
+        m_delay.setEnabled(false);
         return ret;
+    }
+
+    /**
+     * @param selectedRow
+     */
+    @SuppressWarnings("serial")
+    protected void editRequestHeader(final int selectedRow) {
+        final Window windowAncestor = SwingUtilities.getWindowAncestor(getPanel());
+        final Frame frame = windowAncestor instanceof Frame ? (Frame)windowAncestor : null;
+        final JDialog dialog = new JDialog(frame, "Edit", true);
+        dialog.setPreferredSize(new Dimension(550, 200));
+        Container cp = dialog.getContentPane();
+        JPanel outer = new JPanel(new BorderLayout());
+        JPanel panel = new JPanel(new GridBagLayout());
+        addRequestSettingControls(panel);
+        m_requestHeaderKey.setSelectedItem(m_requestHeadersModel.getValueAt(selectedRow, 0));
+        m_requestHeaderValue.setSelectedItem(m_requestHeadersModel.getValueAt(selectedRow, 1));
+        m_requestHeaderValueType.setSelectedItem(m_requestHeadersModel.getValueAt(selectedRow, 2));
+        outer.add(panel, BorderLayout.CENTER);
+        JPanel controls = new JPanel();
+        outer.add(controls, BorderLayout.SOUTH);
+        cp.add(outer);
+        controls.setLayout(new BoxLayout(controls, BoxLayout.LINE_AXIS));
+        controls.add(Box.createHorizontalGlue());
+        controls.add(new JButton(new AbstractAction("OK") {
+            @Override
+            public void actionPerformed(final ActionEvent e) {
+                m_requestHeadersModel.setValueAt(m_requestHeaderKey.getSelectedItem(), selectedRow, 0);
+                m_requestHeadersModel.setValueAt(m_requestHeaderValue.getSelectedItem(), selectedRow, 1);
+                m_requestHeadersModel.setValueAt(m_requestHeaderValueType.getSelectedItem(), selectedRow, 2);
+                //m_requestHeadersModel.setValueAt(m_requestHeaderKeyType.getSelectedItem(), selectedRow, 3);
+                dialog.dispose();
+            }
+        }));
+        final AbstractAction cancel = new AbstractAction("Cancel") {
+            @Override
+            public void actionPerformed(final ActionEvent e) {
+                dialog.dispose();
+            }
+        };
+        controls.add(new JButton(cancel));
+        dialog.getRootPane().registerKeyboardAction(cancel, KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0),
+            JComponent.WHEN_IN_FOCUSED_WINDOW);
+        dialog.pack();
+        m_requestHeaderKey.requestFocusInWindow();
+        dialog.setVisible(true);
+    }
+
+    /**
+     * @param selectedRow
+     */
+    @SuppressWarnings("serial")
+    protected void editResponseHeader(final int selectedRow) {
+        final Window windowAncestor = SwingUtilities.getWindowAncestor(getPanel());
+        final Frame frame = windowAncestor instanceof Frame ? (Frame)windowAncestor : null;
+        final JDialog dialog = new JDialog(frame, "Edit", true);
+        dialog.setPreferredSize(new Dimension(550, 200));
+        Container cp = dialog.getContentPane();
+        JPanel outer = new JPanel(new BorderLayout());
+        JPanel panel = new JPanel(new GridBagLayout());
+        addResponseSettingControls(panel);
+        m_responseHeaderKey.setSelectedItem(m_responseHeadersModel.getValueAt(selectedRow, 0));
+        m_responseColumnName
+            .setText((String)((Pair<?, ?>)m_responseHeadersModel.getValueAt(selectedRow, 1)).getFirst());
+        m_responseValueType
+            .setSelectedItem(((Pair<?, ?>)m_responseHeadersModel.getValueAt(selectedRow, 1)).getSecond());
+        outer.add(panel, BorderLayout.CENTER);
+        JPanel controls = new JPanel();
+        outer.add(controls, BorderLayout.SOUTH);
+        cp.add(outer);
+        controls.setLayout(new BoxLayout(controls, BoxLayout.LINE_AXIS));
+        controls.add(Box.createHorizontalGlue());
+        controls.add(new JButton(new AbstractAction("OK") {
+            @Override
+            public void actionPerformed(final ActionEvent e) {
+                m_responseHeadersModel.setValueAt(m_responseHeaderKey.getSelectedItem(), selectedRow, 0);
+                m_responseHeadersModel.setValueAt(m_responseColumnName.getText(), selectedRow, 1);
+                m_responseHeadersModel.setValueAt(m_responseValueType.getSelectedItem(), selectedRow, 1);
+                dialog.dispose();
+            }
+        }));
+        final AbstractAction cancel = new AbstractAction("Cancel") {
+            @Override
+            public void actionPerformed(final ActionEvent e) {
+                dialog.dispose();
+            }
+        };
+        controls.add(new JButton(cancel));
+        dialog.getRootPane().registerKeyboardAction(cancel, KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0),
+            JComponent.WHEN_IN_FOCUSED_WINDOW);
+        dialog.pack();
+        m_responseHeaderKey.requestFocusInWindow();
+        dialog.setVisible(true);
+    }
+
+    /**
+     * @param panel
+     */
+    protected void addRequestSettingControls(final JPanel panel) {
+        //panel.setPreferredSize(new Dimension(800, 300));
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(4, 4, 4, 4);
+        gbc.gridy = 0;
+        gbc.gridx = 0;
+        gbc.weightx = 0;
+        panel.add(new JLabel("Header key"), gbc);
+        gbc.gridx = 1;
+        //m_requestHeaderKey = GUIFactory.createTextField("", 22);
+        gbc.weightx = 1;
+        panel.add(m_requestHeaderKey, gbc);
+        gbc.gridy++;
+
+        //m_requestHeaderValue = GUIFactory.createTextField("", 22);
+        ((JTextComponent)m_requestHeaderValue.getEditor().getEditorComponent()).getDocument()
+            .addDocumentListener((DocumentEditListener)(e) -> {
+                /*TODO completion*/});
+        ((JTextComponent)m_requestHeaderKey.getEditor().getEditorComponent()).getDocument()
+            .addDocumentListener((DocumentEditListener)(e) -> {
+                /*TODO completion*/});
+
+        gbc.gridx = 0;
+        gbc.weightx = 0;
+        panel.add(new JLabel("Header value: "), gbc);
+        gbc.gridx = 1;
+        gbc.weightx = 1;
+        panel.add(m_requestHeaderValue, gbc);
+        gbc.gridy++;
+
+        gbc.gridx = 0;
+        panel.add(m_requestHeaderValueType, gbc);
+        gbc.gridx = 1;
+        panel.add(m_requestHeaderKeyType, gbc);
+        gbc.gridy++;
+
+    }
+
+    /**
+     * @param panel
+     */
+    protected void addResponseSettingControls(final JPanel panel) {
+        //panel.setPreferredSize(new Dimension(800, 300));
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(4, 4, 4, 4);
+        gbc.gridy = 0;
+        gbc.gridx = 0;
+        gbc.weightx = 0;
+        panel.add(new JLabel("Header key"), gbc);
+        gbc.gridx = 1;
+        //m_responseHeaderKey = GUIFactory.createTextField("", 22);
+        gbc.weightx = 1;
+        panel.add(m_responseHeaderKey, gbc);
+        gbc.gridy++;
+
+        //m_responseColumnName = GUIFactory.createTextField("", 22);
+        m_responseColumnName.getDocument().addDocumentListener((DocumentEditListener)(e) -> {
+            /*TODO completion*/});
+        ((JTextComponent)m_responseHeaderKey.getEditor().getEditorComponent()).getDocument()
+            .addDocumentListener((DocumentEditListener)(e) -> {
+                /*TODO completion*/});
+
+        gbc.gridx = 0;
+        gbc.weightx = 0;
+        panel.add(new JLabel("Output column name: "), gbc);
+        gbc.gridx = 1;
+        gbc.weightx = 1;
+        panel.add(m_responseColumnName, gbc);
+        gbc.gridy++;
+
+        gbc.gridx = 0;
+        panel.add(new JLabel("Column type"), gbc);
+        gbc.gridx = 1;
+        panel.add(m_responseValueType, gbc);
+        gbc.gridy++;
+
     }
 
     /**
@@ -166,8 +441,50 @@ final class RestGetNodeDialog extends NodeDialogPane {
      * @return
      */
     private JPanel createRequestHeadersTab() {
-        final JPanel ret = new JPanel();
-        ret.add(m_requestHeaders);
+        m_requestHeaders.setAutoCreateColumnsFromModel(false);
+        while (m_requestHeaders.getColumnModel().getColumns().hasMoreElements()) {
+            m_requestHeaders.getColumnModel()
+                .removeColumn(m_requestHeaders.getColumnModel().getColumns().nextElement());
+        }
+        final TableColumn keyCol =
+            new TableColumn(0, 67, new DefaultTableCellRenderer(), new DefaultCellEditor(m_requestHeaderKey));
+        keyCol.setHeaderValue("Key");
+        m_requestHeaders.getColumnModel().addColumn(keyCol);
+        m_requestHeaders.getColumnModel()
+            .addColumn(new TableColumn(1, 67, null, new DefaultCellEditor(m_requestHeaderValue)));
+        m_requestHeaders.getColumnModel()
+            .addColumn(new TableColumn(2, 40, null, new DefaultCellEditor(m_requestHeaderValueType)));
+        //        m_requestHeaders.getColumnModel().addColumn(new TableColumn(3, 40, null, null));
+        m_requestAddRow.addActionListener(e -> m_requestHeadersModel.newRow());
+        m_requestDeleteRow.addActionListener(e -> m_requestHeadersModel.removeRow(m_requestHeaders.getSelectedRow()));
+        m_requestEditRow.addActionListener(e -> editRequestHeader(m_requestHeaders.getSelectedRow()));
+
+        m_requestHeaders.getSelectionModel().addListSelectionListener(e -> {
+            m_requestEditRow.setEnabled(!m_requestHeaders.getSelectionModel().isSelectionEmpty());
+            m_requestDeleteRow.setEnabled(!m_requestHeaders.getSelectionModel().isSelectionEmpty());
+        });
+
+        final JPanel ret = new JPanel(new GridBagLayout());
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(2, 4, 2, 4);
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.gridwidth = 3;
+        gbc.weighty = 1;
+        m_requestHeaders.setVisible(true);
+        ret.add(new JScrollPane(m_requestHeaders), gbc);
+        gbc.gridy++;
+        gbc.gridwidth = 1;
+        gbc.weighty = 0;
+        ret.add(m_requestAddRow, gbc);
+        gbc.gridx++;
+        ret.add(m_requestDeleteRow, gbc);
+        gbc.gridx++;
+        ret.add(m_requestEditRow, gbc);
+        m_requestHeaders.getColumnModel().getColumn(0).setHeaderValue("Key");
+        m_requestHeaders.getColumnModel().getColumn(1).setHeaderValue("Value");
+        m_requestHeaders.getColumnModel().getColumn(2).setHeaderValue("Value kind");
+        //        m_requestHeaders.getColumnModel().getColumn(3).setHeaderValue("Key kind");
         return ret;
     }
 
@@ -175,10 +492,43 @@ final class RestGetNodeDialog extends NodeDialogPane {
      * @return
      */
     private JPanel createResponseHeadersTab() {
-        final JPanel ret = new JPanel();
-        ret.add(m_extractAllHeaders);
-        ret.add(m_responseHeaders);
-        ret.add(m_bodyColumnName);
+        m_responseAddRow.addActionListener(e -> m_responseHeadersModel.newRow());
+        m_responseDeleteRow
+            .addActionListener(e -> m_responseHeadersModel.removeRow(m_responseHeaders.getSelectedRow()));
+        m_responseEditRow.addActionListener(e -> editResponseHeader(m_responseHeaders.getSelectedRow()));
+
+        final JPanel ret = new JPanel(new GridBagLayout());
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.gridwidth = 3;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        ret.add(m_extractAllHeaders, gbc);
+        m_extractAllHeaders.addActionListener(e -> {
+            m_responseHeaders.setEnabled(!m_extractAllHeaders.isSelected());
+            if (m_extractAllHeaders.isSelected()) {
+                m_responseHeaders.getSelectionModel().clearSelection();
+            }
+        });
+        gbc.fill = GridBagConstraints.BOTH;
+        gbc.weighty = 1;
+        gbc.gridy++;
+        ret.add(new JScrollPane(m_responseHeaders), gbc);
+        gbc.gridy++;
+        gbc.weighty = 0;
+        gbc.gridwidth = 1;
+        ret.add(m_responseAddRow, gbc);
+        gbc.gridx++;
+        ret.add(m_responseEditRow, gbc);
+        gbc.gridx++;
+        ret.add(m_responseDeleteRow, gbc);
+        gbc.gridx = 0;
+        gbc.gridy++;
+        gbc.gridwidth = 3;
+        JPanel body = new JPanel(new FlowLayout(FlowLayout.LEADING));
+        body.add(new JLabel("Body column: "));
+        body.add(m_bodyColumnName);
+        ret.add(body, gbc);
         return ret;
     }
 
@@ -197,16 +547,12 @@ final class RestGetNodeDialog extends NodeDialogPane {
         m_settings.setSslIgnoreHostNameErrors(m_sslIgnoreHostnameMismatches.isSelected());
         m_settings.setSslTrustAll(m_sslTrustAll.isSelected());
         m_settings.getRequestHeaders().clear();
-        final List<RequestHeaderKeyItem> headers = new ArrayList<>(m_requestHeaders.getRowCount());
-        for (int i = 0; i < m_requestHeaders.getRowCount(); ++i) {
-            headers.add((RequestHeaderKeyItem)m_requestHeaders.getModel().getValueAt(i, 0));
-        }
-        m_settings.getRequestHeaders().addAll(headers);
+        m_settings.getRequestHeaders()
+            .addAll(StreamSupport.stream(m_requestHeadersModel.spliterator(), false).collect(Collectors.toList()));
         m_settings.setExtractAllResponseFields(m_extractAllHeaders.isSelected());
-        final List<ResponseHeaderItem> responseItems = new ArrayList<>(m_responseHeaders.getRowCount());
-        for (int i = 0; i < m_responseHeaders.getRowCount(); ++i) {
-            responseItems.add((ResponseHeaderItem)m_responseHeaders.getModel().getValueAt(i, 0));
-        }
+        m_settings.getExtractFields().clear();
+        m_settings.getExtractFields()
+            .addAll(StreamSupport.stream(m_responseHeadersModel.spliterator(), false).collect(Collectors.toList()));
         m_settings.setResponseBodyColumn(m_bodyColumnName.getSelectedString());
         m_settings.saveSettings(settings);
     }
@@ -215,7 +561,8 @@ final class RestGetNodeDialog extends NodeDialogPane {
      * {@inheritDoc}
      */
     @Override
-    protected void loadSettingsFrom(final NodeSettingsRO settings, final DataTableSpec[] specs) throws NotConfigurableException {
+    protected void loadSettingsFrom(final NodeSettingsRO settings, final DataTableSpec[] specs)
+        throws NotConfigurableException {
         try {
             m_settings.loadSettingsForDialog(settings, specs);
         } catch (InvalidSettingsException e) {
@@ -224,30 +571,49 @@ final class RestGetNodeDialog extends NodeDialogPane {
         // TODO Update UI based on settings
         m_constantUriOption.setSelected(m_settings.isUseConstantURI());
         m_constantUri.setSelectedString(m_settings.getConstantURI());
-        m_uriColumn.setSelectedColumn(m_settings.getUriColumn());
+        //m_uriColumn.setSelectedColumn(m_settings.getUriColumn());
+        m_uriColumn.update(specs[0], m_settings.getUriColumn(), false, true);
         m_useDelay.setSelected(m_settings.isUseDelay());
         m_delay.setValue(m_settings.getDelay());
         m_concurrency.setValue(m_settings.getConcurrency());
         m_sslIgnoreHostnameMismatches.setSelected(m_settings.isSslIgnoreHostNameErrors());
         m_sslTrustAll.setSelected(m_settings.isSslTrustAll());
-        m_requestHeadersModel.setRowCount(0);
+        m_requestHeadersModel.clear();
         for (int i = 0; i < m_settings.getRequestHeaders().size(); ++i) {
-            RequestHeaderKeyItem[] items = new RequestHeaderKeyItem[m_requestHeadersModel.getColumnCount()];
-            Arrays.fill(items, m_settings.getRequestHeaders().get(i));
-            m_requestHeadersModel.addRow(items);
+            m_requestHeadersModel.addRow(m_settings.getRequestHeaders().get(i));
         }
         m_extractAllHeaders.setSelected(m_settings.isExtractAllResponseFields());
-        m_responseHeadersModel.setRowCount(0);
+        m_responseHeadersModel.clear();
         for (int i = 0; i < m_settings.getExtractFields().size(); ++i) {
-            ResponseHeaderItem[] items = new ResponseHeaderItem[m_responseHeadersModel.getColumnCount()];
-            Arrays.fill(items, m_settings.getExtractFields().get(i));
-            m_responseHeadersModel.addRow(items);
-        }
-        final List<ResponseHeaderItem> responseItems = new ArrayList<>(m_responseHeaders.getRowCount());
-        for (int i = 0; i < m_responseHeaders.getRowCount(); ++i) {
-            responseItems.add((ResponseHeaderItem)m_responseHeaders.getModel().getValueAt(i, 0));
+            m_responseHeadersModel.addRow(m_settings.getExtractFields().get(i));
         }
         m_bodyColumnName.setSelectedString(m_settings.getResponseBodyColumn());
         m_settings.setResponseBodyColumn(m_bodyColumnName.getSelectedString());
+    }
+
+    @FunctionalInterface
+    private interface DocumentEditListener extends DocumentListener {
+        @Override
+        default void changedUpdate(final DocumentEvent e) {
+            handleEdit(e);
+        }
+
+        @Override
+        default void insertUpdate(final DocumentEvent e) {
+            handleEdit(e);
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        default void removeUpdate(final DocumentEvent e) {
+            handleEdit(e);
+        }
+
+        /**
+         * @param e
+         */
+        void handleEdit(DocumentEvent e);
     }
 }

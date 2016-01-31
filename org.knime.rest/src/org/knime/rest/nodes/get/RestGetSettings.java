@@ -67,6 +67,15 @@ import org.knime.core.node.util.CheckUtils;
  * @author Gabor Bakos
  */
 final class RestGetSettings {
+    /**
+     *
+     */
+    enum ParameterKind {
+            Header,
+            Body,
+            Path
+    }
+
     private static final String USE_CONSTANT_URI = "Use constant URI";
     private static final boolean DEFAULT_USE_CONSTANT_URI = true;
     private static final String CONSTANT_URI = "Constant URI";
@@ -121,6 +130,7 @@ final class RestGetSettings {
         private final String m_valueReference;
         private final ReferenceType m_kind;
         //private final Function<InputType, String> m_conversionFunction;
+        private final ParameterKind m_parameterKind = ParameterKind.Header;
         /**
          * @param key
          * @param valueReference
@@ -159,6 +169,13 @@ final class RestGetSettings {
 //        final Function<InputType, String> getConversionFunction() {
 //            return m_conversionFunction;
 //        }
+
+        /**
+         * @return the parameterKind
+         */
+        ParameterKind getParameterKind() {
+            return m_parameterKind;
+        }
         /**
          * {@inheritDoc}
          */

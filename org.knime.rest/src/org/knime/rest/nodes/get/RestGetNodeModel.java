@@ -500,7 +500,7 @@ class RestGetNodeModel extends NodeModel {
     }
 
     /**
-     * @return
+     * @return The client to be used for the request.
      */
     protected Client createClient() {
         ClientBuilder clientBuilder = ClientBuilder.newBuilder();
