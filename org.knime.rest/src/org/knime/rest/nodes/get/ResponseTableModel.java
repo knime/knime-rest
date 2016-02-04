@@ -76,7 +76,6 @@ class ResponseTableModel extends AbstractTableModel implements Iterable<Response
      *
      */
     public ResponseTableModel() {
-        // TODO Auto-generated constructor stub
     }
 
     /**
@@ -180,7 +179,7 @@ class ResponseTableModel extends AbstractTableModel implements Iterable<Response
      */
     @Override
     public boolean isCellEditable(final int rowIndex, final int columnIndex) {
-        return columnIndex == 0;
+        return true;
     }
 
     void addRow(final ResponseHeaderItem setting) {

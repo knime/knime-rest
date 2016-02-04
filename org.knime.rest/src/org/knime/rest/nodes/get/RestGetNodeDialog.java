@@ -49,6 +49,7 @@
 package org.knime.rest.nodes.get;
 
 import java.awt.BorderLayout;
+import java.awt.Component;
 import java.awt.Container;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
@@ -59,6 +60,8 @@ import java.awt.Insets;
 import java.awt.Window;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
@@ -463,6 +466,14 @@ final class RestGetNodeDialog extends NodeDialogPane {
             m_requestEditRow.setEnabled(!m_requestHeaders.getSelectionModel().isSelectionEmpty());
             m_requestDeleteRow.setEnabled(!m_requestHeaders.getSelectionModel().isSelectionEmpty());
         });
+        m_requestHeaders.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(final MouseEvent e) {
+                if (e.getClickCount() == 2) {
+                    editRequestHeader(m_requestHeaders.getSelectedRow());
+                }
+            }
+        });
 
         final JPanel ret = new JPanel(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
@@ -492,6 +503,70 @@ final class RestGetNodeDialog extends NodeDialogPane {
      * @return
      */
     private JPanel createResponseHeadersTab() {
+        m_responseHeaders.setAutoCreateColumnsFromModel(false);
+        while (m_responseHeaders.getColumnModel().getColumns().hasMoreElements()) {
+            m_responseHeaders.getColumnModel()
+                .removeColumn(m_responseHeaders.getColumnModel().getColumns().nextElement());
+        }
+        final TableColumn keyCol =
+            new TableColumn(0, 67, new DefaultTableCellRenderer(), new DefaultCellEditor(m_responseHeaderKey));
+        keyCol.setHeaderValue("Key");
+        m_responseHeaders.getColumnModel().addColumn(keyCol);
+        m_responseHeaders.getColumnModel()
+            .addColumn(new TableColumn(1, 67, new DefaultTableCellRenderer() {
+                private static final long serialVersionUID = 8685506970523457593L;
+
+                /**
+                 * {@inheritDoc}
+                 */
+                @Override
+                public Component getTableCellRendererComponent(final JTable table, final Object value, final boolean isSelected,
+                    final boolean hasFocus, final int row, final int column) {
+                    final Component orig = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+                    if (value instanceof Pair<?, ?>) {
+                        Pair<?, ?> rawPair = (Pair<?, ?>)value;
+                        Object firstObject = rawPair.getFirst(), secondObject = rawPair.getSecond();
+                        if (firstObject instanceof String) {
+                            String colName = (String)firstObject;
+                            setText(colName);
+                            if (secondObject instanceof DataType) {
+                                DataType type = (DataType)secondObject;
+                                setIcon(type.getIcon());
+                            }
+                        }
+                    }
+                    return orig;
+                }
+            }, new DefaultCellEditor(m_responseColumnName) {
+                /**
+                 * {@inheritDoc}
+                 */
+                @Override
+                public Object getCellEditorValue() {
+                    final Object orig = super.getCellEditorValue();
+                    if (orig instanceof Pair<?, ?>) {
+                        Pair<?, ?> pairRaw = (Pair<?, ?>)orig;
+                        if (pairRaw.getFirst() instanceof String) {
+                            String first = (String)pairRaw.getFirst();
+                            return first;
+                        }
+                    }
+                    return orig;
+                }
+
+                /**
+                 * {@inheritDoc}
+                 */
+                @Override
+                public Component getTableCellEditorComponent(final JTable table, final Object value, final boolean isSelected, final int row,
+                    final int column) {
+                    if (value instanceof Pair<?, ?>) {
+                        Pair<?, ?> pairRaw = (Pair<?, ?>)value;
+                        return super.getTableCellEditorComponent(table, pairRaw.getFirst(), isSelected, row, column);
+                    }
+                    return super.getTableCellEditorComponent(table, value, isSelected, row, column);
+                }
+            }));
         m_responseAddRow.addActionListener(e -> m_responseHeadersModel.newRow());
         m_responseDeleteRow
             .addActionListener(e -> m_responseHeadersModel.removeRow(m_responseHeaders.getSelectedRow()));
@@ -529,6 +604,16 @@ final class RestGetNodeDialog extends NodeDialogPane {
         body.add(new JLabel("Body column: "));
         body.add(m_bodyColumnName);
         ret.add(body, gbc);
+
+        m_responseHeaders.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(final MouseEvent e) {
+                if (e.getClickCount() == 2) {
+                    editResponseHeader(m_responseHeaders.getSelectedRow());
+                }
+            }
+        });
+
         return ret;
     }
 

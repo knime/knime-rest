@@ -206,7 +206,7 @@ class RequestTableModel extends AbstractTableModel implements Iterable<RequestHe
      */
     @Override
     public boolean isCellEditable(final int rowIndex, final int columnIndex) {
-        return columnIndex == 0;
+        return true;
     }
 
     void addRow(final RequestHeaderKeyItem setting) {
