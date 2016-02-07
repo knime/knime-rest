@@ -182,6 +182,7 @@ class RestGetNodeModel extends NodeModel {
     @Override
     protected BufferedDataTable[] execute(final BufferedDataTable[] inData, final ExecutionContext exec)
         throws CanceledExecutionException, InvalidSettingsException {
+        //TODO can we use dependency injection here? http://www.vogella.com/tutorials/EclipseExtensionPoint/article.html
         //        m_binaryObjectCellFactory = new BinaryObjectCellFactory(exec);
         createResponseBodyParsers(exec);
         if (inData.length > 0 && inData[0] != null) {
