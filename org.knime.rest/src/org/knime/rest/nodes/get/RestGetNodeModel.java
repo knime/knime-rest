@@ -69,6 +69,10 @@ import javax.ws.rs.ext.RuntimeDelegate;
 
 import org.apache.cxf.jaxrs.client.spec.ClientBuilderImpl;
 import org.apache.cxf.jaxrs.impl.RuntimeDelegateImpl;
+import org.eclipse.core.runtime.CoreException;
+import org.eclipse.core.runtime.IConfigurationElement;
+import org.eclipse.core.runtime.Platform;
+import org.eclipse.e4.core.di.annotations.Execute;
 import org.knime.base.data.xml.SvgCell;
 import org.knime.core.data.DataCell;
 import org.knime.core.data.DataCellFactory;
@@ -109,6 +113,7 @@ import org.knime.core.node.streamable.OutputPortRole;
 import org.knime.core.node.util.CheckUtils;
 import org.knime.core.util.Pair;
 import org.knime.core.util.UniqueNameGenerator;
+import org.knime.rest.generic.EachRequestAuthentication;
 import org.knime.rest.generic.ResponseBodyParser;
 import org.knime.rest.generic.ResponseBodyParser.Default;
 import org.knime.rest.nodes.get.RestGetSettings.RequestHeaderKeyItem;
@@ -156,6 +161,9 @@ class RestGetNodeModel extends NodeModel {
 
     };
 
+//    @Inject
+//    private IExtensionRegistry m_extensionRegistry;
+
     /**
      *
      */
@@ -179,9 +187,24 @@ class RestGetNodeModel extends NodeModel {
      *
      * @throws InvalidSettingsException
      */
+    @Execute
     @Override
     protected BufferedDataTable[] execute(final BufferedDataTable[] inData, final ExecutionContext exec)
         throws CanceledExecutionException, InvalidSettingsException {
+        //m_extensionRegistry.getConfigurationElementsFor("");
+        IConfigurationElement[] elements = Platform.getExtensionRegistry().getConfigurationElementsFor("org.knime.rest.authentication");
+        for (IConfigurationElement configurationElement : elements) {
+            System.out.println(configurationElement.getAttribute("class"));
+            try {
+                Object object = configurationElement.createExecutableExtension("class");
+                if (object instanceof EachRequestAuthentication) {
+                    EachRequestAuthentication era = (EachRequestAuthentication)object;
+                    System.out.println(era);
+                }
+            } catch (CoreException e) {
+                // TODO Auto-generated catch block
+            }
+        }
         //TODO can we use dependency injection here? http://www.vogella.com/tutorials/EclipseExtensionPoint/article.html
         //        m_binaryObjectCellFactory = new BinaryObjectCellFactory(exec);
         createResponseBodyParsers(exec);
