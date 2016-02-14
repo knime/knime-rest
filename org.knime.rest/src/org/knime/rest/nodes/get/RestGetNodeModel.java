@@ -69,9 +69,6 @@ import javax.ws.rs.ext.RuntimeDelegate;
 
 import org.apache.cxf.jaxrs.client.spec.ClientBuilderImpl;
 import org.apache.cxf.jaxrs.impl.RuntimeDelegateImpl;
-import org.eclipse.core.runtime.CoreException;
-import org.eclipse.core.runtime.IConfigurationElement;
-import org.eclipse.core.runtime.Platform;
 import org.eclipse.e4.core.di.annotations.Execute;
 import org.knime.base.data.xml.SvgCell;
 import org.knime.core.data.DataCell;
@@ -161,8 +158,8 @@ class RestGetNodeModel extends NodeModel {
 
     };
 
-//    @Inject
-//    private IExtensionRegistry m_extensionRegistry;
+    //    @Inject
+    //    private IExtensionRegistry m_extensionRegistry;
 
     /**
      *
@@ -191,21 +188,10 @@ class RestGetNodeModel extends NodeModel {
     @Override
     protected BufferedDataTable[] execute(final BufferedDataTable[] inData, final ExecutionContext exec)
         throws CanceledExecutionException, InvalidSettingsException {
-        //m_extensionRegistry.getConfigurationElementsFor("");
-        IConfigurationElement[] elements = Platform.getExtensionRegistry().getConfigurationElementsFor("org.knime.rest.authentication");
-        for (IConfigurationElement configurationElement : elements) {
-            System.out.println(configurationElement.getAttribute("class"));
-            try {
-                Object object = configurationElement.createExecutableExtension("class");
-                if (object instanceof EachRequestAuthentication) {
-                    EachRequestAuthentication era = (EachRequestAuthentication)object;
-                    System.out.println(era);
-                }
-            } catch (CoreException e) {
-                // TODO Auto-generated catch block
-            }
-        }
-        //TODO can we use dependency injection here? http://www.vogella.com/tutorials/EclipseExtensionPoint/article.html
+        final List<EachRequestAuthentication> enabledEachRequestAuthentications =
+            m_settings.getAuthorizationConfigurations().parallelStream()
+                .filter(euc -> euc.isEnabled() && euc.getUserConfiguration() instanceof EachRequestAuthentication)
+                .map(euc -> (EachRequestAuthentication)euc.getUserConfiguration()).collect(Collectors.toList());
         //        m_binaryObjectCellFactory = new BinaryObjectCellFactory(exec);
         createResponseBodyParsers(exec);
         if (inData.length > 0 && inData[0] != null) {
@@ -215,26 +201,27 @@ class RestGetNodeModel extends NodeModel {
             }
             final DataTableSpec spec = inData[0].getDataTableSpec();
             try (final CloseableRowIterator iterator = inData[0].iterator()) {
-                makeFirstCall(iterator.next(), spec, exec);
+                makeFirstCall(iterator.next(), enabledEachRequestAuthentications, spec, exec);
             }
             m_consumedRows = 1L;
-            final ColumnRearranger rearranger = createColumnRearranger(spec, exec, inData[0].size());
+            final ColumnRearranger rearranger = createColumnRearranger(enabledEachRequestAuthentications, spec, exec, inData[0].size());
             return new BufferedDataTable[]{exec.createColumnRearrangeTable(inData[0], rearranger, exec)};
         }
-        makeFirstCall(null/*row*/, null/*spec*/, exec);
+        makeFirstCall(null/*row*/, enabledEachRequestAuthentications, null/*spec*/, exec);
         return createTableFromFirstCallData(exec);
     }
 
     /**
      * @param row
+     * @param enabledEachRequestAuthentications
      * @param spec
      * @param exec
      */
-    private void makeFirstCall(final DataRow row, final DataTableSpec spec, final ExecutionContext exec) {
+    private void makeFirstCall(final DataRow row, final List<EachRequestAuthentication> enabledEachRequestAuthentications, final DataTableSpec spec, final ExecutionContext exec) {
         m_firstRow = row.getKey();
         final UniqueNameGenerator nameGenerator = new UniqueNameGenerator(spec == null ? new DataTableSpec() : spec);
         final Response response =
-            createRequest(spec == null ? -1 : spec.findColumnIndex(m_settings.getUriColumn()), row, spec).buildGet()
+            createRequest(spec == null ? -1 : spec.findColumnIndex(m_settings.getUriColumn()), enabledEachRequestAuthentications, row, spec).buildGet()
                 .invoke();
         final List<DataCell> cells;
         final List<DataColumnSpec> specs = new ArrayList<>();
@@ -386,7 +373,7 @@ class RestGetNodeModel extends NodeModel {
         return new OutputPortRole[]{OutputPortRole.NONDISTRIBUTED};
     }
 
-    private ColumnRearranger createColumnRearranger(final DataTableSpec spec, final ExecutionMonitor exec,
+    private ColumnRearranger createColumnRearranger(final List<EachRequestAuthentication> enabledEachRequestAuthentications, final DataTableSpec spec, final ExecutionMonitor exec,
         final long tableSize) throws InvalidSettingsException {
         final ColumnRearranger rearranger = new ColumnRearranger(spec);
         final DataColumnSpec[] newColumns = createNewColumnsSpec();
@@ -398,7 +385,7 @@ class RestGetNodeModel extends NodeModel {
                     return m_firstCallValues;
                 }
                 assert m_consumedRows > 0;
-                final Builder request = createRequest(uriColumn, row, spec);
+                final Builder request = createRequest(uriColumn, enabledEachRequestAuthentications, row, spec);
                 final List<DataCell> cells;
                 try {
                     final Response response = request.buildGet().invoke();
@@ -550,11 +537,12 @@ class RestGetNodeModel extends NodeModel {
 
     /**
      * @param uriColumn
+     * @param enabledEachRequestAuthentications
      * @param row
      * @return
      */
     @SuppressWarnings("null")
-    private Builder createRequest(final int uriColumn, final DataRow row, final DataTableSpec spec) {
+    private Builder createRequest(final int uriColumn, final List<EachRequestAuthentication> enabledEachRequestAuthentications, final DataRow row, final DataTableSpec spec) {
         final Client client = createClient();
         CheckUtils.checkState(m_settings.isUseConstantURI() || row != null,
             "Without the constant uri and input, it is not possible to call a REST service!");
@@ -564,6 +552,9 @@ class RestGetNodeModel extends NodeModel {
                 : ((StringValue)row.getCell(uriColumn)).getStringValue());
 
         final Builder request = target.request();
+        for (final EachRequestAuthentication era : enabledEachRequestAuthentications) {
+            era.updateRequest(request, row, getCredentialsProvider());
+        }
         for (final RequestHeaderKeyItem headerItem : m_settings.getRequestHeaders()) {
             Object value;
             switch (headerItem.getKind()) {

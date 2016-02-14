@@ -42,86 +42,48 @@
  *  may freely choose the license terms applicable to such Node, including
  *  when such Node is propagated with or for interoperation with KNIME.
  * ---------------------------------------------------------------------
- * 
+ *
  * History
  *   2016. febr. 10. (Gabor Bakos): created
  */
 package org.knime.rest.internals;
 
-import javax.swing.JPanel;
-import javax.ws.rs.core.Request;
+import javax.ws.rs.client.Invocation.Builder;
 
 import org.knime.core.data.DataRow;
-import org.knime.core.node.config.ConfigRO;
-import org.knime.core.node.config.ConfigWO;
-import org.knime.core.node.port.PortObjectSpec;
+import org.knime.core.node.workflow.CredentialsProvider;
 import org.knime.rest.generic.EachRequestAuthentication;
 
 /**
- * 
+ *
  * @author Gabor Bakos
  */
-public class BasicAuthentication implements EachRequestAuthentication {
-
+public class BasicAuthentication extends UsernamePasswordAuthentication implements EachRequestAuthentication {
     /**
-     * 
+     *
      */
     public BasicAuthentication() {
-        // TODO Auto-generated constructor stub
+        super("BASIC auth");
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public boolean hasUserConfiguration() {
-        // TODO Auto-generated method stub
-        return false;
+    public Builder updateRequest(final Builder request, final DataRow row, final CredentialsProvider credProvider) {
+        final String username =  isUseCredentials() ? credProvider.get(getCredential()).getLogin() : getUsername();
+        final String password = isUseCredentials() ? credProvider.get(getCredential()).getPassword() : getPassword();
+        request.header("Authorization", "Basic "
+                + org.apache.cxf.common.util.Base64Utility.encode((username + ":" + password).getBytes()));
+        return request;
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void saveUserConfiguration(ConfigWO userSettings) {
-        // TODO Auto-generated method stub
-
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public void loadUserConfiguration(ConfigRO userSettings) {
-        // TODO Auto-generated method stub
-
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public void loadUserConfigurationForDialog(ConfigRO userSettings, PortObjectSpec[] specs) {
-        // TODO Auto-generated method stub
-
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public void addControls(JPanel panel) {
-        // TODO Auto-generated method stub
-
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public Request updateRequest(Request request, DataRow row) {
-        // TODO Auto-generated method stub
-        return null;
+    public String id() {
+        return "Basic";
     }
 
 }

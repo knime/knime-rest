@@ -44,31 +44,57 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   7. Febr. 2016. (Gabor Bakos): created
+ *   2016. febr. 14. (Gabor Bakos): created
  */
-package org.knime.rest.generic;
+package org.knime.rest.nodes.get;
 
-import java.util.Collection;
-
-import javax.swing.JPanel;
-
-import org.knime.core.node.InvalidSettingsException;
-import org.knime.core.node.config.base.ConfigBaseRO;
-import org.knime.core.node.config.base.ConfigBaseWO;
-import org.knime.core.node.port.PortObjectSpec;
+import org.knime.rest.generic.UserConfiguration;
 
 /**
- * User configuration options on the dialog.
  *
  * @author Gabor Bakos
+ * @param <Type> The {@link UserConfiguration} type.
  */
-public interface UserConfiguration {
-    boolean hasUserConfiguration();
-    void saveUserConfiguration(ConfigBaseWO userSettings);
-    void loadUserConfiguration(ConfigBaseRO userSettings) throws InvalidSettingsException;
-    void loadUserConfigurationForDialog(ConfigBaseRO userSettings, PortObjectSpec[] specs, final Collection<String> credentialNames);
-    void addControls(JPanel panel);
-    void enableControls();
-    void disableControls();
-    String id();
+public class EnablableUserConfiguration<Type extends UserConfiguration> {
+    private final Type m_userConfiguration;
+    private boolean m_enabled = false;
+
+    /**
+     * @param type The wrapped {@link UserConfiguration}.
+     */
+    public EnablableUserConfiguration(final Type type) {
+        m_userConfiguration = type;
+    }
+
+    /**
+     * @return the enabled
+     */
+    public boolean isEnabled() {
+        return m_enabled;
+    }
+
+    /**
+     * @param enabled the enabled to set
+     */
+    public void setEnabled(final boolean enabled) {
+        m_enabled = enabled;
+    }
+
+    /**
+     * @return the userConfiguration
+     */
+    public Type getUserConfiguration() {
+        return m_userConfiguration;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public String toString() {
+        return m_userConfiguration + " (" + m_enabled
+            + ")";
+    }
+
+
 }

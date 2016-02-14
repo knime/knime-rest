@@ -62,6 +62,8 @@ import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
@@ -80,10 +82,12 @@ import javax.swing.JPanel;
 import javax.swing.JRadioButton;
 import javax.swing.JScrollPane;
 import javax.swing.JSpinner;
+import javax.swing.JTabbedPane;
 import javax.swing.JTable;
 import javax.swing.JTextField;
 import javax.swing.KeyStroke;
 import javax.swing.SpinnerNumberModel;
+import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
 import javax.swing.border.TitledBorder;
 import javax.swing.event.DocumentEvent;
@@ -106,6 +110,7 @@ import org.knime.core.node.NotConfigurableException;
 import org.knime.core.node.util.ColumnSelectionPanel;
 import org.knime.core.node.util.StringHistoryPanel;
 import org.knime.core.util.Pair;
+import org.knime.rest.generic.UserConfiguration;
 import org.knime.rest.nodes.get.RestGetSettings.ParameterKind;
 import org.knime.rest.nodes.get.RestGetSettings.ReferenceType;
 
@@ -172,6 +177,8 @@ final class RestGetNodeDialog extends NodeDialogPane {
 
     private JComboBox<DataType> m_responseValueType =
         new JComboBox<DataType>(new DataType[]{StringCell.TYPE, IntCell.TYPE});
+
+    private List<JCheckBox> m_authenticationTabTitles = new ArrayList<>();
 
     /**
      *
@@ -435,8 +442,34 @@ final class RestGetNodeDialog extends NodeDialogPane {
      * @return
      */
     private JPanel createAuthenticationTab() {
-        //TODO
         final JPanel ret = new JPanel();
+        final JTabbedPane tabs = new JTabbedPane(SwingConstants.TOP, JTabbedPane.WRAP_TAB_LAYOUT);
+        for (final EnablableUserConfiguration<UserConfiguration> euc : m_settings.getAuthorizationConfigurations()) {
+            final JPanel tabPanel = new JPanel(), tabTitlePanel = new JPanel(new FlowLayout(FlowLayout.LEADING));
+            final JScrollPane scrollPane = new JScrollPane(tabPanel);
+            tabs.addTab("", scrollPane);
+            final JCheckBox checkBox = new JCheckBox();
+            final UserConfiguration userConfiguration = euc.getUserConfiguration();
+            checkBox.setAction(new AbstractAction() {
+                private static final long serialVersionUID = -8514095622936885670L;
+
+                @Override
+                public void actionPerformed(final ActionEvent e) {
+                    if (checkBox.isSelected()) {
+                        userConfiguration.enableControls();
+                    } else {
+                        userConfiguration.disableControls();
+                    }
+                }
+            });
+            checkBox.setName(userConfiguration.id());
+            m_authenticationTabTitles.add(checkBox);
+            tabTitlePanel.add(checkBox);
+            tabTitlePanel.add(new JLabel(userConfiguration.id()));
+            tabs.setTabComponentAt(tabs.getTabCount() - 1, tabTitlePanel);
+            userConfiguration.addControls(tabPanel);
+        }
+        ret.add(tabs);
         return ret;
     }
 
@@ -512,61 +545,63 @@ final class RestGetNodeDialog extends NodeDialogPane {
             new TableColumn(0, 67, new DefaultTableCellRenderer(), new DefaultCellEditor(m_responseHeaderKey));
         keyCol.setHeaderValue("Key");
         m_responseHeaders.getColumnModel().addColumn(keyCol);
-        m_responseHeaders.getColumnModel()
-            .addColumn(new TableColumn(1, 67, new DefaultTableCellRenderer() {
-                private static final long serialVersionUID = 8685506970523457593L;
+        m_responseHeaders.getColumnModel().addColumn(new TableColumn(1, 67, new DefaultTableCellRenderer() {
+            private static final long serialVersionUID = 8685506970523457593L;
 
-                /**
-                 * {@inheritDoc}
-                 */
-                @Override
-                public Component getTableCellRendererComponent(final JTable table, final Object value, final boolean isSelected,
-                    final boolean hasFocus, final int row, final int column) {
-                    final Component orig = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
-                    if (value instanceof Pair<?, ?>) {
-                        Pair<?, ?> rawPair = (Pair<?, ?>)value;
-                        Object firstObject = rawPair.getFirst(), secondObject = rawPair.getSecond();
-                        if (firstObject instanceof String) {
-                            String colName = (String)firstObject;
-                            setText(colName);
-                            if (secondObject instanceof DataType) {
-                                DataType type = (DataType)secondObject;
-                                setIcon(type.getIcon());
-                            }
+            /**
+             * {@inheritDoc}
+             */
+            @Override
+            public Component getTableCellRendererComponent(final JTable table, final Object value,
+                final boolean isSelected, final boolean hasFocus, final int row, final int column) {
+                final Component orig =
+                    super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+                if (value instanceof Pair<?, ?>) {
+                    Pair<?, ?> rawPair = (Pair<?, ?>)value;
+                    Object firstObject = rawPair.getFirst(), secondObject = rawPair.getSecond();
+                    if (firstObject instanceof String) {
+                        String colName = (String)firstObject;
+                        setText(colName);
+                        if (secondObject instanceof DataType) {
+                            DataType type = (DataType)secondObject;
+                            setIcon(type.getIcon());
                         }
                     }
-                    return orig;
                 }
-            }, new DefaultCellEditor(m_responseColumnName) {
-                /**
-                 * {@inheritDoc}
-                 */
-                @Override
-                public Object getCellEditorValue() {
-                    final Object orig = super.getCellEditorValue();
-                    if (orig instanceof Pair<?, ?>) {
-                        Pair<?, ?> pairRaw = (Pair<?, ?>)orig;
-                        if (pairRaw.getFirst() instanceof String) {
-                            String first = (String)pairRaw.getFirst();
-                            return first;
-                        }
-                    }
-                    return orig;
-                }
+                return orig;
+            }
+        }, new DefaultCellEditor(m_responseColumnName) {
+            private static final long serialVersionUID = 6989656745155391971L;
 
-                /**
-                 * {@inheritDoc}
-                 */
-                @Override
-                public Component getTableCellEditorComponent(final JTable table, final Object value, final boolean isSelected, final int row,
-                    final int column) {
-                    if (value instanceof Pair<?, ?>) {
-                        Pair<?, ?> pairRaw = (Pair<?, ?>)value;
-                        return super.getTableCellEditorComponent(table, pairRaw.getFirst(), isSelected, row, column);
+            /**
+             * {@inheritDoc}
+             */
+            @Override
+            public Object getCellEditorValue() {
+                final Object orig = super.getCellEditorValue();
+                if (orig instanceof Pair<?, ?>) {
+                    final Pair<?, ?> pairRaw = (Pair<?, ?>)orig;
+                    if (pairRaw.getFirst() instanceof String) {
+                        final String first = (String)pairRaw.getFirst();
+                        return first;
                     }
-                    return super.getTableCellEditorComponent(table, value, isSelected, row, column);
                 }
-            }));
+                return orig;
+            }
+
+            /**
+             * {@inheritDoc}
+             */
+            @Override
+            public Component getTableCellEditorComponent(final JTable table, final Object value,
+                final boolean isSelected, final int row, final int column) {
+                if (value instanceof Pair<?, ?>) {
+                    final Pair<?, ?> pairRaw = (Pair<?, ?>)value;
+                    return super.getTableCellEditorComponent(table, pairRaw.getFirst(), isSelected, row, column);
+                }
+                return super.getTableCellEditorComponent(table, value, isSelected, row, column);
+            }
+        }));
         m_responseAddRow.addActionListener(e -> m_responseHeadersModel.newRow());
         m_responseDeleteRow
             .addActionListener(e -> m_responseHeadersModel.removeRow(m_responseHeaders.getSelectedRow()));
@@ -600,7 +635,7 @@ final class RestGetNodeDialog extends NodeDialogPane {
         gbc.gridx = 0;
         gbc.gridy++;
         gbc.gridwidth = 3;
-        JPanel body = new JPanel(new FlowLayout(FlowLayout.LEADING));
+        final JPanel body = new JPanel(new FlowLayout(FlowLayout.LEADING));
         body.add(new JLabel("Body column: "));
         body.add(m_bodyColumnName);
         ret.add(body, gbc);
@@ -623,6 +658,13 @@ final class RestGetNodeDialog extends NodeDialogPane {
     @Override
     protected void saveSettingsTo(final NodeSettingsWO settings) throws InvalidSettingsException {
         //TODO update settings based on the UI.
+        for (JCheckBox checkBox : m_authenticationTabTitles) {
+            for (final EnablableUserConfiguration<UserConfiguration> euc : m_settings.getAuthorizationConfigurations()) {
+                if (checkBox.getName().equals(euc.getUserConfiguration().id())) {
+                    euc.setEnabled(checkBox.isSelected());
+                }
+            }
+        }
         m_settings.setUseConstantURI(m_constantUriOption.isSelected());
         m_settings.setConstantURI(m_constantUri.getSelectedString());
         m_settings.setUriColumn(m_uriColumn.getSelectedColumn());
@@ -649,7 +691,7 @@ final class RestGetNodeDialog extends NodeDialogPane {
     protected void loadSettingsFrom(final NodeSettingsRO settings, final DataTableSpec[] specs)
         throws NotConfigurableException {
         try {
-            m_settings.loadSettingsForDialog(settings, specs);
+            m_settings.loadSettingsForDialog(settings, getCredentialsNames(), specs);
         } catch (InvalidSettingsException e) {
             throw new NotConfigurableException(e.getMessage(), e);
         }
@@ -674,6 +716,14 @@ final class RestGetNodeDialog extends NodeDialogPane {
         }
         m_bodyColumnName.setSelectedString(m_settings.getResponseBodyColumn());
         m_settings.setResponseBodyColumn(m_bodyColumnName.getSelectedString());
+        for (final EnablableUserConfiguration<UserConfiguration> euc : m_settings.getAuthorizationConfigurations()) {
+            for (final JCheckBox checkBox : m_authenticationTabTitles) {
+                if (checkBox.getName().equals(euc.getUserConfiguration().id())) {
+                    checkBox.setSelected(euc.isEnabled());
+                    checkBox.getAction().actionPerformed(null);
+                }
+            }
+        }
     }
 
     @FunctionalInterface

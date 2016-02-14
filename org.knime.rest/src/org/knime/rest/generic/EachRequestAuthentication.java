@@ -48,9 +48,10 @@
  */
 package org.knime.rest.generic;
 
-import javax.ws.rs.core.Request;
+import javax.ws.rs.client.Invocation.Builder;
 
 import org.knime.core.data.DataRow;
+import org.knime.core.node.workflow.CredentialsProvider;
 
 /**
  * Each request should use the same information for authentication (like
@@ -60,5 +61,6 @@ import org.knime.core.data.DataRow;
  * @author Gabor Bakos
  */
 public interface EachRequestAuthentication extends UserConfiguration {
-    Request updateRequest(Request request, DataRow row);
+    //TODO handle conflicts when conflicting selection is set (like Digest and Basic auth).
+    Builder updateRequest(Builder request, DataRow row, CredentialsProvider credProvider);
 }

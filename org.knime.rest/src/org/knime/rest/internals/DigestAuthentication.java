@@ -44,31 +44,92 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   7. Febr. 2016. (Gabor Bakos): created
+ *   2016. febr. 10. (Gabor Bakos): created
  */
-package org.knime.rest.generic;
+package org.knime.rest.internals;
 
-import java.util.Collection;
+import java.awt.GridBagConstraints;
 
+import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.JTextField;
+import javax.ws.rs.client.Invocation.Builder;
 
-import org.knime.core.node.InvalidSettingsException;
-import org.knime.core.node.config.base.ConfigBaseRO;
-import org.knime.core.node.config.base.ConfigBaseWO;
-import org.knime.core.node.port.PortObjectSpec;
+import org.apache.cxf.configuration.security.AuthorizationPolicy;
+import org.apache.cxf.transport.http.auth.DigestAuthSupplier;
+import org.knime.core.data.DataRow;
+import org.knime.core.node.workflow.CredentialsProvider;
+import org.knime.rest.generic.EachRequestAuthentication;
 
 /**
- * User configuration options on the dialog.
  *
  * @author Gabor Bakos
  */
-public interface UserConfiguration {
-    boolean hasUserConfiguration();
-    void saveUserConfiguration(ConfigBaseWO userSettings);
-    void loadUserConfiguration(ConfigBaseRO userSettings) throws InvalidSettingsException;
-    void loadUserConfigurationForDialog(ConfigBaseRO userSettings, PortObjectSpec[] specs, final Collection<String> credentialNames);
-    void addControls(JPanel panel);
-    void enableControls();
-    void disableControls();
-    String id();
+public class DigestAuthentication extends UsernamePasswordAuthentication implements EachRequestAuthentication {
+    private JLabel m_realmLabel = new JLabel("Realm:");
+
+    private JTextField m_realm = new JTextField(22);
+
+    /**
+     *
+     */
+    public DigestAuthentication() {
+        super("Digest auth");
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public Builder updateRequest(final Builder request, final DataRow row, final CredentialsProvider credProvider) {
+        final AuthorizationPolicy authPolicy = new AuthorizationPolicy();
+        authPolicy.setUserName(getUsername());
+        authPolicy.setPassword(getPassword());
+        request.header("Authorization",
+            new DigestAuthSupplier().getAuthorization(authPolicy, null/*uri*/, null/*message*/, null/*fullHeader*/));
+        return request;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void addControls(final JPanel panel) {
+        super.addControls(panel);
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.gridx = 0;
+        gbc.gridy = 4;
+        panel.add(m_realmLabel, gbc);
+        gbc.gridx++;
+        panel.add(m_realm, gbc);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void disableControls() {
+        super.disableControls();
+        m_realmLabel.setEnabled(false);
+        m_realm.setEnabled(false);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void enableControls() {
+        super.enableControls();
+        m_realmLabel.setEnabled(true);
+        m_realm.setEnabled(true);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public String id() {
+        return "Digest";
+    }
+
 }

@@ -16,5 +16,10 @@
              deprecated="false"
              supportsDistributedExecution="true">
        </AuthenticateEachRequest>
+       <AuthenticateEachRequest
+             class="org.knime.rest.internals.DigestAuthentication"
+             deprecated="false"
+             supportsDistributedExecution="true">
+       </AuthenticateEachRequest>
     </extension>
 </plugin>

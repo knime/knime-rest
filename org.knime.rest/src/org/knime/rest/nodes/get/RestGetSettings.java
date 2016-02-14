@@ -50,125 +50,176 @@ package org.knime.rest.nodes.get;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
+import org.eclipse.core.runtime.CoreException;
+import org.eclipse.core.runtime.IConfigurationElement;
+import org.eclipse.core.runtime.Platform;
 import org.knime.core.data.DataTableSpec;
 import org.knime.core.data.DataType;
 import org.knime.core.data.def.IntCell;
 import org.knime.core.data.def.StringCell;
 import org.knime.core.node.InvalidSettingsException;
+import org.knime.core.node.NodeLogger;
 import org.knime.core.node.config.ConfigRO;
 import org.knime.core.node.config.ConfigWO;
+import org.knime.core.node.config.base.ConfigBase;
 import org.knime.core.node.util.CheckUtils;
+import org.knime.rest.generic.UserConfiguration;
 
 /**
  * Node settings for the GET REST node.
+ *
  * @author Gabor Bakos
  */
 final class RestGetSettings {
+    static final String EXTENSION_ID = "org.knime.rest.authentication";
+
+    private static final NodeLogger LOGGER = NodeLogger.getLogger(RestGetSettings.class);
+
     /**
      *
      */
     enum ParameterKind {
-            Header,
-            Body,
-            Path
+            Header, Body, Path
     }
 
     private static final String USE_CONSTANT_URI = "Use constant URI";
+
     private static final boolean DEFAULT_USE_CONSTANT_URI = true;
+
     private static final String CONSTANT_URI = "Constant URI";
+
     private static final String DEFAULT_CONSTANT_URI = "https://www.google.com";
+
     private static final String URI_COLUMN = "URI column";
+
     private static final String DEFAULT_URI_COLUMN = "URI";
+
     private static final String USE_DELAY = "delay_enabled";
+
     private static final boolean DEFAULT_USE_DELAY = false;
+
     private static final String DELAY = "delay";
+
     private static final long DEFAULT_DELAY = 0L;
+
     private static final String CONCURRENCY = "concurrency";
+
     private static final int DEFAULT_CONCURRENCY = 1;
+
     private static final String SSL_IGNORE_HOSTNAME_ERRORS = "SSL ignore hostname errors";
+
     private static final boolean DEFAULT_IGNORE_HOSTNAME_ERRORS = false;
+
     private static final String SSL_TRUST_ALL = "SSL trust all";
+
     private static final boolean DEFAULT_SSL_TRUST_ALL = false;
+
     private static final String REQUEST_HEADER_KEYS = "Request header keys";
+
     private static final String REQUEST_HEADER_KEY_SELECTOR = "Request header key selector";
+
     private static final String REQUEST_HEADER_KEY_KIND = "Request header key kind";
-    private static final List<RequestHeaderKeyItem> DEFAULT_REQUEST_HEADER_KEY_ITEMS = Collections.unmodifiableList(Arrays.asList());
+
+    private static final List<RequestHeaderKeyItem> DEFAULT_REQUEST_HEADER_KEY_ITEMS =
+        Collections.unmodifiableList(Arrays.asList());
+
     private static final String EXTRACT_ALL_RESPONSE_FIELDS = "Extract all response fields";
+
     private static final boolean DEFAULT_EXTRACT_ALL_RESPONSE_FIELDS = false;
+
     private static final String RESPONSE_HEADER_KEYS = "Response header keys";
+
     //private static final String RESPONSE_HEADER_VALUE_TYPE = "Response header value type";
     private static final String RESPONSE_HEADER_COLUMN_NAME = "Response header column name";
-    private static final List<ResponseHeaderItem> DEFAULT_RESPONSE_HEADER_ITEMS = Collections.unmodifiableList(Arrays.asList(
-        new ResponseHeaderItem("Status", IntCell.TYPE),
-        new ResponseHeaderItem("Content-Type", "Content type")
-        ));
+
+    private static final List<ResponseHeaderItem> DEFAULT_RESPONSE_HEADER_ITEMS =
+        Collections.unmodifiableList(Arrays.asList(new ResponseHeaderItem("Status", IntCell.TYPE),
+            new ResponseHeaderItem("Content-Type", "Content type")));
+
     private static final String BODY_COLUMN_NAME = "Body column name";
+
     private static final String DEFAULT_BODY_COLUMN_NAME = "body";
+
+    private static final String ENABLED_SUFFIX = "_enabled";
+
     //The column or the actual constant URI
     private boolean m_isUseConstantURI = DEFAULT_USE_CONSTANT_URI;
+
     private String m_constantURI = DEFAULT_CONSTANT_URI;
+
     private String m_uriColumn = DEFAULT_URI_COLUMN;
 
     private boolean m_useDelay = DEFAULT_USE_DELAY;
+
     private long m_delay = DEFAULT_DELAY;
 
     private int m_concurrency = DEFAULT_CONCURRENCY;
 
     private boolean m_sslIgnoreHostNameErrors = DEFAULT_IGNORE_HOSTNAME_ERRORS;
+
     private boolean m_sslTrustAll = DEFAULT_SSL_TRUST_ALL;
 
     //Request
     enum ReferenceType {
-        Constant, FlowVariable, Column;
+            Constant, FlowVariable, Column;
     }
 
     static class RequestHeaderKeyItem/*<InputType extends DataValue>*/ {
         private final String m_key;
+
         private final String m_valueReference;
+
         private final ReferenceType m_kind;
+
         //private final Function<InputType, String> m_conversionFunction;
         private final ParameterKind m_parameterKind = ParameterKind.Header;
+
         /**
          * @param key
          * @param valueReference
          * @param kind
          * @param conversionFunction
          */
-        RequestHeaderKeyItem(final String key, final String valueReference, final ReferenceType kind/*,
-            final Function<InputType, String> conversionFunction*/) {
+        RequestHeaderKeyItem(final String key, final String valueReference,
+            final ReferenceType kind/*,
+                                    final Function<InputType, String> conversionFunction*/) {
             super();
             m_key = key;
             m_valueReference = valueReference;
             m_kind = kind;
-//            m_conversionFunction = conversionFunction;
+            //            m_conversionFunction = conversionFunction;
         }
+
         /**
          * @return the key
          */
         final String getKey() {
             return m_key;
         }
+
         /**
          * @return the valueReference
          */
         final String getValueReference() {
             return m_valueReference;
         }
+
         /**
          * @return the kind
          */
         final ReferenceType getKind() {
             return m_kind;
         }
-//        /**
-//         * @return the conversionFunction
-//         */
-//        final Function<InputType, String> getConversionFunction() {
-//            return m_conversionFunction;
-//        }
+        //        /**
+        //         * @return the conversionFunction
+        //         */
+        //        final Function<InputType, String> getConversionFunction() {
+        //            return m_conversionFunction;
+        //        }
 
         /**
          * @return the parameterKind
@@ -176,15 +227,16 @@ final class RestGetSettings {
         ParameterKind getParameterKind() {
             return m_parameterKind;
         }
+
         /**
          * {@inheritDoc}
          */
         @Override
         public String toString() {
-            return String.format(
-                "[key=%s, valueReference=%s, kind=%s]", m_key,
-                m_valueReference, m_kind/*, m_conversionFunction*/);
+            return String.format("[key=%s, valueReference=%s, kind=%s]", m_key, m_valueReference,
+                m_kind/*, m_conversionFunction*/);
         }
+
         /**
          * {@inheritDoc}
          */
@@ -197,6 +249,7 @@ final class RestGetSettings {
             result = prime * result + ((m_valueReference == null) ? 0 : m_valueReference.hashCode());
             return result;
         }
+
         /**
          * {@inheritDoc}
          */
@@ -240,8 +293,11 @@ final class RestGetSettings {
 
     static class ResponseHeaderItem {
         private final String m_headerKey;
+
         private final DataType m_type;
+
         private final String m_outputColumnName;
+
         /**
          * @param headerKey
          * @param type
@@ -253,6 +309,7 @@ final class RestGetSettings {
             m_type = type;
             m_outputColumnName = outputColumnName;
         }
+
         /**
          * @param headerKey
          * @param outputColumnName
@@ -260,6 +317,7 @@ final class RestGetSettings {
         ResponseHeaderItem(final String headerKey, final String outputColumnName) {
             this(headerKey, "Status".equals(headerKey) ? IntCell.TYPE : StringCell.TYPE, outputColumnName);
         }
+
         /**
          * @param headerKey
          * @param type
@@ -267,38 +325,44 @@ final class RestGetSettings {
         ResponseHeaderItem(final String headerKey, final DataType type) {
             this(headerKey, type, headerKey);
         }
+
         /**
          * @param headerKey
          */
         ResponseHeaderItem(final String headerKey) {
             this(headerKey, headerKey);
         }
+
         /**
          * @return the headerKey
          */
         String getHeaderKey() {
             return m_headerKey;
         }
+
         /**
          * @return the type
          */
         DataType getType() {
             return m_type;
         }
+
         /**
          * @return the outputColumnName
          */
         String getOutputColumnName() {
             return m_outputColumnName;
         }
+
         /**
          * {@inheritDoc}
          */
         @Override
         public String toString() {
-            return String.format("[headerKey=%s, type=%s, outputColumnName=%s]", m_headerKey,
-                m_type, m_outputColumnName);
+            return String.format("[headerKey=%s, type=%s, outputColumnName=%s]", m_headerKey, m_type,
+                m_outputColumnName);
         }
+
         /**
          * {@inheritDoc}
          */
@@ -311,6 +375,7 @@ final class RestGetSettings {
             result = prime * result + ((m_type == null) ? 0 : m_type.hashCode());
             return result;
         }
+
         /**
          * {@inheritDoc}
          */
@@ -352,6 +417,7 @@ final class RestGetSettings {
     }
 
     private final List<ResponseHeaderItem> m_extractFields = new ArrayList<>();
+
     {
         m_extractFields.add(new ResponseHeaderItem("Status", IntCell.TYPE, "Status"));
         m_extractFields.add(new ResponseHeaderItem("Content-Type", StringCell.TYPE, "Content type"));
@@ -359,10 +425,26 @@ final class RestGetSettings {
 
     private String m_responseBodyColumn = DEFAULT_BODY_COLUMN_NAME;
 
+    private List<EnablableUserConfiguration<UserConfiguration>> m_authorizationConfigurations = new ArrayList<>();
+
     /**
      *
      */
     RestGetSettings() {
+        IConfigurationElement[] configurationElements =
+            Platform.getExtensionRegistry().getConfigurationElementsFor(EXTENSION_ID);
+
+        for (final IConfigurationElement configurationElement : configurationElements) {
+            try {
+                final Object object = configurationElement.createExecutableExtension("class");
+                if (object instanceof UserConfiguration) {
+                    final UserConfiguration uc = (UserConfiguration)object;
+                    m_authorizationConfigurations.add(new EnablableUserConfiguration<UserConfiguration>(uc));
+                }
+            } catch (CoreException e) {
+                LOGGER.warn("Failed to load: " + configurationElement.getName(), e);
+            }
+        }
     }
 
     /**
@@ -519,6 +601,13 @@ final class RestGetSettings {
         m_responseBodyColumn = responseBodyColumn;
     }
 
+    /**
+     * @return the authorizationConfigurations
+     */
+    public List<EnablableUserConfiguration<UserConfiguration>> getAuthorizationConfigurations() {
+        return Collections.unmodifiableList(m_authorizationConfigurations);
+    }
+
     void saveSettings(final ConfigWO settings) {
         settings.addBoolean(USE_CONSTANT_URI, m_isUseConstantURI);
         settings.addString(CONSTANT_URI, m_constantURI);
@@ -528,14 +617,25 @@ final class RestGetSettings {
         settings.addInt(CONCURRENCY, m_concurrency);
         settings.addBoolean(SSL_IGNORE_HOSTNAME_ERRORS, m_sslIgnoreHostNameErrors);
         settings.addBoolean(SSL_TRUST_ALL, m_sslTrustAll);
-        settings.addStringArray(REQUEST_HEADER_KEYS, m_requestHeaders.stream().map(rh -> rh.getKey()).toArray(n -> new String[n]));
-        settings.addStringArray(REQUEST_HEADER_KEY_SELECTOR, m_requestHeaders.stream().map(rh -> rh.getValueReference()).toArray(n -> new String[n]));
-        settings.addStringArray(REQUEST_HEADER_KEY_KIND, m_requestHeaders.stream().map(rh -> rh.getKind().name()).toArray(n -> new String[n]));
+        settings.addStringArray(REQUEST_HEADER_KEYS,
+            m_requestHeaders.stream().map(rh -> rh.getKey()).toArray(n -> new String[n]));
+        settings.addStringArray(REQUEST_HEADER_KEY_SELECTOR,
+            m_requestHeaders.stream().map(rh -> rh.getValueReference()).toArray(n -> new String[n]));
+        settings.addStringArray(REQUEST_HEADER_KEY_KIND,
+            m_requestHeaders.stream().map(rh -> rh.getKind().name()).toArray(n -> new String[n]));
         settings.addBoolean(EXTRACT_ALL_RESPONSE_FIELDS, m_extractAllResponseFields);
-        settings.addStringArray(RESPONSE_HEADER_KEYS, m_extractFields.stream().map(rh -> rh.getHeaderKey()).toArray(n -> new String[n]));
+        settings.addStringArray(RESPONSE_HEADER_KEYS,
+            m_extractFields.stream().map(rh -> rh.getHeaderKey()).toArray(n -> new String[n]));
         //settings.addStringArray(RESPONSE_HEADER_VALUE_TYPE, m_extractFields.stream().map(rh -> rh.getType().getName()).toArray(n -> new String[n]));
-        settings.addStringArray(RESPONSE_HEADER_COLUMN_NAME, m_extractFields.stream().map(rh -> rh.getOutputColumnName()).toArray(n -> new String[n]));
+        settings.addStringArray(RESPONSE_HEADER_COLUMN_NAME,
+            m_extractFields.stream().map(rh -> rh.getOutputColumnName()).toArray(n -> new String[n]));
         settings.addString(BODY_COLUMN_NAME, m_responseBodyColumn);
+        for (final EnablableUserConfiguration<UserConfiguration> euc : m_authorizationConfigurations) {
+            final UserConfiguration uc = euc.getUserConfiguration();
+            final ConfigBase configBase = settings.addConfigBase(uc.id());
+            uc.saveUserConfiguration(configBase);
+            settings.addBoolean(uc.id() + ENABLED_SUFFIX, euc.isEnabled());
+        }
     }
 
     void loadSettingsFrom(final ConfigRO settings) throws InvalidSettingsException {
@@ -551,24 +651,42 @@ final class RestGetSettings {
         String[] requestKeys = settings.getStringArray(REQUEST_HEADER_KEYS);
         String[] requestKeySelectors = settings.getStringArray(REQUEST_HEADER_KEY_SELECTOR);
         String[] requestKeyKinds = settings.getStringArray(REQUEST_HEADER_KEY_KIND);
-        CheckUtils.checkSetting(requestKeyKinds.length == requestKeys.length, "Request keys and request key kinds have different lengths: " + requestKeys.length + " <> " + requestKeyKinds.length);
-        CheckUtils.checkSetting(requestKeys.length == requestKeySelectors.length, "Request keys and request key selectors have different lengths: " + requestKeys.length + " <> " + requestKeySelectors.length);
+        CheckUtils.checkSetting(requestKeyKinds.length == requestKeys.length,
+            "Request keys and request key kinds have different lengths: " + requestKeys.length + " <> "
+                + requestKeyKinds.length);
+        CheckUtils.checkSetting(requestKeys.length == requestKeySelectors.length,
+            "Request keys and request key selectors have different lengths: " + requestKeys.length + " <> "
+                + requestKeySelectors.length);
         for (int i = 0; i < requestKeys.length; ++i) {
-            m_requestHeaders.add(new RequestHeaderKeyItem(requestKeys[i], requestKeySelectors[i], ReferenceType.valueOf(requestKeyKinds[i])));
+            m_requestHeaders.add(new RequestHeaderKeyItem(requestKeys[i], requestKeySelectors[i],
+                ReferenceType.valueOf(requestKeyKinds[i])));
         }
 
         m_extractAllResponseFields = settings.getBoolean(EXTRACT_ALL_RESPONSE_FIELDS);
         m_extractFields.clear();
         String[] responseKeys = settings.getStringArray(RESPONSE_HEADER_KEYS);
         String[] responseColumns = settings.getStringArray(RESPONSE_HEADER_COLUMN_NAME);
-        CheckUtils.checkSetting(responseKeys.length == responseColumns.length, "Response header keys and output columns for them have different lengths: " + responseKeys.length + " <> " + responseColumns.length);
+        CheckUtils.checkSetting(responseKeys.length == responseColumns.length,
+            "Response header keys and output columns for them have different lengths: " + responseKeys.length + " <> "
+                + responseColumns.length);
         for (int i = 0; i < responseKeys.length; ++i) {
             m_extractFields.add(new ResponseHeaderItem(responseKeys[i], responseColumns[i]));
         }
         m_responseBodyColumn = settings.getString(BODY_COLUMN_NAME);
+        for (final EnablableUserConfiguration<UserConfiguration> euc : m_authorizationConfigurations) {
+            final UserConfiguration uc = euc.getUserConfiguration();
+            euc.setEnabled(settings.getBoolean(uc.id() + ENABLED_SUFFIX, false));
+            try {
+                final ConfigBase base = settings.getConfigBase(uc.id());
+                uc.loadUserConfiguration(base);
+            } catch (InvalidSettingsException e) {
+                LOGGER.warn("", e);
+            }
+        }
     }
 
-    void loadSettingsForDialog(final ConfigRO settings, final DataTableSpec... specs) throws InvalidSettingsException {
+    void loadSettingsForDialog(final ConfigRO settings, final Collection<String> credentialNames,
+        final DataTableSpec... specs) throws InvalidSettingsException {
         m_isUseConstantURI = settings.getBoolean(USE_CONSTANT_URI, DEFAULT_USE_CONSTANT_URI);
         m_constantURI = settings.getString(CONSTANT_URI, DEFAULT_CONSTANT_URI);
         m_uriColumn = settings.getString(URI_COLUMN, DEFAULT_URI_COLUMN);
@@ -578,23 +696,47 @@ final class RestGetSettings {
         m_sslIgnoreHostNameErrors = settings.getBoolean(SSL_IGNORE_HOSTNAME_ERRORS, DEFAULT_IGNORE_HOSTNAME_ERRORS);
         m_sslTrustAll = settings.getBoolean(SSL_TRUST_ALL, DEFAULT_SSL_TRUST_ALL);
         m_requestHeaders.clear();
-        String[] requestKeys = settings.getStringArray(REQUEST_HEADER_KEYS, DEFAULT_REQUEST_HEADER_KEY_ITEMS.stream().map(RequestHeaderKeyItem::getKey).toArray(n->new String[n]));
-        String[] requestKeySelectors = settings.getStringArray(REQUEST_HEADER_KEY_SELECTOR, DEFAULT_REQUEST_HEADER_KEY_ITEMS.stream().map(RequestHeaderKeyItem::getValueReference).toArray(n -> new String[n]));
-        String[] requestKeyKinds = settings.getStringArray(REQUEST_HEADER_KEY_KIND, DEFAULT_REQUEST_HEADER_KEY_ITEMS.stream().map(RequestHeaderKeyItem::getKind).map(ReferenceType::name).toArray(n->new String[n]));
-        CheckUtils.checkSetting(requestKeyKinds.length == requestKeys.length, "Request keys and request key kinds have different lengths: " + requestKeys.length + " <> " + requestKeyKinds.length);
-        CheckUtils.checkSetting(requestKeys.length == requestKeySelectors.length, "Request keys and request key selectors have different lengths: " + requestKeys.length + " <> " + requestKeySelectors.length);
+        String[] requestKeys = settings.getStringArray(REQUEST_HEADER_KEYS,
+            DEFAULT_REQUEST_HEADER_KEY_ITEMS.stream().map(RequestHeaderKeyItem::getKey).toArray(n -> new String[n]));
+        String[] requestKeySelectors =
+            settings.getStringArray(REQUEST_HEADER_KEY_SELECTOR, DEFAULT_REQUEST_HEADER_KEY_ITEMS.stream()
+                .map(RequestHeaderKeyItem::getValueReference).toArray(n -> new String[n]));
+        String[] requestKeyKinds = settings.getStringArray(REQUEST_HEADER_KEY_KIND, DEFAULT_REQUEST_HEADER_KEY_ITEMS
+            .stream().map(RequestHeaderKeyItem::getKind).map(ReferenceType::name).toArray(n -> new String[n]));
+        CheckUtils.checkSetting(requestKeyKinds.length == requestKeys.length,
+            "Request keys and request key kinds have different lengths: " + requestKeys.length + " <> "
+                + requestKeyKinds.length);
+        CheckUtils.checkSetting(requestKeys.length == requestKeySelectors.length,
+            "Request keys and request key selectors have different lengths: " + requestKeys.length + " <> "
+                + requestKeySelectors.length);
         for (int i = 0; i < requestKeys.length; ++i) {
-            m_requestHeaders.add(new RequestHeaderKeyItem(requestKeys[i], requestKeySelectors[i], ReferenceType.valueOf(requestKeyKinds[i])));
+            m_requestHeaders.add(new RequestHeaderKeyItem(requestKeys[i], requestKeySelectors[i],
+                ReferenceType.valueOf(requestKeyKinds[i])));
         }
 
-        m_extractAllResponseFields = settings.getBoolean(EXTRACT_ALL_RESPONSE_FIELDS, DEFAULT_EXTRACT_ALL_RESPONSE_FIELDS);
+        m_extractAllResponseFields =
+            settings.getBoolean(EXTRACT_ALL_RESPONSE_FIELDS, DEFAULT_EXTRACT_ALL_RESPONSE_FIELDS);
         m_extractFields.clear();
-        String[] responseKeys = settings.getStringArray(RESPONSE_HEADER_KEYS, DEFAULT_RESPONSE_HEADER_ITEMS.stream().map(ResponseHeaderItem::getHeaderKey).toArray(n -> new String[n]));
-        String[] responseColumns = settings.getStringArray(RESPONSE_HEADER_COLUMN_NAME, DEFAULT_RESPONSE_HEADER_ITEMS.stream().map(ResponseHeaderItem::getOutputColumnName).toArray(n -> new String[n]));
-        CheckUtils.checkSetting(responseKeys.length == responseColumns.length, "Response header keys and output columns for them have different lengths: " + responseKeys.length + " <> " + responseColumns.length);
+        String[] responseKeys = settings.getStringArray(RESPONSE_HEADER_KEYS,
+            DEFAULT_RESPONSE_HEADER_ITEMS.stream().map(ResponseHeaderItem::getHeaderKey).toArray(n -> new String[n]));
+        String[] responseColumns = settings.getStringArray(RESPONSE_HEADER_COLUMN_NAME, DEFAULT_RESPONSE_HEADER_ITEMS
+            .stream().map(ResponseHeaderItem::getOutputColumnName).toArray(n -> new String[n]));
+        CheckUtils.checkSetting(responseKeys.length == responseColumns.length,
+            "Response header keys and output columns for them have different lengths: " + responseKeys.length + " <> "
+                + responseColumns.length);
         for (int i = 0; i < responseKeys.length; ++i) {
             m_extractFields.add(new ResponseHeaderItem(responseKeys[i], responseColumns[i]));
         }
         m_responseBodyColumn = settings.getString(BODY_COLUMN_NAME, DEFAULT_BODY_COLUMN_NAME);
+        for (final EnablableUserConfiguration<UserConfiguration> euc : m_authorizationConfigurations) {
+            final UserConfiguration uc = euc.getUserConfiguration();
+            euc.setEnabled(settings.getBoolean(uc.id() + ENABLED_SUFFIX, false));
+            try {
+                final ConfigBase base = settings.getConfigBase(uc.id());
+                uc.loadUserConfigurationForDialog(base, specs, credentialNames);
+            } catch (InvalidSettingsException e) {
+                uc.loadUserConfigurationForDialog(null, specs, credentialNames);
+            }
+        }
     }
 }

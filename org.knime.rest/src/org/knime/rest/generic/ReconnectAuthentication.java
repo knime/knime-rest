@@ -48,7 +48,7 @@
  */
 package org.knime.rest.generic;
 
-import javax.ws.rs.core.Request;
+import javax.ws.rs.client.Invocation.Builder;
 import javax.ws.rs.core.Response;
 
 /**
@@ -56,5 +56,5 @@ import javax.ws.rs.core.Response;
  * @author Gabor Bakos
  */
 public interface ReconnectAuthentication extends UserConfiguration {
-    Request on401Response(Request request, Response response);
+    Builder on401Response(Builder request, Response response);
 }
