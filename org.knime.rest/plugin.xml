@@ -2,6 +2,7 @@
 <?eclipse version="3.2"?>
 <plugin>
    <extension-point id="org.knime.rest.authentication" name="REST Authentication" schema="schema/org.knime.rest.authentication.exsd"/>
+   <extension-point id="org.knime.rest.header.template" name="REST header template" schema="schema/org.knime.rest.header.template.exsd"/>
     <extension point="org.knime.workbench.repository.categories">
         <category icon="icons/rest_category.png" level-id="rest" name="REST Web Services" path="/labs/"/>
     </extension>
@@ -21,5 +22,163 @@
              deprecated="false"
              supportsDistributedExecution="true">
        </AuthenticateEachRequest>
+    </extension>
+    <extension
+          id="org.knime.rest.header.webpage"
+          name="webpage related headers"
+          point="org.knime.rest.header.template">
+       <Entry
+             key="Accept">
+          <value>
+             application/json
+          </value>
+          <value>
+             text/json
+          </value>
+          <value>
+             image/png
+          </value>
+       </Entry>
+       <Entry
+             key="Accept-Encoding">
+          <value>
+             gzip, deflate, sdch
+          </value>
+          <value>
+             gzip
+          </value>
+       </Entry>
+       <Entry
+             key="Accept-Language">
+          <value>
+             en-GB,en;q=0.8,en-US;q=0.6
+          </value>
+       </Entry>
+       <Entry
+             key="Connection">
+          <value>
+             keep-alive
+          </value>
+       </Entry>
+       <Entry
+             key="Referer">
+          <value/>
+       </Entry>
+       <Entry
+             key="User-Agent">
+          <value>
+             KNIME
+          </value>
+          <value>
+             Mozilla/5.0 (Windows NT 6.1; WOW64; Trident/7.0; AS; rv:11.0) like Gecko
+          </value>
+          <value>
+             Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/42.0.2311.135 Safari/537.36 Edge/12.246
+          </value>
+          <value>
+             Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2227.0 Safari/537.36
+          </value>
+          <value>
+             Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:45.0) Gecko/20100101 Firefox/45.0
+          </value>
+       </Entry>
+       <Entry
+             key="X-Requested-With">
+          <value>
+             XMLHttpRequest
+          </value>
+       </Entry>
+       <Entry
+             key="DNT">
+          <value>
+             1
+          </value>
+       </Entry>
+       <Entry
+             key="Host">
+       </Entry>
+    </extension>
+    <extension
+          id="http://www.restpatterns.org/HTTP_Headers"
+          name="Generic REST headers"
+          point="org.knime.rest.header.template">
+       <Entry
+             key="Accept">
+       </Entry>
+       <Entry
+             key="Accept-Charset">
+       </Entry>
+       <Entry
+             key="Accept-Ranges">
+       </Entry>
+       <Entry
+             key="Accept-Language">
+       </Entry>
+       <Entry
+             key="Accept-Encoding">
+       </Entry>
+       <Entry
+             key="Authorization">
+       </Entry>
+       <Entry
+             key="Depth">
+       </Entry>
+       <Entry
+             key="Destination">
+       </Entry>
+       <Entry
+             key="Expect">
+       </Entry>
+       <Entry
+             key="From">
+       </Entry>
+       <Entry
+             key="Host">
+       </Entry>
+       <Entry
+             key="If">
+       </Entry>
+       <Entry
+             key="User-Agent">
+       </Entry>
+       <Entry
+             key="Timeout">
+       </Entry>
+       <Entry
+             key="TE">
+       </Entry>
+       <Entry
+             key="Referer">
+       </Entry>
+       <Entry
+             key="Range">
+       </Entry>
+       <Entry
+             key="Proxy-Authorization">
+       </Entry>
+       <Entry
+             key="Overwrite">
+       </Entry>
+       <Entry
+             key="Max-Forwards">
+       </Entry>
+       <Entry
+             key="Lock-Token">
+       </Entry>
+       <Entry
+             key="If-Unmodified-Since">
+       </Entry>
+       <Entry
+             key="If-Range">
+       </Entry>
+       <Entry
+             key="If-None-Match">
+       </Entry>
+       <Entry
+             key="If-Modified-Since">
+       </Entry>
+       <Entry
+             key="If-Match">
+       </Entry>
     </extension>
 </plugin>
