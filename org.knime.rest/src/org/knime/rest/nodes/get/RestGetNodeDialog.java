@@ -64,7 +64,6 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.AbstractMap.SimpleImmutableEntry;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Objects;
@@ -128,8 +127,7 @@ import org.knime.rest.nodes.get.RestGetSettings.RequestHeaderKeyItem;
  * @author Gabor Bakos
  */
 final class RestGetNodeDialog extends NodeDialogPane {
-    private static final String EXTENSION_ID_FOR_REQUEST_HEADER_TEMPLATES =
-        "org.knime.rest.header.template";
+    private static final String EXTENSION_ID_FOR_REQUEST_HEADER_TEMPLATES = "org.knime.rest.header.template";
 
     private final RestGetSettings m_settings = new RestGetSettings();
 
@@ -195,8 +193,7 @@ final class RestGetNodeDialog extends NodeDialogPane {
     private JComboBox<String> m_requestHeaderTemplate = new JComboBox<>();
 
     //template name -> keys -> possible template values
-    private List<Entry<String, List<Entry<String, ? extends List<String>>>>> m_requestTemplates =
-        new ArrayList<>();
+    private List<Entry<String, List<Entry<String, ? extends List<String>>>>> m_requestTemplates = new ArrayList<>();
 
     /**
      *
@@ -204,16 +201,16 @@ final class RestGetNodeDialog extends NodeDialogPane {
     public RestGetNodeDialog() {
         m_requestTemplates.add(new SimpleImmutableEntry<>("", new ArrayList<>()));
         IConfigurationElement[] elements =
-                Platform.getExtensionRegistry().getConfigurationElementsFor(EXTENSION_ID_FOR_REQUEST_HEADER_TEMPLATES);
-        for (Entry<String, List<IConfigurationElement>> element : Stream.of(elements).collect(Collectors.groupingBy(element -> element.getDeclaringExtension().getLabel())).entrySet()) {
-            System.out.println(element.getKey() + " - " + element.getValue());
+            Platform.getExtensionRegistry().getConfigurationElementsFor(EXTENSION_ID_FOR_REQUEST_HEADER_TEMPLATES);
+        for (Entry<String, List<IConfigurationElement>> element : Stream.of(elements)
+            .collect(Collectors.groupingBy(element -> element.getDeclaringExtension().getLabel())).entrySet()) {
             List<IConfigurationElement> entries = element.getValue();
             List<Entry<String, ? extends List<String>>> entryList = new ArrayList<>();
             for (IConfigurationElement entry : entries) {
-                System.out.println("     " + entry.getName() + " - " + Arrays.toString(entry.getAttributeNames()));
                 IConfigurationElement[] values = entry.getChildren();
                 entryList.add(new SimpleImmutableEntry<>(entry.getAttribute("key"),
-                        Stream.of(values).map(v -> v.getValue().trim()).collect(Collectors.toList())));
+                    Stream.of(values).filter(v -> v != null && v.getValue() != null).map(v -> v.getValue().trim())
+                        .collect(Collectors.toList())));
             }
             m_requestTemplates.add(new SimpleImmutableEntry<>(element.getKey(), entryList));
         }
@@ -537,11 +534,10 @@ final class RestGetNodeDialog extends NodeDialogPane {
                 String key = (String)m_requestHeadersModel.getValueAt(m_requestHeaders.getSelectedRow(), 0);
                 Object template = m_requestHeaderTemplate.getSelectedItem();
                 m_requestTemplates.stream().filter(entry -> Objects.equals(template, entry.getKey())).findFirst()
-                .ifPresent(entry ->
-                   entry.getValue().stream().filter(listEntry -> Objects.equals(key, listEntry.getKey())).findFirst().map(listEntry -> listEntry.getValue())
-                    .ifPresent(values ->
-                      values.forEach(i -> m_requestHeaderValue.addItem(i))
-                        ));
+                    .ifPresent(
+                        entry -> entry.getValue().stream().filter(listEntry -> Objects.equals(key, listEntry.getKey()))
+                            .findFirst().map(listEntry -> listEntry.getValue())
+                            .ifPresent(values -> values.forEach(i -> m_requestHeaderValue.addItem(i))));
             }
         });
         m_requestHeaders.addMouseListener(new MouseAdapter() {
@@ -557,15 +553,16 @@ final class RestGetNodeDialog extends NodeDialogPane {
         }
         m_requestHeaderTemplate.addActionListener(e -> {
             String selected = (String)m_requestHeaderTemplate.getSelectedItem();
-            if (JOptionPane.YES_OPTION == JOptionPane
-                .showConfirmDialog(null,
-                    "Replace the current request header options with the template values from "
-                        + selected,
-                    "Change request header?", JOptionPane.YES_NO_OPTION)) {
-                final List<Entry<String, ? extends List<String>>> options = m_requestTemplates.stream().filter(entry -> Objects.equals(selected, entry.getKey())).map(entry -> entry.getValue()).findFirst().orElse(new ArrayList<>());
+            if (JOptionPane.YES_OPTION == JOptionPane.showConfirmDialog(null,
+                "Replace the current request header options with the template values from " + selected,
+                "Change request header?", JOptionPane.YES_NO_OPTION)) {
+                final List<Entry<String, ? extends List<String>>> options =
+                    m_requestTemplates.stream().filter(entry -> Objects.equals(selected, entry.getKey()))
+                        .map(entry -> entry.getValue()).findFirst().orElse(new ArrayList<>());
                 m_requestHeadersModel.clear();
                 for (final Entry<String, ? extends List<String>> keyValues : options) {
-                    m_requestHeadersModel.addRow(new RequestHeaderKeyItem(keyValues.getKey(), keyValues.getValue().stream().findFirst().orElse(""), ReferenceType.Constant));
+                    m_requestHeadersModel.addRow(new RequestHeaderKeyItem(keyValues.getKey(),
+                        keyValues.getValue().stream().findFirst().orElse(""), ReferenceType.Constant));
                 }
             }
         });
