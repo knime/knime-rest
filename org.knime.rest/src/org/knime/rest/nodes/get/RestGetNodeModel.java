@@ -218,7 +218,10 @@ class RestGetNodeModel extends NodeModel {
      * @param exec
      */
     private void makeFirstCall(final DataRow row, final List<EachRequestAuthentication> enabledEachRequestAuthentications, final DataTableSpec spec, final ExecutionContext exec) {
-        m_firstRow = row.getKey();
+        m_firstRow = row == null ? null : row.getKey();
+        if (m_settings.isSslIgnoreHostNameErrors()) {
+
+        }
         final UniqueNameGenerator nameGenerator = new UniqueNameGenerator(spec == null ? new DataTableSpec() : spec);
         final Response response =
             createRequest(spec == null ? -1 : spec.findColumnIndex(m_settings.getUriColumn()), enabledEachRequestAuthentications, row, spec).buildGet()
@@ -518,7 +521,7 @@ class RestGetNodeModel extends NodeModel {
         if (m_settings.isSslTrustAll()) {
             final SSLContext context;
             try {
-                context = SSLContext.getInstance("Default");
+                context = SSLContext.getInstance(/*"Default"*/"TLS");
                 context.init(null, new TrustManager[]{new DelegatingX509TrustManager()}, null);
                 clientBuilder.sslContext(context);
             } catch (final NoSuchAlgorithmException | KeyManagementException e) {

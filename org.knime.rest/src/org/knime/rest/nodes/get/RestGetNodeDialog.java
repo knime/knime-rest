@@ -761,7 +761,13 @@ final class RestGetNodeDialog extends NodeDialogPane {
         m_constantUriOption.setSelected(m_settings.isUseConstantURI());
         m_constantUri.setSelectedString(m_settings.getConstantURI());
         //m_uriColumn.setSelectedColumn(m_settings.getUriColumn());
-        m_uriColumn.update(specs[0], m_settings.getUriColumn(), false, true);
+        if (specs[0] != null) {
+            m_uriColumnOption.setEnabled(true);
+            m_uriColumn.update(specs[0], m_settings.getUriColumn(), false, true);
+        } else {
+            m_uriColumnOption.setEnabled(false);
+            m_uriColumn.setEnabled(false);
+        }
         m_useDelay.setSelected(m_settings.isUseDelay());
         m_delay.setValue(m_settings.getDelay());
         m_concurrency.setValue(m_settings.getConcurrency());
