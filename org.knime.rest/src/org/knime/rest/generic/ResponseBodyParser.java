@@ -50,6 +50,10 @@ package org.knime.rest.generic;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.Reader;
+import java.nio.charset.Charset;
+import java.text.ParseException;
 
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
@@ -57,9 +61,11 @@ import javax.ws.rs.core.Response;
 import org.knime.core.data.DataCell;
 import org.knime.core.data.DataCellFactory;
 import org.knime.core.data.DataCellFactory.FromInputStream;
+import org.knime.core.data.DataCellFactory.FromReader;
 import org.knime.core.data.DataType;
 import org.knime.core.data.MissingCell;
 import org.knime.core.node.ExecutionContext;
+import org.knime.rest.util.JavaUtil;
 
 /**
  *
@@ -87,12 +93,15 @@ public interface ResponseBodyParser {
         public Default(final String mimeType, final DataType produced) {
             this(mimeType, produced, null);
         }
+
         public Default(final String mimeType, final DataType produced, final ExecutionContext exec) {
             this(MediaType.valueOf(mimeType), produced, exec);
         }
+
         public Default(final MediaType mediaType, final DataType produced) {
             this(mediaType, produced, null);
         }
+
         public Default(final MediaType mediaType, final DataType produced, final ExecutionContext exec) {
             m_mediaType = mediaType;
             m_produced = produced;
@@ -123,12 +132,23 @@ public interface ResponseBodyParser {
             final MediaType mediaType = response.getMediaType();
             if (supportedMediaType().isCompatible(mediaType)) {
                 final DataCellFactory dataCellFactory = m_produced.getCellFactory(m_exec).get();
-                if (dataCellFactory instanceof FromInputStream) {
-                    FromInputStream fromInputStream = (FromInputStream)dataCellFactory;
-                    InputStream is = response.readEntity(InputStream.class);
-                    try {
-                        return fromInputStream.createCell(is);
-                    } catch (IOException e) {
+                final String charset = mediaType.getParameters().get("charset");
+                if (charset == null || !JavaUtil.executeWithoutException(() -> Charset.forName(charset)) || !(dataCellFactory instanceof FromReader)) {
+                    if (dataCellFactory instanceof FromInputStream) {
+                        final FromInputStream fromInputStream = (FromInputStream)dataCellFactory;
+                        final InputStream is = response.readEntity(InputStream.class);
+                        try {
+                            return fromInputStream.createCell(is);
+                        } catch (IOException e) {
+                            return new MissingCell(e.getMessage());
+                        }
+                    }
+                } else {//dataCellFactory is a FromReader
+                    final FromReader fromReader = (FromReader)dataCellFactory;
+                    final InputStream is = response.readEntity(InputStream.class);
+                    try (final Reader reader = new InputStreamReader(is, charset)) {
+                        return fromReader.createCell(reader);
+                    } catch (IOException | ParseException e) {
                         return new MissingCell(e.getMessage());
                     }
                 }

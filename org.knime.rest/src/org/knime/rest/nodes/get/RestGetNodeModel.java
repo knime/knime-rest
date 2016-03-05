@@ -67,6 +67,7 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.ext.RuntimeDelegate;
 
+import org.apache.cxf.jaxrs.client.WebClient;
 import org.apache.cxf.jaxrs.client.spec.ClientBuilderImpl;
 import org.apache.cxf.jaxrs.impl.RuntimeDelegateImpl;
 import org.eclipse.e4.core.di.annotations.Execute;
@@ -245,7 +246,7 @@ class RestGetNodeModel extends NodeModel {
                     .collect(Collectors.toList()));
         }
         cells = m_responseHeaderKeys.stream().map(rhi -> {
-            specs.add(nameGenerator.newColumn(rhi.getOutputColumnName(), rhi.getType()));
+            specs.add(/*nameGenerator.newColumn(*/new DataColumnSpecCreator(rhi.getOutputColumnName(), rhi.getType()).createSpec()/*)*/);
             DataCellFactory cellFactory = rhi.getType().getCellFactory(null).orElseGet(() -> FALLBACK);
             //List<Object> values = headers.get(e.getKey());
             if ("Status".equals(rhi.getHeaderKey()) && rhi.getType().isCompatible(IntValue.class)) {
@@ -521,6 +522,7 @@ class RestGetNodeModel extends NodeModel {
         if (m_settings.isSslTrustAll()) {
             final SSLContext context;
             try {
+                clientBuilder.getConfiguration();
                 context = SSLContext.getInstance(/*"Default"*/"TLS");
                 context.init(null, new TrustManager[]{new DelegatingX509TrustManager()}, null);
                 clientBuilder.sslContext(context);
@@ -555,6 +557,9 @@ class RestGetNodeModel extends NodeModel {
                 : ((StringValue)row.getCell(uriColumn)).getStringValue());
 
         final Builder request = target.request();
+        WebClient.getConfig(request).getHttpConduit().getClient().setAutoRedirect(true);
+        WebClient.getConfig(request).getHttpConduit().getClient().setMaxRetransmits(0);
+
         for (final EachRequestAuthentication era : enabledEachRequestAuthentications) {
             era.updateRequest(request, row, getCredentialsProvider());
         }
@@ -594,8 +599,6 @@ class RestGetNodeModel extends NodeModel {
                     for (ResponseBodyParser parser : m_responseBodyParsers) {
                         if (expectedType.isCompatible(parser.producedDataType().getPreferredValueClass())) {
                             wasAdded = true;
-                            //TODO use mediaType.getParameters().get("charset");
-                            //when possible
                             cells.add(parser.create(response));
                             break;
                         }
