@@ -64,6 +64,7 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.AbstractMap.SimpleImmutableEntry;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Objects;
@@ -121,6 +122,7 @@ import org.knime.rest.generic.UserConfiguration;
 import org.knime.rest.nodes.get.RestGetSettings.ParameterKind;
 import org.knime.rest.nodes.get.RestGetSettings.ReferenceType;
 import org.knime.rest.nodes.get.RestGetSettings.RequestHeaderKeyItem;
+import org.knime.rest.util.ButtonCell;
 
 /**
  *
@@ -128,6 +130,9 @@ import org.knime.rest.nodes.get.RestGetSettings.RequestHeaderKeyItem;
  */
 final class RestGetNodeDialog extends NodeDialogPane {
     private static final String EXTENSION_ID_FOR_REQUEST_HEADER_TEMPLATES = "org.knime.rest.header.template";
+
+    private final List<String> m_credentials = new ArrayList<>(), m_flowVariables = new ArrayList<>(),
+            m_columns = new ArrayList<>();
 
     private final RestGetSettings m_settings = new RestGetSettings();
 
@@ -194,6 +199,8 @@ final class RestGetNodeDialog extends NodeDialogPane {
 
     //template name -> keys -> possible template values
     private List<Entry<String, List<Entry<String, ? extends List<String>>>>> m_requestTemplates = new ArrayList<>();
+
+    private List<Entry<String, ? extends List<String>>> m_requestHeaderOptions;
 
     /**
      *
@@ -405,12 +412,12 @@ final class RestGetNodeDialog extends NodeDialogPane {
         gbc.gridy++;
 
         //m_requestHeaderValue = GUIFactory.createTextField("", 22);
-        ((JTextComponent)m_requestHeaderValue.getEditor().getEditorComponent()).getDocument()
-            .addDocumentListener((DocumentEditListener)(e) -> {
-                /*TODO completion*/});
-        ((JTextComponent)m_requestHeaderKey.getEditor().getEditorComponent()).getDocument()
-            .addDocumentListener((DocumentEditListener)(e) -> {
-                /*TODO completion*/});
+//        ((JTextComponent)m_requestHeaderValue.getEditor().getEditorComponent()).getDocument()
+//            .addDocumentListener((DocumentEditListener)(e) -> {
+//                /*TODO completion*/});
+//        ((JTextComponent)m_requestHeaderKey.getEditor().getEditorComponent()).getDocument()
+//            .addDocumentListener((DocumentEditListener)(e) -> {
+//                /*TODO completion*/});
 
         gbc.gridx = 0;
         gbc.weightx = 0;
@@ -520,7 +527,43 @@ final class RestGetNodeDialog extends NodeDialogPane {
             .addColumn(new TableColumn(1, 67, null, new DefaultCellEditor(m_requestHeaderValue)));
         m_requestHeaders.getColumnModel()
             .addColumn(new TableColumn(2, 40, null, new DefaultCellEditor(m_requestHeaderValueType)));
-        //        m_requestHeaders.getColumnModel().addColumn(new TableColumn(3, 40, null, null));
+        m_requestHeaderValueType.addActionListener(al -> {
+            m_requestHeaderValue.removeAllItems();
+            switch ((ReferenceType)m_requestHeaderValueType.getSelectedItem()) {
+                case FlowVariable:
+                    for (String flowVar : m_flowVariables) {
+                        m_requestHeaderValue.addItem(flowVar);
+                    }
+                    break;
+                case Column:
+                    for (String column : m_columns) {
+                        m_requestHeaderValue.addItem(column);
+                    }
+                    break;
+                case Constant:
+                    String key = (String)m_requestHeadersModel.getValueAt(m_requestHeaders.getSelectedRow(), 0);
+                    m_requestTemplates.stream().filter(entry -> Objects.equals(m_requestHeaderTemplate.getSelectedItem(), entry.getKey())).findFirst()
+                    .ifPresent(entry -> entry.getValue().stream()
+                        .filter(listEntry -> Objects.equals(key, listEntry.getKey())).findFirst()
+                        .map(listEntry -> listEntry.getValue())
+                        .ifPresent(values -> values.forEach(i -> m_requestHeaderValue.addItem(i))));
+                    break;
+            }
+        });
+        final ButtonCell deleteRequestRow = new ButtonCell();
+        deleteRequestRow.setAction(new AbstractAction("X") {
+            private static final long serialVersionUID = 1369259160048695493L;
+
+            @Override
+            public void actionPerformed(final ActionEvent e) {
+                if (deleteRequestRow.getRow() >= 0) {
+                    m_requestHeadersModel.removeRow(deleteRequestRow.getRow());
+                    //                    deleteRequestRow.repaint();
+                    //                    deleteRequestRow.setRow(-1);
+                }
+            }
+        });
+        m_requestHeaders.getColumnModel().addColumn(new TableColumn(3, 40, deleteRequestRow, deleteRequestRow));
         m_requestAddRow.addActionListener(e -> m_requestHeadersModel.newRow());
         m_requestDeleteRow.addActionListener(e -> m_requestHeadersModel.removeRow(m_requestHeaders.getSelectedRow()));
         m_requestEditRow.addActionListener(e -> editRequestHeader(m_requestHeaders.getSelectedRow()));
@@ -529,15 +572,20 @@ final class RestGetNodeDialog extends NodeDialogPane {
             final boolean hasValidSelection = !m_requestHeaders.getSelectionModel().isSelectionEmpty();
             m_requestEditRow.setEnabled(hasValidSelection);
             m_requestDeleteRow.setEnabled(hasValidSelection);
-            m_requestHeaderValue.removeAllItems();
             if (hasValidSelection) {
-                String key = (String)m_requestHeadersModel.getValueAt(m_requestHeaders.getSelectedRow(), 0);
-                Object template = m_requestHeaderTemplate.getSelectedItem();
-                m_requestTemplates.stream().filter(entry -> Objects.equals(template, entry.getKey())).findFirst()
-                    .ifPresent(
-                        entry -> entry.getValue().stream().filter(listEntry -> Objects.equals(key, listEntry.getKey()))
-                            .findFirst().map(listEntry -> listEntry.getValue())
+                if (ReferenceType.Constant.equals(m_requestHeaderValueType.getSelectedItem())) {
+                    Object origValue = m_requestHeadersModel.getValueAt(m_requestHeaders.getSelectedRow(), 1);
+                    m_requestHeaderValue.removeAllItems();
+                    String key = (String)m_requestHeadersModel.getValueAt(m_requestHeaders.getSelectedRow(), 0);
+                    Object template = m_requestHeaderTemplate.getSelectedItem();
+                    m_requestTemplates.stream().filter(entry -> Objects.equals(template, entry.getKey())).findFirst()
+                        .ifPresent(entry -> entry.getValue().stream()
+                            .filter(listEntry -> Objects.equals(key, listEntry.getKey())).findFirst()
+                            .map(listEntry -> listEntry.getValue())
                             .ifPresent(values -> values.forEach(i -> m_requestHeaderValue.addItem(i))));
+                    m_requestHeaderValue.setSelectedItem(origValue);
+                    m_requestHeadersModel.setValueAt(origValue, m_requestHeaders.getSelectedRow(), 1);
+                }
             }
         });
         m_requestHeaders.addMouseListener(new MouseAdapter() {
@@ -556,11 +604,13 @@ final class RestGetNodeDialog extends NodeDialogPane {
             if (JOptionPane.YES_OPTION == JOptionPane.showConfirmDialog(null,
                 "Replace the current request header options with the template values from " + selected,
                 "Change request header?", JOptionPane.YES_NO_OPTION)) {
-                final List<Entry<String, ? extends List<String>>> options =
+                m_requestHeaderOptions =
                     m_requestTemplates.stream().filter(entry -> Objects.equals(selected, entry.getKey()))
                         .map(entry -> entry.getValue()).findFirst().orElse(new ArrayList<>());
                 m_requestHeadersModel.clear();
-                for (final Entry<String, ? extends List<String>> keyValues : options) {
+                m_requestHeaderKey.removeAllItems();
+                for (final Entry<String, ? extends List<String>> keyValues : m_requestHeaderOptions) {
+                    m_requestHeaderKey.addItem(keyValues.getKey());
                     m_requestHeadersModel.addRow(new RequestHeaderKeyItem(keyValues.getKey(),
                         keyValues.getValue().stream().findFirst().orElse(""), ReferenceType.Constant));
                 }
@@ -757,6 +807,14 @@ final class RestGetNodeDialog extends NodeDialogPane {
         } catch (InvalidSettingsException e) {
             throw new NotConfigurableException(e.getMessage(), e);
         }
+        m_columns.clear();
+        if (specs[0] != null) {
+            m_columns.addAll(Arrays.asList(specs[0].getColumnNames()));
+        }
+        m_flowVariables.clear();
+        m_flowVariables.addAll(getAvailableFlowVariables().keySet());
+        m_credentials.clear();
+        m_credentials.addAll(getCredentialsNames());
         // TODO Update UI based on settings
         m_constantUriOption.setSelected(m_settings.isUseConstantURI());
         m_constantUri.setSelectedString(m_settings.getConstantURI());

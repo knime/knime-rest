@@ -558,7 +558,7 @@ class RestGetNodeModel extends NodeModel {
 
         final Builder request = target.request();
         WebClient.getConfig(request).getHttpConduit().getClient().setAutoRedirect(true);
-        WebClient.getConfig(request).getHttpConduit().getClient().setMaxRetransmits(0);
+        WebClient.getConfig(request).getHttpConduit().getClient().setMaxRetransmits(2);
 
         for (final EachRequestAuthentication era : enabledEachRequestAuthentications) {
             era.updateRequest(request, row, getCredentialsProvider());
