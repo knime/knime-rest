@@ -48,14 +48,11 @@
  */
 package org.knime.rest.internals;
 
-import java.awt.GridBagConstraints;
-
-import javax.swing.JLabel;
 import javax.swing.JPanel;
-import javax.swing.JTextField;
 import javax.ws.rs.client.Invocation.Builder;
+import javax.xml.ws.BindingProvider;
 
-import org.apache.cxf.configuration.security.AuthorizationPolicy;
+import org.apache.cxf.jaxrs.client.WebClient;
 import org.apache.cxf.transport.http.auth.DigestAuthSupplier;
 import org.knime.core.data.DataRow;
 import org.knime.core.node.workflow.CredentialsProvider;
@@ -66,9 +63,9 @@ import org.knime.rest.generic.EachRequestAuthentication;
  * @author Gabor Bakos
  */
 public class DigestAuthentication extends UsernamePasswordAuthentication implements EachRequestAuthentication {
-    private JLabel m_realmLabel = new JLabel("Realm:");
-
-    private JTextField m_realm = new JTextField(22);
+//    private JLabel m_realmLabel = new JLabel("Realm:");
+//
+//    private JTextField m_realm = new JTextField(22);
 
     /**
      *
@@ -82,11 +79,14 @@ public class DigestAuthentication extends UsernamePasswordAuthentication impleme
      */
     @Override
     public Builder updateRequest(final Builder request, final DataRow row, final CredentialsProvider credProvider) {
-        final AuthorizationPolicy authPolicy = new AuthorizationPolicy();
-        authPolicy.setUserName(getUsername());
-        authPolicy.setPassword(getPassword());
-        request.header("Authorization",
-            new DigestAuthSupplier().getAuthorization(authPolicy, null/*uri*/, null/*message*/, null/*fullHeader*/));
+//        final AuthorizationPolicy authPolicy = new AuthorizationPolicy();
+//        authPolicy.setUserName(getUsername());
+//        authPolicy.setPassword(getPassword());
+        WebClient.getConfig(request).getHttpConduit().setAuthSupplier(new DigestAuthSupplier());
+        request.property(BindingProvider.USERNAME_PROPERTY, getUsername());
+        request.property(BindingProvider.PASSWORD_PROPERTY, getPassword());
+//        request.header("Authorization",
+//            new DigestAuthSupplier().getAuthorization(authPolicy, null/*uri*/, null/*message*/, null/*fullHeader*/));
         return request;
     }
 
@@ -96,12 +96,12 @@ public class DigestAuthentication extends UsernamePasswordAuthentication impleme
     @Override
     public void addControls(final JPanel panel) {
         super.addControls(panel);
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.gridx = 0;
-        gbc.gridy = 4;
-        panel.add(m_realmLabel, gbc);
-        gbc.gridx++;
-        panel.add(m_realm, gbc);
+//        GridBagConstraints gbc = new GridBagConstraints();
+//        gbc.gridx = 0;
+//        gbc.gridy = 4;
+//        panel.add(m_realmLabel, gbc);
+//        gbc.gridx++;
+//        panel.add(m_realm, gbc);
     }
 
     /**
@@ -110,8 +110,8 @@ public class DigestAuthentication extends UsernamePasswordAuthentication impleme
     @Override
     public void disableControls() {
         super.disableControls();
-        m_realmLabel.setEnabled(false);
-        m_realm.setEnabled(false);
+//        m_realmLabel.setEnabled(false);
+//        m_realm.setEnabled(false);
     }
 
     /**
@@ -120,8 +120,8 @@ public class DigestAuthentication extends UsernamePasswordAuthentication impleme
     @Override
     public void enableControls() {
         super.enableControls();
-        m_realmLabel.setEnabled(true);
-        m_realm.setEnabled(true);
+//        m_realmLabel.setEnabled(true);
+//        m_realm.setEnabled(true);
     }
 
     /**
