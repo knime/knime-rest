@@ -575,6 +575,12 @@ class RestGetNodeModel extends NodeModel {
                 case FlowVariable:
                     value = getAvailableInputFlowVariables().get(headerItem.getKey()).getValueAsString();
                     break;
+                case CredentialName:
+                    value = getCredentialsProvider().get(headerItem.getKey()).getLogin();
+                    break;
+                case CredentialPassword:
+                    value = getCredentialsProvider().get(headerItem.getKey()).getPassword();
+                    break;
                 default:
                     throw new UnsupportedOperationException("Unknown: " + headerItem.getKind() + " in: " + headerItem);
             }

@@ -63,7 +63,7 @@ import org.knime.rest.nodes.get.RestGetSettings.RequestHeaderKeyItem;
  * @author Gabor Bakos
  */
 class RequestTableModel extends AbstractTableModel implements Iterable<RequestHeaderKeyItem> {
-    private static enum Columns {
+    static enum Columns {
             headerKey, value, kind/*, parameterKind*/, delete;
     }
 
@@ -223,7 +223,7 @@ class RequestTableModel extends AbstractTableModel implements Iterable<RequestHe
     }
 
     RequestHeaderKeyItem newRow() {
-        RequestHeaderKeyItem ret = new RequestHeaderKeyItem("", "", ReferenceType.Constant);
+        final RequestHeaderKeyItem ret = new RequestHeaderKeyItem("", "", ReferenceType.Constant);
         addRow(ret);
         return ret;
     }

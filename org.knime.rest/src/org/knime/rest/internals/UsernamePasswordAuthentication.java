@@ -102,6 +102,11 @@ public abstract class UsernamePasswordAuthentication implements UserConfiguratio
     private final JLabel m_userLabel = new JLabel("User"), m_passwordLabel = new JLabel("Password"),
             m_credentialLabel = new JLabel("Credential");
 
+    /**
+     * Constructs a UsernamePasswordAuthentication using {@code encryptionKey}.
+     *
+     * @param encryptionKey The encryption key used to store in the settings.
+     */
     protected UsernamePasswordAuthentication(final String encryptionKey) {
         super();
         m_encryptionKey = encryptionKey;

@@ -62,5 +62,13 @@ import org.knime.core.node.workflow.CredentialsProvider;
  */
 public interface EachRequestAuthentication extends UserConfiguration {
     //TODO handle conflicts when conflicting selection is set (like Digest and Basic auth).
-    Builder updateRequest(Builder request, DataRow row, CredentialsProvider credProvider);
+    /**
+     * Updates the request with authentication information.
+     *
+     * @param request The {@link Builder} of the request.
+     * @param row The {@link DataRow} for the parameters (might be {@code null}).
+     * @param credProvider The {@link CredentialsProvider}.
+     * @return The updated request {@link Builder}.
+     */
+    public Builder updateRequest(Builder request, DataRow row, CredentialsProvider credProvider);
 }

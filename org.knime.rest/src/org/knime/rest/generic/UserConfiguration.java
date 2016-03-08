@@ -56,6 +56,7 @@ import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.config.base.ConfigBaseRO;
 import org.knime.core.node.config.base.ConfigBaseWO;
 import org.knime.core.node.port.PortObjectSpec;
+import org.knime.core.node.workflow.CredentialsProvider;
 
 /**
  * User configuration options on the dialog.
@@ -63,12 +64,45 @@ import org.knime.core.node.port.PortObjectSpec;
  * @author Gabor Bakos
  */
 public interface UserConfiguration {
+    /**
+     * @return Whether there is a user configuration.
+     */
     boolean hasUserConfiguration();
+    /**
+     * Saves the user configuration to {@code userSettings}.
+     * @param userSettings A {@link ConfigBaseWO} to save the configuration.
+     */
     void saveUserConfiguration(ConfigBaseWO userSettings);
+    /**
+     * Loads the configuration in the model (probably for validation).
+     *
+     * @param userSettings A {@link ConfigBaseRO} to read the configuration from.
+     * @throws InvalidSettingsException When the settings are not all valid.
+     */
     void loadUserConfiguration(ConfigBaseRO userSettings) throws InvalidSettingsException;
+    /**
+     * Loads the configuration in the dialog.
+     *
+     * @param userSettings A {@link ConfigBaseRO} to read the configuration from.
+     * @param specs The input {@link PortObjectSpec}s.
+     * @param credentialNames The {@link CredentialsProvider} names.
+     */
     void loadUserConfigurationForDialog(ConfigBaseRO userSettings, PortObjectSpec[] specs, final Collection<String> credentialNames);
+    /**
+     * Adds the dialog controls to {@code panel}.
+     * @param panel A {@link JPanel}.
+     */
     void addControls(JPanel panel);
+    /**
+     * Enables the controls.
+     */
     void enableControls();
+    /**
+     * Disables the controls.
+     */
     void disableControls();
+    /**
+     * @return The identifier of {@link UserConfiguration}.
+     */
     String id();
 }

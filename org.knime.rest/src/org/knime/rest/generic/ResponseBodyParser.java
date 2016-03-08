@@ -68,14 +68,27 @@ import org.knime.core.node.ExecutionContext;
 import org.knime.rest.util.JavaUtil;
 
 /**
+ * Interface for parsing different response bodies.
  *
  * @author Gabor Bakos
  */
 public interface ResponseBodyParser {
+    /**
+     * @return The supported {@link MediaType}.
+     */
     public MediaType supportedMediaType();
 
+    /**
+     * @return The produced {@link DataType}.
+     */
     public DataType producedDataType();
 
+    /**
+     * Creates the {@link DataCell} from the {@link Response} (might use the headers too).
+     *
+     * @param response The {@link Response} object.
+     * @return The converted {@link DataCell}.
+     */
     public DataCell create(Response response);
 
     /**
@@ -83,6 +96,9 @@ public interface ResponseBodyParser {
      */
     public String valueDescriptor();
 
+    /**
+     * Default implementation for the {@link ResponseBodyParser}.
+     */
     public static class Default implements ResponseBodyParser {
         private DataType m_produced;
 
@@ -90,18 +106,36 @@ public interface ResponseBodyParser {
 
         private ExecutionContext m_exec;
 
+        /**
+         * @param mimeType The MIME-type of the response body.
+         * @param produced The to be produced {@link DataType}.
+         */
         public Default(final String mimeType, final DataType produced) {
             this(mimeType, produced, null);
         }
 
+        /**
+         * @param mimeType The MIME-type of the response body.
+         * @param produced The to be produced {@link DataType}.
+         * @param exec The {@link ExecutionContext} to be used (when the {@link DataType} requires it for creation).
+         */
         public Default(final String mimeType, final DataType produced, final ExecutionContext exec) {
             this(MediaType.valueOf(mimeType), produced, exec);
         }
 
+        /**
+         * @param mediaType The input {@link MediaType}.
+         * @param produced The to be produced {@link DataType}.
+         */
         public Default(final MediaType mediaType, final DataType produced) {
             this(mediaType, produced, null);
         }
 
+        /**
+         * @param mediaType The input {@link MediaType}.
+         * @param produced The to be produced {@link DataType}.
+         * @param exec The {@link ExecutionContext} to be used (when the {@link DataType} requires it for creation).
+         */
         public Default(final MediaType mediaType, final DataType produced, final ExecutionContext exec) {
             m_mediaType = mediaType;
             m_produced = produced;
@@ -133,7 +167,8 @@ public interface ResponseBodyParser {
             if (supportedMediaType().isCompatible(mediaType)) {
                 final DataCellFactory dataCellFactory = m_produced.getCellFactory(m_exec).get();
                 final String charset = mediaType.getParameters().get("charset");
-                if (charset == null || !JavaUtil.executeWithoutException(() -> Charset.forName(charset)) || !(dataCellFactory instanceof FromReader)) {
+                if (charset == null || !JavaUtil.executeWithoutException(() -> Charset.forName(charset))
+                    || !(dataCellFactory instanceof FromReader)) {
                     if (dataCellFactory instanceof FromInputStream) {
                         final FromInputStream fromInputStream = (FromInputStream)dataCellFactory;
                         final InputStream is = response.readEntity(InputStream.class);

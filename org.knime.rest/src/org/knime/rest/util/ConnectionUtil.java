@@ -84,6 +84,15 @@ public class ConnectionUtil {
         // TODO Auto-generated constructor stub
     }
 
+    /**
+     * Checks the connection and throws {@link IOException} in case it is not possible to connect.
+     *
+     * @param bundle The bundle of this class.
+     * @param logger The {@link NodeLogger} used to log problems.
+     * @param url The url to test.
+     * @param connectionTimeout The timeout (to connect) in milliseconds.
+     * @throws IOException When opening the connection is failed.
+     */
     public static void checkConnection(final Bundle bundle/*FrameworkUtil.getBundle(getClass())*/, final NodeLogger logger, final URL url, final int connectionTimeout) throws IOException {
         HttpURLConnection conn = (HttpURLConnection)url.openConnection();
         if (conn instanceof HttpsURLConnection) {

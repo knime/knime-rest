@@ -70,7 +70,6 @@ import javax.swing.table.TableCellRenderer;
 public class ButtonCell implements TableCellEditor, TableCellRenderer {
     private final JButton m_button, m_buttonRender;
     private final JPanel m_panel, m_panelRender;
-    private Action m_action;
     private final List<CellEditorListener> m_listeners = new ArrayList<>();
     private int m_row;
 
@@ -92,7 +91,6 @@ public class ButtonCell implements TableCellEditor, TableCellRenderer {
     public void setAction(final Action action) {
         m_button.setAction(action);
         m_buttonRender.setAction(action);
-        m_action = action;
     }
 
     /**

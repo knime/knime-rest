@@ -59,24 +59,29 @@ import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.awt.Window;
 import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.AbstractMap.SimpleImmutableEntry;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import javax.swing.AbstractAction;
+import javax.swing.ActionMap;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.ButtonGroup;
 import javax.swing.DefaultCellEditor;
+import javax.swing.InputMap;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
@@ -412,12 +417,12 @@ final class RestGetNodeDialog extends NodeDialogPane {
         gbc.gridy++;
 
         //m_requestHeaderValue = GUIFactory.createTextField("", 22);
-//        ((JTextComponent)m_requestHeaderValue.getEditor().getEditorComponent()).getDocument()
-//            .addDocumentListener((DocumentEditListener)(e) -> {
-//                /*TODO completion*/});
-//        ((JTextComponent)m_requestHeaderKey.getEditor().getEditorComponent()).getDocument()
-//            .addDocumentListener((DocumentEditListener)(e) -> {
-//                /*TODO completion*/});
+        //        ((JTextComponent)m_requestHeaderValue.getEditor().getEditorComponent()).getDocument()
+        //            .addDocumentListener((DocumentEditListener)(e) -> {
+        //                /*TODO completion*/});
+        //        ((JTextComponent)m_requestHeaderKey.getEditor().getEditorComponent()).getDocument()
+        //            .addDocumentListener((DocumentEditListener)(e) -> {
+        //                /*TODO completion*/});
 
         gbc.gridx = 0;
         gbc.weightx = 0;
@@ -514,20 +519,21 @@ final class RestGetNodeDialog extends NodeDialogPane {
      * @return
      */
     private JPanel createRequestHeadersTab() {
+        deleteAndInsertRowRequestHeaderActions();
         m_requestHeaders.setAutoCreateColumnsFromModel(false);
         while (m_requestHeaders.getColumnModel().getColumns().hasMoreElements()) {
             m_requestHeaders.getColumnModel()
                 .removeColumn(m_requestHeaders.getColumnModel().getColumns().nextElement());
         }
-        final TableColumn keyCol =
-            new TableColumn(0, 67, new DefaultTableCellRenderer(), new DefaultCellEditor(m_requestHeaderKey));
+        final TableColumn keyCol = new TableColumn(RequestTableModel.Columns.headerKey.ordinal(), 67,
+            new DefaultTableCellRenderer(), new DefaultCellEditor(m_requestHeaderKey));
         keyCol.setHeaderValue("Key");
         m_requestHeaders.getColumnModel().addColumn(keyCol);
-        m_requestHeaders.getColumnModel()
-            .addColumn(new TableColumn(1, 67, null, new DefaultCellEditor(m_requestHeaderValue)));
-        m_requestHeaders.getColumnModel()
-            .addColumn(new TableColumn(2, 40, null, new DefaultCellEditor(m_requestHeaderValueType)));
-        m_requestHeaderValueType.addActionListener(al -> {
+        m_requestHeaders.getColumnModel().addColumn(new TableColumn(RequestTableModel.Columns.value.ordinal(), 67, null,
+            new DefaultCellEditor(m_requestHeaderValue)));
+        m_requestHeaders.getColumnModel().addColumn(new TableColumn(RequestTableModel.Columns.kind.ordinal(), 40, null,
+            new DefaultCellEditor(m_requestHeaderValueType)));
+        final ActionListener updateRequestValueAlternatives = al -> {
             m_requestHeaderValue.removeAllItems();
             switch ((ReferenceType)m_requestHeaderValueType.getSelectedItem()) {
                 case FlowVariable:
@@ -541,15 +547,26 @@ final class RestGetNodeDialog extends NodeDialogPane {
                     }
                     break;
                 case Constant:
-                    String key = (String)m_requestHeadersModel.getValueAt(m_requestHeaders.getSelectedRow(), 0);
-                    m_requestTemplates.stream().filter(entry -> Objects.equals(m_requestHeaderTemplate.getSelectedItem(), entry.getKey())).findFirst()
-                    .ifPresent(entry -> entry.getValue().stream()
-                        .filter(listEntry -> Objects.equals(key, listEntry.getKey())).findFirst()
-                        .map(listEntry -> listEntry.getValue())
-                        .ifPresent(values -> values.forEach(i -> m_requestHeaderValue.addItem(i))));
+                    if (m_requestHeaders.getSelectedRowCount() > 0) {
+                        String key = (String)m_requestHeadersModel.getValueAt(m_requestHeaders.getSelectedRow(), 0);
+                        m_requestTemplates.stream()
+                            .filter(entry -> Objects.equals(m_requestHeaderTemplate.getSelectedItem(), entry.getKey()))
+                            .findFirst()
+                            .ifPresent(entry -> entry.getValue().stream()
+                                .filter(listEntry -> Objects.equals(key, listEntry.getKey())).findFirst()
+                                .map(listEntry -> listEntry.getValue())
+                                .ifPresent(values -> values.forEach(i -> m_requestHeaderValue.addItem(i))));
+                    }
+                    break;
+                case CredentialName://Intentional fall through
+                case CredentialPassword:
+                    for (String credential : m_credentials) {
+                        m_requestHeaderValue.addItem(credential);
+                    }
                     break;
             }
-        });
+        };
+        m_requestHeaderValueType.addActionListener(updateRequestValueAlternatives);
         final ButtonCell deleteRequestRow = new ButtonCell();
         deleteRequestRow.setAction(new AbstractAction("X") {
             private static final long serialVersionUID = 1369259160048695493L;
@@ -563,7 +580,8 @@ final class RestGetNodeDialog extends NodeDialogPane {
                 }
             }
         });
-        m_requestHeaders.getColumnModel().addColumn(new TableColumn(3, 40, deleteRequestRow, deleteRequestRow));
+        m_requestHeaders.getColumnModel().addColumn(
+            new TableColumn(RequestTableModel.Columns.delete.ordinal(), 40, deleteRequestRow, deleteRequestRow));
         m_requestAddRow.addActionListener(e -> m_requestHeadersModel.newRow());
         m_requestDeleteRow.addActionListener(e -> m_requestHeadersModel.removeRow(m_requestHeaders.getSelectedRow()));
         m_requestEditRow.addActionListener(e -> editRequestHeader(m_requestHeaders.getSelectedRow()));
@@ -573,20 +591,25 @@ final class RestGetNodeDialog extends NodeDialogPane {
             m_requestEditRow.setEnabled(hasValidSelection);
             m_requestDeleteRow.setEnabled(hasValidSelection);
             if (hasValidSelection) {
-                if (ReferenceType.Constant.equals(m_requestHeaderValueType.getSelectedItem())) {
-                    Object origValue = m_requestHeadersModel.getValueAt(m_requestHeaders.getSelectedRow(), 1);
-                    m_requestHeaderValue.removeAllItems();
-                    String key = (String)m_requestHeadersModel.getValueAt(m_requestHeaders.getSelectedRow(), 0);
-                    Object template = m_requestHeaderTemplate.getSelectedItem();
-                    m_requestTemplates.stream().filter(entry -> Objects.equals(template, entry.getKey())).findFirst()
-                        .ifPresent(entry -> entry.getValue().stream()
-                            .filter(listEntry -> Objects.equals(key, listEntry.getKey())).findFirst()
-                            .map(listEntry -> listEntry.getValue())
-                            .ifPresent(values -> values.forEach(i -> m_requestHeaderValue.addItem(i))));
-                    m_requestHeaderValue.setSelectedItem(origValue);
-                    m_requestHeadersModel.setValueAt(origValue, m_requestHeaders.getSelectedRow(), 1);
-                }
+                final Object origValue = m_requestHeadersModel.getValueAt(m_requestHeaders.getSelectedRow(), 1);
+                updateRequestValueAlternatives.actionPerformed(null);
+                m_requestHeadersModel.setValueAt(origValue, m_requestHeaders.getSelectedRow(), 1);
             }
+            //                        if (hasValidSelection) {
+            //                            if (ReferenceType.Constant.equals(m_requestHeaderValueType.getSelectedItem())) {
+            //                                Object origValue = m_requestHeadersModel.getValueAt(m_requestHeaders.getSelectedRow(), 1);
+            //                                m_requestHeaderValue.removeAllItems();
+            //                                String key = (String)m_requestHeadersModel.getValueAt(m_requestHeaders.getSelectedRow(), 0);
+            //                                Object template = m_requestHeaderTemplate.getSelectedItem();
+            //                                m_requestTemplates.stream().filter(entry -> Objects.equals(template, entry.getKey())).findFirst()
+            //                                    .ifPresent(entry -> entry.getValue().stream()
+            //                                        .filter(listEntry -> Objects.equals(key, listEntry.getKey())).findFirst()
+            //                                        .map(listEntry -> listEntry.getValue())
+            //                                        .ifPresent(values -> values.forEach(i -> m_requestHeaderValue.addItem(i))));
+            //                                m_requestHeaderValue.setSelectedItem(origValue);
+            //                                m_requestHeadersModel.setValueAt(origValue, m_requestHeaders.getSelectedRow(), 1);
+            //                            }
+            //                        }
         });
         m_requestHeaders.addMouseListener(new MouseAdapter() {
             @Override
@@ -641,6 +664,32 @@ final class RestGetNodeDialog extends NodeDialogPane {
         m_requestHeaders.getColumnModel().getColumn(2).setHeaderValue("Value kind");
         //        m_requestHeaders.getColumnModel().getColumn(3).setHeaderValue("Key kind");
         return ret;
+    }
+
+    @SuppressWarnings("serial")
+    private void deleteAndInsertRowRequestHeaderActions() {
+        ActionMap actionMap = m_requestHeaders.getActionMap();
+        final String delete = "deleteRow", insert = "insertRow";
+        InputMap inputMap = m_requestHeaders.getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT);
+        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, 0), delete);
+        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_INSERT, 0), insert);
+        actionMap.put(insert, new AbstractAction("Insert Row") {
+            @Override
+            public void actionPerformed(final ActionEvent e) {
+                m_requestHeadersModel.addRow(new RequestHeaderKeyItem("", "", ReferenceType.Constant));
+            }
+        });
+        actionMap.put(delete, new AbstractAction("Delete Row") {
+            @Override
+            public void actionPerformed(final ActionEvent e) {
+                if (m_requestHeaders.getSelectionModel().getLeadSelectionIndex() >= 0) {
+                    //We have to go in reverse order, because the ascending order they would point to wrong or non-existing rows
+                    final IntStream selectedRows = Arrays.stream(m_requestHeaders.getSelectedRows()).sorted()
+                        .mapToObj(Integer::valueOf).sorted(Collections.reverseOrder()).mapToInt(i -> i.intValue());
+                    selectedRows.forEach(i -> m_requestHeadersModel.removeRow(i));
+                }
+            }
+        });
     }
 
     /**
