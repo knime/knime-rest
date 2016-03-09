@@ -534,6 +534,7 @@ final class RestGetNodeDialog extends NodeDialogPane {
         m_requestHeaders.getColumnModel().addColumn(new TableColumn(RequestTableModel.Columns.kind.ordinal(), 40, null,
             new DefaultCellEditor(m_requestHeaderValueType)));
         final ActionListener updateRequestValueAlternatives = al -> {
+            final Object origValue = m_requestHeadersModel.getValueAt(m_requestHeaders.getSelectedRow(), 1);
             m_requestHeaderValue.removeAllItems();
             switch ((ReferenceType)m_requestHeaderValueType.getSelectedItem()) {
                 case FlowVariable:
@@ -565,6 +566,8 @@ final class RestGetNodeDialog extends NodeDialogPane {
                     }
                     break;
             }
+            m_requestHeadersModel.setValueAt(origValue, m_requestHeaders.getSelectedRow(), 1);
+            m_requestHeaderValue.setSelectedItem(origValue);
         };
         m_requestHeaderValueType.addActionListener(updateRequestValueAlternatives);
         final ButtonCell deleteRequestRow = new ButtonCell();
@@ -591,9 +594,7 @@ final class RestGetNodeDialog extends NodeDialogPane {
             m_requestEditRow.setEnabled(hasValidSelection);
             m_requestDeleteRow.setEnabled(hasValidSelection);
             if (hasValidSelection) {
-                final Object origValue = m_requestHeadersModel.getValueAt(m_requestHeaders.getSelectedRow(), 1);
                 updateRequestValueAlternatives.actionPerformed(null);
-                m_requestHeadersModel.setValueAt(origValue, m_requestHeaders.getSelectedRow(), 1);
             }
             //                        if (hasValidSelection) {
             //                            if (ReferenceType.Constant.equals(m_requestHeaderValueType.getSelectedItem())) {
@@ -676,6 +677,9 @@ final class RestGetNodeDialog extends NodeDialogPane {
         actionMap.put(insert, new AbstractAction("Insert Row") {
             @Override
             public void actionPerformed(final ActionEvent e) {
+                final boolean hasValidSelection = !m_requestHeaders.getSelectionModel().isSelectionEmpty();
+                m_requestEditRow.setEnabled(hasValidSelection);
+                m_requestDeleteRow.setEnabled(hasValidSelection);
                 m_requestHeadersModel.addRow(new RequestHeaderKeyItem("", "", ReferenceType.Constant));
             }
         });
@@ -688,6 +692,9 @@ final class RestGetNodeDialog extends NodeDialogPane {
                         .mapToObj(Integer::valueOf).sorted(Collections.reverseOrder()).mapToInt(i -> i.intValue());
                     selectedRows.forEach(i -> m_requestHeadersModel.removeRow(i));
                 }
+                final boolean hasValidSelection = !m_requestHeaders.getSelectionModel().isSelectionEmpty();
+                m_requestEditRow.setEnabled(hasValidSelection);
+                m_requestDeleteRow.setEnabled(hasValidSelection);
             }
         });
     }
