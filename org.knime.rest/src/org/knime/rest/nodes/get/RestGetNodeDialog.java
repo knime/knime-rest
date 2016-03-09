@@ -534,6 +534,9 @@ final class RestGetNodeDialog extends NodeDialogPane {
         m_requestHeaders.getColumnModel().addColumn(new TableColumn(RequestTableModel.Columns.kind.ordinal(), 40, null,
             new DefaultCellEditor(m_requestHeaderValueType)));
         final ActionListener updateRequestValueAlternatives = al -> {
+            if (m_requestHeaders.getSelectedRowCount() == 0) {
+                return;
+            }
             final Object origValue = m_requestHeadersModel.getValueAt(m_requestHeaders.getSelectedRow(), 1);
             m_requestHeaderValue.removeAllItems();
             switch ((ReferenceType)m_requestHeaderValueType.getSelectedItem()) {
