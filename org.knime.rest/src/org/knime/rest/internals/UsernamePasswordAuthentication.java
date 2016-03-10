@@ -125,10 +125,21 @@ public abstract class UsernamePasswordAuthentication implements UserConfiguratio
      */
     @Override
     public void saveUserConfiguration(final ConfigBaseWO userSettings) {
+        updateSettings();
         userSettings.addString(USERNAME, getUsername());
         userSettings.addPassword(PASSWORD, m_encryptionKey, getPassword());
         userSettings.addBoolean(USE_CREDENTIALS, isUseCredentials());
         userSettings.addString(CREDENTIAL, getCredential());
+    }
+
+    /**
+     * Updates the settings based on the control values.
+     */
+    protected void updateSettings() {
+        setUsername(m_usernameControl.getText());
+        setPassword(new String(m_passwordControl.getPassword()));
+        setUseCredentials(m_useCredentialsCheckBox.isSelected());
+        setCredential((String)m_credentialsSelection.getSelectedItem());
     }
 
     /**
@@ -140,6 +151,7 @@ public abstract class UsernamePasswordAuthentication implements UserConfiguratio
         setPassword(userSettings.getPassword(PASSWORD, m_encryptionKey));
         setUseCredentials(userSettings.getBoolean(USE_CREDENTIALS));
         setCredential(userSettings.getString(CREDENTIAL));
+        updateControls();
     }
 
     /**
@@ -156,7 +168,17 @@ public abstract class UsernamePasswordAuthentication implements UserConfiguratio
         for (String credential : credentialNames) {
             m_credentialsSelection.addItem(credential);
         }
+        updateControls();
+    }
 
+    /**
+     * Updates the control values based on the settings.
+     */
+    protected void updateControls() {
+        m_usernameControl.setText(getUsername());
+        m_passwordControl.setText(getPassword());
+        m_useCredentialsCheckBox.setSelected(isUseCredentials());
+        m_credentialsSelection.setSelectedItem(getCredential());
     }
 
     /**
