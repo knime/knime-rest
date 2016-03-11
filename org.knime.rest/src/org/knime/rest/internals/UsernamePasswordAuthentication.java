@@ -50,6 +50,7 @@ package org.knime.rest.internals;
 
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
+import java.awt.Insets;
 import java.awt.event.ActionEvent;
 import java.util.Collection;
 
@@ -188,6 +189,10 @@ public abstract class UsernamePasswordAuthentication implements UserConfiguratio
     public void addControls(final JPanel panel) {
         panel.setLayout(new GridBagLayout());
         final GridBagConstraints gbc = new GridBagConstraints();
+        gbc.anchor = GridBagConstraints.LINE_START;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.weighty = 0;
+        gbc.insets = new Insets(3, 3, 3, 3);
         gbc.gridx = 0;
         gbc.gridy = 0;
         panel.add(m_userLabel, gbc);
@@ -207,6 +212,11 @@ public abstract class UsernamePasswordAuthentication implements UserConfiguratio
         gbc.gridx++;
         panel.add(m_credentialsSelection, gbc);
         m_useCredentialsCheckBox.getAction().actionPerformed(null);
+        gbc.gridx = 0;
+        gbc.gridy++;
+        gbc.fill = GridBagConstraints.BOTH;
+        gbc.weighty = 1;
+        panel.add(new JPanel(), gbc);
     }
 
     /**

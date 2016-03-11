@@ -49,6 +49,7 @@
 package org.knime.rest.nodes.get;
 
 import java.awt.BorderLayout;
+import java.awt.CardLayout;
 import java.awt.Component;
 import java.awt.Container;
 import java.awt.Dimension;
@@ -93,12 +94,10 @@ import javax.swing.JPanel;
 import javax.swing.JRadioButton;
 import javax.swing.JScrollPane;
 import javax.swing.JSpinner;
-import javax.swing.JTabbedPane;
 import javax.swing.JTable;
 import javax.swing.JTextField;
 import javax.swing.KeyStroke;
 import javax.swing.SpinnerNumberModel;
-import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
 import javax.swing.border.TitledBorder;
 import javax.swing.event.DocumentEvent;
@@ -198,7 +197,7 @@ final class RestGetNodeDialog extends NodeDialogPane {
     private JComboBox<DataType> m_responseValueType =
         new JComboBox<DataType>(new DataType[]{StringCell.TYPE, IntCell.TYPE});
 
-    private List<JCheckBox> m_authenticationTabTitles = new ArrayList<>();
+    private List<JRadioButton> m_authenticationTabTitles = new ArrayList<>();
 
     private JComboBox<String> m_requestHeaderTemplate = new JComboBox<>();
 
@@ -485,32 +484,64 @@ final class RestGetNodeDialog extends NodeDialogPane {
      */
     private JPanel createAuthenticationTab() {
         final JPanel ret = new JPanel();
-        final JTabbedPane tabs = new JTabbedPane(SwingConstants.TOP, JTabbedPane.WRAP_TAB_LAYOUT);
+        ret.setLayout(new BoxLayout(ret, BoxLayout.PAGE_AXIS));
+        final JPanel radioButtons = new JPanel(new FlowLayout());
+        ret.add(radioButtons);
+        final JPanel tabs = new JPanel(new CardLayout());
+        final ButtonGroup buttonGroup = new ButtonGroup();
         for (final EnablableUserConfiguration<UserConfiguration> euc : m_settings.getAuthorizationConfigurations()) {
-            final JPanel tabPanel = new JPanel(), tabTitlePanel = new JPanel(new FlowLayout(FlowLayout.LEADING));
+            final JPanel tabPanel = new JPanel();
             final JScrollPane scrollPane = new JScrollPane(tabPanel);
-            tabs.addTab("", scrollPane);
-            final JCheckBox checkBox = new JCheckBox();
             final UserConfiguration userConfiguration = euc.getUserConfiguration();
-            checkBox.setAction(new AbstractAction() {
+            tabs.add(userConfiguration.id(), scrollPane);
+            final JRadioButton radioButton = new JRadioButton(userConfiguration.id());
+            buttonGroup.add(radioButton);
+            radioButtons.add(radioButton);
+            radioButton.setAction(new AbstractAction(userConfiguration.id()) {
                 private static final long serialVersionUID = -8514095622936885670L;
 
                 @Override
                 public void actionPerformed(final ActionEvent e) {
-                    if (checkBox.isSelected()) {
+                    final CardLayout layout = (CardLayout)tabs.getLayout();
+                    if (radioButton.isSelected()) {
+                        layout.show(tabs, userConfiguration.id());
                         userConfiguration.enableControls();
                     } else {
                         userConfiguration.disableControls();
                     }
                 }
             });
-            checkBox.setName(userConfiguration.id());
-            m_authenticationTabTitles.add(checkBox);
-            tabTitlePanel.add(checkBox);
-            tabTitlePanel.add(new JLabel(userConfiguration.id()));
-            tabs.setTabComponentAt(tabs.getTabCount() - 1, tabTitlePanel);
+            radioButton.setName(userConfiguration.id());
+            m_authenticationTabTitles.add(radioButton);
             userConfiguration.addControls(tabPanel);
         }
+
+//        final JTabbedPane tabs = new JTabbedPane(SwingConstants.TOP, JTabbedPane.WRAP_TAB_LAYOUT);
+//        for (final EnablableUserConfiguration<UserConfiguration> euc : m_settings.getAuthorizationConfigurations()) {
+//            final JPanel tabPanel = new JPanel(), tabTitlePanel = new JPanel(new FlowLayout(FlowLayout.LEADING));
+//            final JScrollPane scrollPane = new JScrollPane(tabPanel);
+//            tabs.addTab("", scrollPane);
+//            final JCheckBox checkBox = new JCheckBox();
+//            final UserConfiguration userConfiguration = euc.getUserConfiguration();
+//            checkBox.setAction(new AbstractAction() {
+//                private static final long serialVersionUID = -8514095622936885670L;
+//
+//                @Override
+//                public void actionPerformed(final ActionEvent e) {
+//                    if (checkBox.isSelected()) {
+//                        userConfiguration.enableControls();
+//                    } else {
+//                        userConfiguration.disableControls();
+//                    }
+//                }
+//            });
+//            checkBox.setName(userConfiguration.id());
+//            m_authenticationTabTitles.add(checkBox);
+//            tabTitlePanel.add(checkBox);
+//            tabTitlePanel.add(new JLabel(userConfiguration.id()));
+//            tabs.setTabComponentAt(tabs.getTabCount() - 1, tabTitlePanel);
+//            userConfiguration.addControls(tabPanel);
+//        }
         ret.add(tabs);
         return ret;
     }
@@ -533,6 +564,21 @@ final class RestGetNodeDialog extends NodeDialogPane {
             new DefaultCellEditor(m_requestHeaderValue)));
         m_requestHeaders.getColumnModel().addColumn(new TableColumn(RequestTableModel.Columns.kind.ordinal(), 40, null,
             new DefaultCellEditor(m_requestHeaderValueType)));
+//        final String cancelEditing = "cancelEditing";
+//        //Workaround for http://bugs.java.com/bugdatabase/view_bug.do?bug_id=6788481
+//        m_requestHeaderValue.getInputMap().put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), cancelEditing);
+//        m_requestHeaderValue.getActionMap().put(cancelEditing, new AbstractAction() {
+//            @Override
+//            public void actionPerformed(final ActionEvent e) {
+//                m_requestHeaders.getColumnModel().getColumn(Columns.value.ordinal()).getCellEditor().cancelCellEditing();
+//            }
+//        });
+//        m_requestHeaderKey.getInputMap().put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), cancelEditing);
+//        m_requestHeaderKey.getActionMap().put(cancelEditing, new AbstractAction() {
+//            @Override
+//            public void actionPerformed(final ActionEvent e) {
+//                m_requestHeaders.getColumnModel().getColumn(Columns.headerKey.ordinal()).getCellEditor().cancelCellEditing();
+//            }});
         final ActionListener updateRequestValueAlternatives = al -> {
             if (m_requestHeaders.getSelectedRowCount() == 0) {
                 return;
@@ -828,11 +874,11 @@ final class RestGetNodeDialog extends NodeDialogPane {
     @Override
     protected void saveSettingsTo(final NodeSettingsWO settings) throws InvalidSettingsException {
         //TODO update settings based on the UI.
-        for (JCheckBox checkBox : m_authenticationTabTitles) {
+        for (JRadioButton radioButton : m_authenticationTabTitles) {
             for (final EnablableUserConfiguration<UserConfiguration> euc : m_settings
                 .getAuthorizationConfigurations()) {
-                if (checkBox.getName().equals(euc.getUserConfiguration().id())) {
-                    euc.setEnabled(checkBox.isSelected());
+                if (radioButton.getName().equals(euc.getUserConfiguration().id())) {
+                    euc.setEnabled(radioButton.isSelected());
                 }
             }
         }
@@ -902,10 +948,10 @@ final class RestGetNodeDialog extends NodeDialogPane {
         m_bodyColumnName.setSelectedString(m_settings.getResponseBodyColumn());
         m_settings.setResponseBodyColumn(m_bodyColumnName.getSelectedString());
         for (final EnablableUserConfiguration<UserConfiguration> euc : m_settings.getAuthorizationConfigurations()) {
-            for (final JCheckBox checkBox : m_authenticationTabTitles) {
-                if (checkBox.getName().equals(euc.getUserConfiguration().id())) {
-                    checkBox.setSelected(euc.isEnabled());
-                    checkBox.getAction().actionPerformed(null);
+            for (final JRadioButton radioButton : m_authenticationTabTitles) {
+                if (radioButton.getName().equals(euc.getUserConfiguration().id())) {
+                    radioButton.setSelected(euc.isEnabled());
+                    radioButton.getAction().actionPerformed(null);
                 }
             }
         }
@@ -935,5 +981,13 @@ final class RestGetNodeDialog extends NodeDialogPane {
          * @param e
          */
         void handleEdit(DocumentEvent e);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean closeOnESC() {
+        return false;
     }
 }

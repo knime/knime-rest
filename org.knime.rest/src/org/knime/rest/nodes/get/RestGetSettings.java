@@ -68,6 +68,7 @@ import org.knime.core.node.config.ConfigWO;
 import org.knime.core.node.config.base.ConfigBase;
 import org.knime.core.node.util.CheckUtils;
 import org.knime.rest.generic.UserConfiguration;
+import org.knime.rest.internals.NoAuthentication;
 
 /**
  * Node settings for the GET REST node.
@@ -433,7 +434,9 @@ final class RestGetSettings {
     RestGetSettings() {
         IConfigurationElement[] configurationElements =
             Platform.getExtensionRegistry().getConfigurationElementsFor(EXTENSION_ID);
-
+        final EnablableUserConfiguration<UserConfiguration> noAuth = new EnablableUserConfiguration<UserConfiguration>(new NoAuthentication());
+        noAuth.setEnabled(true);
+        m_authorizationConfigurations.add(noAuth);
         for (final IConfigurationElement configurationElement : configurationElements) {
             try {
                 final Object object = configurationElement.createExecutableExtension("class");
@@ -730,7 +733,7 @@ final class RestGetSettings {
         m_responseBodyColumn = settings.getString(BODY_COLUMN_NAME, DEFAULT_BODY_COLUMN_NAME);
         for (final EnablableUserConfiguration<UserConfiguration> euc : m_authorizationConfigurations) {
             final UserConfiguration uc = euc.getUserConfiguration();
-            euc.setEnabled(settings.getBoolean(uc.id() + ENABLED_SUFFIX, false));
+            euc.setEnabled(settings.getBoolean(uc.id() + ENABLED_SUFFIX, uc instanceof NoAuthentication));
             try {
                 final ConfigBase base = settings.getConfigBase(uc.id());
                 uc.loadUserConfigurationForDialog(base, specs, credentialNames);
