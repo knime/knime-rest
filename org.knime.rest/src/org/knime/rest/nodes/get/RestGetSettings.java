@@ -166,7 +166,22 @@ final class RestGetSettings {
 
     //Request
     enum ReferenceType {
-            Constant, FlowVariable, Column, CredentialName, CredentialPassword;
+            Constant, FlowVariable{
+                @Override
+                public String toString() {
+                    return "Flow variable";
+                }
+            }, Column, CredentialName {
+                @Override
+                public String toString() {
+                    return "Credential name";
+                }
+            }, CredentialPassword{
+                @Override
+                public String toString() {
+                    return "Credential password";
+                }
+            };
     }
 
     static class RequestHeaderKeyItem/*<InputType extends DataValue>*/ {

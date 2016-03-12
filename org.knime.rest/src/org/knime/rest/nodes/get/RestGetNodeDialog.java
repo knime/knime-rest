@@ -58,6 +58,7 @@ import java.awt.Frame;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
+import java.awt.KeyboardFocusManager;
 import java.awt.Window;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -68,9 +69,11 @@ import java.util.AbstractMap.SimpleImmutableEntry;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -89,7 +92,6 @@ import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JDialog;
 import javax.swing.JLabel;
-import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JRadioButton;
 import javax.swing.JScrollPane;
@@ -154,7 +156,7 @@ final class RestGetNodeDialog extends NodeDialogPane {
     @SuppressWarnings("unchecked")
     private final ColumnSelectionPanel m_uriColumn = new ColumnSelectionPanel(StringValue.class, URIDataValue.class);
 
-    private final JCheckBox m_useDelay = new JCheckBox("Delay: ");
+    private final JCheckBox m_useDelay = new JCheckBox("Delay (ms): ");
 
     private final JSpinner m_delay = new JSpinner(new SpinnerNumberModel(Long.valueOf(0l), Long.valueOf(0L),
         Long.valueOf(30L * 60 * 1000L/*30 minutes*/), Long.valueOf(100L))),
@@ -200,6 +202,9 @@ final class RestGetNodeDialog extends NodeDialogPane {
     private List<JRadioButton> m_authenticationTabTitles = new ArrayList<>();
 
     private JComboBox<String> m_requestHeaderTemplate = new JComboBox<>();
+
+    private JButton m_requestHeaderTemplateReset = new JButton("Reset"),
+            m_requestHeaderTemplateMerge = new JButton("Merge");
 
     //template name -> keys -> possible template values
     private List<Entry<String, List<Entry<String, ? extends List<String>>>>> m_requestTemplates = new ArrayList<>();
@@ -287,6 +292,13 @@ final class RestGetNodeDialog extends NodeDialogPane {
         sslPanel.add(m_sslIgnoreHostnameMismatches);
         sslPanel.add(m_sslTrustAll);
         ret.add(sslPanel, gbc);
+        gbc.gridy++;
+        final JPanel body = new JPanel(new FlowLayout(FlowLayout.LEADING));
+        body.add(new JLabel("Body column: "));
+        body.add(m_bodyColumnName);
+        ret.add(body, gbc);
+        gbc.gridy++;
+        gbc.gridx = 0;
         gbc.weighty = 1;
         ret.add(new JPanel(), gbc);
 
@@ -310,6 +322,9 @@ final class RestGetNodeDialog extends NodeDialogPane {
      */
     @SuppressWarnings("serial")
     protected void editRequestHeader(final int selectedRow) {
+        if (selectedRow < 0) {
+            return;
+        }
         final Window windowAncestor = SwingUtilities.getWindowAncestor(getPanel());
         final Frame frame = windowAncestor instanceof Frame ? (Frame)windowAncestor : null;
         final JDialog dialog = new JDialog(frame, "Edit", true);
@@ -356,6 +371,9 @@ final class RestGetNodeDialog extends NodeDialogPane {
      */
     @SuppressWarnings("serial")
     protected void editResponseHeader(final int selectedRow) {
+        if (selectedRow < 0) {
+            return;
+        }
         final Window windowAncestor = SwingUtilities.getWindowAncestor(getPanel());
         final Frame frame = windowAncestor instanceof Frame ? (Frame)windowAncestor : null;
         final JDialog dialog = new JDialog(frame, "Edit", true);
@@ -516,32 +534,32 @@ final class RestGetNodeDialog extends NodeDialogPane {
             userConfiguration.addControls(tabPanel);
         }
 
-//        final JTabbedPane tabs = new JTabbedPane(SwingConstants.TOP, JTabbedPane.WRAP_TAB_LAYOUT);
-//        for (final EnablableUserConfiguration<UserConfiguration> euc : m_settings.getAuthorizationConfigurations()) {
-//            final JPanel tabPanel = new JPanel(), tabTitlePanel = new JPanel(new FlowLayout(FlowLayout.LEADING));
-//            final JScrollPane scrollPane = new JScrollPane(tabPanel);
-//            tabs.addTab("", scrollPane);
-//            final JCheckBox checkBox = new JCheckBox();
-//            final UserConfiguration userConfiguration = euc.getUserConfiguration();
-//            checkBox.setAction(new AbstractAction() {
-//                private static final long serialVersionUID = -8514095622936885670L;
-//
-//                @Override
-//                public void actionPerformed(final ActionEvent e) {
-//                    if (checkBox.isSelected()) {
-//                        userConfiguration.enableControls();
-//                    } else {
-//                        userConfiguration.disableControls();
-//                    }
-//                }
-//            });
-//            checkBox.setName(userConfiguration.id());
-//            m_authenticationTabTitles.add(checkBox);
-//            tabTitlePanel.add(checkBox);
-//            tabTitlePanel.add(new JLabel(userConfiguration.id()));
-//            tabs.setTabComponentAt(tabs.getTabCount() - 1, tabTitlePanel);
-//            userConfiguration.addControls(tabPanel);
-//        }
+        //        final JTabbedPane tabs = new JTabbedPane(SwingConstants.TOP, JTabbedPane.WRAP_TAB_LAYOUT);
+        //        for (final EnablableUserConfiguration<UserConfiguration> euc : m_settings.getAuthorizationConfigurations()) {
+        //            final JPanel tabPanel = new JPanel(), tabTitlePanel = new JPanel(new FlowLayout(FlowLayout.LEADING));
+        //            final JScrollPane scrollPane = new JScrollPane(tabPanel);
+        //            tabs.addTab("", scrollPane);
+        //            final JCheckBox checkBox = new JCheckBox();
+        //            final UserConfiguration userConfiguration = euc.getUserConfiguration();
+        //            checkBox.setAction(new AbstractAction() {
+        //                private static final long serialVersionUID = -8514095622936885670L;
+        //
+        //                @Override
+        //                public void actionPerformed(final ActionEvent e) {
+        //                    if (checkBox.isSelected()) {
+        //                        userConfiguration.enableControls();
+        //                    } else {
+        //                        userConfiguration.disableControls();
+        //                    }
+        //                }
+        //            });
+        //            checkBox.setName(userConfiguration.id());
+        //            m_authenticationTabTitles.add(checkBox);
+        //            tabTitlePanel.add(checkBox);
+        //            tabTitlePanel.add(new JLabel(userConfiguration.id()));
+        //            tabs.setTabComponentAt(tabs.getTabCount() - 1, tabTitlePanel);
+        //            userConfiguration.addControls(tabPanel);
+        //        }
         ret.add(tabs);
         return ret;
     }
@@ -564,25 +582,27 @@ final class RestGetNodeDialog extends NodeDialogPane {
             new DefaultCellEditor(m_requestHeaderValue)));
         m_requestHeaders.getColumnModel().addColumn(new TableColumn(RequestTableModel.Columns.kind.ordinal(), 40, null,
             new DefaultCellEditor(m_requestHeaderValueType)));
-//        final String cancelEditing = "cancelEditing";
-//        //Workaround for http://bugs.java.com/bugdatabase/view_bug.do?bug_id=6788481
-//        m_requestHeaderValue.getInputMap().put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), cancelEditing);
-//        m_requestHeaderValue.getActionMap().put(cancelEditing, new AbstractAction() {
-//            @Override
-//            public void actionPerformed(final ActionEvent e) {
-//                m_requestHeaders.getColumnModel().getColumn(Columns.value.ordinal()).getCellEditor().cancelCellEditing();
-//            }
-//        });
-//        m_requestHeaderKey.getInputMap().put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), cancelEditing);
-//        m_requestHeaderKey.getActionMap().put(cancelEditing, new AbstractAction() {
-//            @Override
-//            public void actionPerformed(final ActionEvent e) {
-//                m_requestHeaders.getColumnModel().getColumn(Columns.headerKey.ordinal()).getCellEditor().cancelCellEditing();
-//            }});
+        //        final String cancelEditing = "cancelEditing";
+        //        //Workaround for http://bugs.java.com/bugdatabase/view_bug.do?bug_id=6788481
+        //        m_requestHeaderValue.getInputMap().put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), cancelEditing);
+        //        m_requestHeaderValue.getActionMap().put(cancelEditing, new AbstractAction() {
+        //            @Override
+        //            public void actionPerformed(final ActionEvent e) {
+        //                m_requestHeaders.getColumnModel().getColumn(Columns.value.ordinal()).getCellEditor().cancelCellEditing();
+        //            }
+        //        });
+        //        m_requestHeaderKey.getInputMap().put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), cancelEditing);
+        //        m_requestHeaderKey.getActionMap().put(cancelEditing, new AbstractAction() {
+        //            @Override
+        //            public void actionPerformed(final ActionEvent e) {
+        //                m_requestHeaders.getColumnModel().getColumn(Columns.headerKey.ordinal()).getCellEditor().cancelCellEditing();
+        //            }});
         final ActionListener updateRequestValueAlternatives = al -> {
             if (m_requestHeaders.getSelectedRowCount() == 0) {
+                enableRequestHeaderChangeControls(false);
                 return;
             }
+            enableRequestHeaderChangeControls(true);
             final Object origValue = m_requestHeadersModel.getValueAt(m_requestHeaders.getSelectedRow(), 1);
             m_requestHeaderValue.removeAllItems();
             switch ((ReferenceType)m_requestHeaderValueType.getSelectedItem()) {
@@ -640,6 +660,7 @@ final class RestGetNodeDialog extends NodeDialogPane {
 
         m_requestHeaders.getSelectionModel().addListSelectionListener(e -> {
             final boolean hasValidSelection = !m_requestHeaders.getSelectionModel().isSelectionEmpty();
+            enableRequestHeaderChangeControls(hasValidSelection);
             m_requestEditRow.setEnabled(hasValidSelection);
             m_requestDeleteRow.setEnabled(hasValidSelection);
             if (hasValidSelection) {
@@ -672,21 +693,36 @@ final class RestGetNodeDialog extends NodeDialogPane {
         for (Entry<String, ?> entry : m_requestTemplates) {
             m_requestHeaderTemplate.addItem(entry.getKey());
         }
-        m_requestHeaderTemplate.addActionListener(e -> {
-            String selected = (String)m_requestHeaderTemplate.getSelectedItem();
-            if (JOptionPane.YES_OPTION == JOptionPane.showConfirmDialog(null,
-                "Replace the current request header options with the template values from " + selected,
-                "Change request header?", JOptionPane.YES_NO_OPTION)) {
-                m_requestHeaderOptions =
-                    m_requestTemplates.stream().filter(entry -> Objects.equals(selected, entry.getKey()))
-                        .map(entry -> entry.getValue()).findFirst().orElse(new ArrayList<>());
-                m_requestHeadersModel.clear();
-                m_requestHeaderKey.removeAllItems();
-                for (final Entry<String, ? extends List<String>> keyValues : m_requestHeaderOptions) {
-                    m_requestHeaderKey.addItem(keyValues.getKey());
+
+        m_requestHeaderTemplateMerge.setToolTipText("Merge the template values with the current settings (adds rows not present)");
+        m_requestHeaderTemplateMerge.addActionListener(e -> {
+            m_requestHeaderOptions = m_requestTemplates.stream()
+                .filter(entry -> Objects.equals(m_requestHeaderTemplate.getSelectedItem(), entry.getKey()))
+                .map(entry -> entry.getValue()).findFirst().orElse(new ArrayList<>());
+            final Set<String> keysPresent = new HashSet<>();
+            for (int i = 0; i < m_requestHeadersModel.getRowCount(); ++i) {
+                keysPresent.add((String)m_requestHeadersModel.getValueAt(i, 0));
+            }
+            m_requestHeaderKey.removeAllItems();
+            for (final Entry<String, ? extends List<String>> keyValues : m_requestHeaderOptions) {
+                m_requestHeaderKey.addItem(keyValues.getKey());
+                if (!keysPresent.contains(keyValues.getKey())) {
                     m_requestHeadersModel.addRow(new RequestHeaderKeyItem(keyValues.getKey(),
                         keyValues.getValue().stream().findFirst().orElse(""), ReferenceType.Constant));
                 }
+            }
+        });
+        m_requestHeaderTemplateReset.setToolTipText("Replaces the current settings with the ones from the template");
+        m_requestHeaderTemplateReset.addActionListener(e -> {
+            m_requestHeaderOptions = m_requestTemplates.stream()
+                .filter(entry -> Objects.equals(m_requestHeaderTemplate.getSelectedItem(), entry.getKey()))
+                .map(entry -> entry.getValue()).findFirst().orElse(new ArrayList<>());
+            m_requestHeadersModel.clear();
+            m_requestHeaderKey.removeAllItems();
+            for (final Entry<String, ? extends List<String>> keyValues : m_requestHeaderOptions) {
+                m_requestHeaderKey.addItem(keyValues.getKey());
+                m_requestHeadersModel.addRow(new RequestHeaderKeyItem(keyValues.getKey(),
+                    keyValues.getValue().stream().findFirst().orElse(""), ReferenceType.Constant));
             }
         });
 
@@ -695,10 +731,18 @@ final class RestGetNodeDialog extends NodeDialogPane {
         gbc.insets = new Insets(2, 4, 2, 4);
         gbc.gridx = 0;
         gbc.gridy = 0;
-        gbc.gridwidth = 3;
+        gbc.gridwidth = 1;
         gbc.weighty = 1;
+        gbc.weightx = 1;
         ret.add(m_requestHeaderTemplate, gbc);
+        gbc.weightx = 0;
+        gbc.gridx++;
+        ret.add(m_requestHeaderTemplateMerge, gbc);
+        gbc.gridx++;
+        ret.add(m_requestHeaderTemplateReset, gbc);
         gbc.gridy++;
+        gbc.gridx = 0;
+        gbc.gridwidth = 3;
         m_requestHeaders.setVisible(true);
         ret.add(new JScrollPane(m_requestHeaders), gbc);
         gbc.gridy++;
@@ -716,6 +760,14 @@ final class RestGetNodeDialog extends NodeDialogPane {
         return ret;
     }
 
+    /**
+     * @param enable
+     */
+    protected void enableRequestHeaderChangeControls(final boolean enable) {
+        m_requestDeleteRow.setEnabled(enable);
+        m_requestEditRow.setEnabled(enable);
+    }
+
     @SuppressWarnings("serial")
     private void deleteAndInsertRowRequestHeaderActions() {
         ActionMap actionMap = m_requestHeaders.getActionMap();
@@ -723,6 +775,15 @@ final class RestGetNodeDialog extends NodeDialogPane {
         InputMap inputMap = m_requestHeaders.getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT);
         inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, 0), delete);
         inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_INSERT, 0), insert);
+        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "escape");
+        actionMap.put("escape", new AbstractAction() {
+            @Override
+            public void actionPerformed(final ActionEvent e) {
+                m_requestHeaders.getColumnModel().getColumn(0).getCellEditor().cancelCellEditing();
+                m_requestHeaders.getColumnModel().getColumn(1).getCellEditor().cancelCellEditing();
+                m_requestHeaders.getColumnModel().getColumn(2).getCellEditor().cancelCellEditing();
+            }
+        });
         actionMap.put(insert, new AbstractAction("Insert Row") {
             @Override
             public void actionPerformed(final ActionEvent e) {
@@ -851,10 +912,6 @@ final class RestGetNodeDialog extends NodeDialogPane {
         gbc.gridx = 0;
         gbc.gridy++;
         gbc.gridwidth = 3;
-        final JPanel body = new JPanel(new FlowLayout(FlowLayout.LEADING));
-        body.add(new JLabel("Body column: "));
-        body.add(m_bodyColumnName);
-        ret.add(body, gbc);
 
         m_responseHeaders.addMouseListener(new MouseAdapter() {
             @Override
@@ -898,6 +955,7 @@ final class RestGetNodeDialog extends NodeDialogPane {
         m_settings.getExtractFields()
             .addAll(StreamSupport.stream(m_responseHeadersModel.spliterator(), false).collect(Collectors.toList()));
         m_settings.setResponseBodyColumn(m_bodyColumnName.getSelectedString());
+        m_bodyColumnName.commitSelectedToHistory();
         m_settings.saveSettings(settings);
     }
 
@@ -912,6 +970,7 @@ final class RestGetNodeDialog extends NodeDialogPane {
         } catch (InvalidSettingsException e) {
             throw new NotConfigurableException(e.getMessage(), e);
         }
+        m_bodyColumnName.updateHistory();
         m_columns.clear();
         if (specs[0] != null) {
             m_columns.addAll(Arrays.asList(specs[0].getColumnNames()));
@@ -940,13 +999,14 @@ final class RestGetNodeDialog extends NodeDialogPane {
         for (int i = 0; i < m_settings.getRequestHeaders().size(); ++i) {
             m_requestHeadersModel.addRow(m_settings.getRequestHeaders().get(i));
         }
+        enableRequestHeaderChangeControls(m_settings.getRequestHeaders().size() > 0);
         m_extractAllHeaders.setSelected(m_settings.isExtractAllResponseFields());
         m_responseHeadersModel.clear();
         for (int i = 0; i < m_settings.getExtractFields().size(); ++i) {
             m_responseHeadersModel.addRow(m_settings.getExtractFields().get(i));
         }
         m_bodyColumnName.setSelectedString(m_settings.getResponseBodyColumn());
-        m_settings.setResponseBodyColumn(m_bodyColumnName.getSelectedString());
+        //        m_settings.setResponseBodyColumn(m_bodyColumnName.getSelectedString());
         for (final EnablableUserConfiguration<UserConfiguration> euc : m_settings.getAuthorizationConfigurations()) {
             for (final JRadioButton radioButton : m_authenticationTabTitles) {
                 if (radioButton.getName().equals(euc.getUserConfiguration().id())) {
@@ -988,6 +1048,7 @@ final class RestGetNodeDialog extends NodeDialogPane {
      */
     @Override
     public boolean closeOnESC() {
-        return false;
+        final Component focusOwner = KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner();
+        return !(focusOwner instanceof JComboBox<?> || focusOwner instanceof JTextComponent);
     }
 }
