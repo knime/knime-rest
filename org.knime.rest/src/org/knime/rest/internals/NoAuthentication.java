@@ -139,4 +139,12 @@ public class NoAuthentication implements EachRequestAuthentication {
     public Builder updateRequest(final Builder request, final DataRow row, final CredentialsProvider credProvider) {
         return request;
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void updateControls() {
+        //No controls to update.
+    }
 }

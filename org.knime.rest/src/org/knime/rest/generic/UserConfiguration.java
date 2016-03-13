@@ -105,4 +105,8 @@ public interface UserConfiguration {
      * @return The identifier of {@link UserConfiguration}.
      */
     String id();
+    /**
+     * Updates the control values based on the settings.
+     */
+    void updateControls();
 }

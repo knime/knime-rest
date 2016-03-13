@@ -126,7 +126,6 @@ public abstract class UsernamePasswordAuthentication implements UserConfiguratio
      */
     @Override
     public void saveUserConfiguration(final ConfigBaseWO userSettings) {
-        updateSettings();
         userSettings.addString(USERNAME, getUsername());
         userSettings.addPassword(PASSWORD, m_encryptionKey, getPassword());
         userSettings.addBoolean(USE_CREDENTIALS, isUseCredentials());
@@ -169,13 +168,15 @@ public abstract class UsernamePasswordAuthentication implements UserConfiguratio
         for (String credential : credentialNames) {
             m_credentialsSelection.addItem(credential);
         }
+        m_credentialsSelection.setSelectedItem(getCredential());
         updateControls();
     }
 
     /**
-     * Updates the control values based on the settings.
+     * {@inheritDoc}
      */
-    protected void updateControls() {
+    @Override
+    public void updateControls() {
         m_usernameControl.setText(getUsername());
         m_passwordControl.setText(getPassword());
         m_useCredentialsCheckBox.setSelected(isUseCredentials());

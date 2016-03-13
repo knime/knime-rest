@@ -85,6 +85,7 @@ import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.ButtonGroup;
 import javax.swing.DefaultCellEditor;
+import javax.swing.DefaultListCellRenderer;
 import javax.swing.InputMap;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
@@ -92,6 +93,7 @@ import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JDialog;
 import javax.swing.JLabel;
+import javax.swing.JList;
 import javax.swing.JPanel;
 import javax.swing.JRadioButton;
 import javax.swing.JScrollPane;
@@ -125,6 +127,7 @@ import org.knime.core.node.util.ColumnSelectionPanel;
 import org.knime.core.node.util.StringHistoryPanel;
 import org.knime.core.util.Pair;
 import org.knime.rest.generic.UserConfiguration;
+import org.knime.rest.internals.UsernamePasswordAuthentication;
 import org.knime.rest.nodes.get.RestGetSettings.ParameterKind;
 import org.knime.rest.nodes.get.RestGetSettings.ReferenceType;
 import org.knime.rest.nodes.get.RestGetSettings.RequestHeaderKeyItem;
@@ -187,7 +190,7 @@ final class RestGetNodeDialog extends NodeDialogPane {
     private final JComboBox<String> m_requestHeaderKey = createEditableComboBox(),
             m_requestHeaderValue = createEditableComboBox();
 
-    private final JComboBox<ReferenceType> m_requestHeaderValueType = new JComboBox<>(ReferenceType.values());
+    private final JComboBox<ReferenceType> m_requestHeaderValueType = createEditableComboBox(ReferenceType.values());
 
     private final JComboBox<ParameterKind> m_requestHeaderKeyType =
         new JComboBox<>(new ParameterKind[]{ParameterKind.Header});
@@ -216,14 +219,14 @@ final class RestGetNodeDialog extends NodeDialogPane {
      */
     public RestGetNodeDialog() {
         m_requestTemplates.add(new SimpleImmutableEntry<>("", new ArrayList<>()));
-        IConfigurationElement[] elements =
+        final IConfigurationElement[] elements =
             Platform.getExtensionRegistry().getConfigurationElementsFor(EXTENSION_ID_FOR_REQUEST_HEADER_TEMPLATES);
         for (Entry<String, List<IConfigurationElement>> element : Stream.of(elements)
             .collect(Collectors.groupingBy(element -> element.getDeclaringExtension().getLabel())).entrySet()) {
-            List<IConfigurationElement> entries = element.getValue();
-            List<Entry<String, ? extends List<String>>> entryList = new ArrayList<>();
-            for (IConfigurationElement entry : entries) {
-                IConfigurationElement[] values = entry.getChildren();
+            final List<IConfigurationElement> entries = element.getValue();
+            final List<Entry<String, ? extends List<String>>> entryList = new ArrayList<>();
+            for (final IConfigurationElement entry : entries) {
+                final IConfigurationElement[] values = entry.getChildren();
                 entryList.add(new SimpleImmutableEntry<>(entry.getAttribute("key"),
                     Stream.of(values).filter(v -> v != null && v.getValue() != null).map(v -> v.getValue().trim())
                         .collect(Collectors.toList())));
@@ -237,10 +240,29 @@ final class RestGetNodeDialog extends NodeDialogPane {
     }
 
     /**
+     * @param initialValues
      * @return
      */
-    private static JComboBox<String> createEditableComboBox() {
-        final JComboBox<String> ret = new JComboBox<>();
+    @SafeVarargs
+    @SuppressWarnings("serial")
+    private static <T> JComboBox<T> createEditableComboBox(final T... initialValues) {
+        final JComboBox<T> ret = new JComboBox<>(initialValues);
+        ret.setRenderer(new DefaultListCellRenderer() {
+            /**
+             * {@inheritDoc}
+             */
+            @Override
+            public Component getListCellRendererComponent(final JList<?> list, final Object value, final int index, final boolean isSelected,
+                final boolean cellHasFocus) {
+                setToolTipText(value.toString());
+                final Component res = super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+                if (res instanceof JLabel) {
+                    final JLabel label = (JLabel)res;
+                    label.setFont(getFont().deriveFont(9f));
+                }
+                return res;
+            }
+        });
         ret.setEditable(true);
         return ret;
     }
@@ -653,7 +675,7 @@ final class RestGetNodeDialog extends NodeDialogPane {
             }
         });
         m_requestHeaders.getColumnModel().addColumn(
-            new TableColumn(RequestTableModel.Columns.delete.ordinal(), 40, deleteRequestRow, deleteRequestRow));
+            new TableColumn(RequestTableModel.Columns.delete.ordinal(), 5, deleteRequestRow, deleteRequestRow));
         m_requestAddRow.addActionListener(e -> m_requestHeadersModel.newRow());
         m_requestDeleteRow.addActionListener(e -> m_requestHeadersModel.removeRow(m_requestHeaders.getSelectedRow()));
         m_requestEditRow.addActionListener(e -> editRequestHeader(m_requestHeaders.getSelectedRow()));
@@ -956,6 +978,13 @@ final class RestGetNodeDialog extends NodeDialogPane {
             .addAll(StreamSupport.stream(m_responseHeadersModel.spliterator(), false).collect(Collectors.toList()));
         m_settings.setResponseBodyColumn(m_bodyColumnName.getSelectedString());
         m_bodyColumnName.commitSelectedToHistory();
+        for (final EnablableUserConfiguration<UserConfiguration> euc : m_settings.getAuthorizationConfigurations()) {
+            final UserConfiguration uc = euc.getUserConfiguration();
+            if (uc instanceof UsernamePasswordAuthentication) {
+                final UserConfiguration upa = uc;
+                upa.updateControls();
+            }
+        }
         m_settings.saveSettings(settings);
     }
 
