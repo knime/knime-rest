@@ -147,6 +147,14 @@ final class RestGetSettings {
 
     private static final String ENABLED_SUFFIX = "_enabled";
 
+    private static final String FOLLOW_REDIRECTS = "follow redirects";
+
+    private static final boolean DEFAULT_FOLLOW_REDIRECTS = true;
+
+    private static final String TIMEOUT = "timeout";
+
+    static final int DEFAULT_TIMEOUT = 2;
+
     //The column or the actual constant URI
     private boolean m_isUseConstantURI = DEFAULT_USE_CONSTANT_URI;
 
@@ -163,6 +171,10 @@ final class RestGetSettings {
     private boolean m_sslIgnoreHostNameErrors = DEFAULT_IGNORE_HOSTNAME_ERRORS;
 
     private boolean m_sslTrustAll = DEFAULT_SSL_TRUST_ALL;
+
+    private boolean m_followRedirects = DEFAULT_FOLLOW_REDIRECTS;
+
+    private int m_timeoutInSeconds = DEFAULT_TIMEOUT;
 
     //Request
     enum ReferenceType {
@@ -620,6 +632,34 @@ final class RestGetSettings {
     }
 
     /**
+     * @return the followRedirects
+     */
+    boolean isFollowRedirects() {
+        return m_followRedirects;
+    }
+
+    /**
+     * @param followRedirects the followRedirects to set
+     */
+    void setFollowRedirects(final boolean followRedirects) {
+        m_followRedirects = followRedirects;
+    }
+
+    /**
+     * @return the timeoutInSeconds
+     */
+    int getTimeoutInSeconds() {
+        return m_timeoutInSeconds;
+    }
+
+    /**
+     * @param timeoutInSeconds the timeoutInSeconds to set
+     */
+    void setTimeoutInSeconds(final int timeoutInSeconds) {
+        m_timeoutInSeconds = timeoutInSeconds;
+    }
+
+    /**
      * @return the authorizationConfigurations
      */
     public List<EnablableUserConfiguration<UserConfiguration>> getAuthorizationConfigurations() {
@@ -654,6 +694,8 @@ final class RestGetSettings {
             uc.saveUserConfiguration(configBase);
             settings.addBoolean(uc.id() + ENABLED_SUFFIX, euc.isEnabled());
         }
+        settings.addBoolean(FOLLOW_REDIRECTS, m_followRedirects);
+        settings.addInt(TIMEOUT, m_timeoutInSeconds);
     }
 
     void loadSettingsFrom(final ConfigRO settings) throws InvalidSettingsException {
@@ -701,6 +743,8 @@ final class RestGetSettings {
                 LOGGER.warn("", e);
             }
         }
+        m_followRedirects = settings.getBoolean(FOLLOW_REDIRECTS);
+        m_timeoutInSeconds = settings.getInt(TIMEOUT);
     }
 
     void loadSettingsForDialog(final ConfigRO settings, final Collection<String> credentialNames,
@@ -756,5 +800,7 @@ final class RestGetSettings {
                 uc.loadUserConfigurationForDialog(null, specs, credentialNames);
             }
         }
+        m_followRedirects = settings.getBoolean(FOLLOW_REDIRECTS, DEFAULT_FOLLOW_REDIRECTS);
+        m_timeoutInSeconds = settings.getInt(TIMEOUT, DEFAULT_TIMEOUT);
     }
 }

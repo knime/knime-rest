@@ -53,14 +53,21 @@ import java.io.IOException;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
+import javax.ws.rs.ProcessingException;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
+import javax.ws.rs.client.Invocation;
 import javax.ws.rs.client.Invocation.Builder;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
@@ -205,7 +212,8 @@ class RestGetNodeModel extends NodeModel {
                 makeFirstCall(iterator.next(), enabledEachRequestAuthentications, spec, exec);
             }
             m_consumedRows = 1L;
-            final ColumnRearranger rearranger = createColumnRearranger(enabledEachRequestAuthentications, spec, exec, inData[0].size());
+            final ColumnRearranger rearranger =
+                createColumnRearranger(enabledEachRequestAuthentications, spec, exec, inData[0].size());
             return new BufferedDataTable[]{exec.createColumnRearrangeTable(inData[0], rearranger, exec)};
         }
         makeFirstCall(null/*row*/, enabledEachRequestAuthentications, null/*spec*/, exec);
@@ -218,57 +226,83 @@ class RestGetNodeModel extends NodeModel {
      * @param spec
      * @param exec
      */
-    private void makeFirstCall(final DataRow row, final List<EachRequestAuthentication> enabledEachRequestAuthentications, final DataTableSpec spec, final ExecutionContext exec) {
+    private void makeFirstCall(final DataRow row,
+        final List<EachRequestAuthentication> enabledEachRequestAuthentications, final DataTableSpec spec,
+        final ExecutionContext exec) throws ProcessingException {
         m_firstRow = row == null ? null : row.getKey();
-        if (m_settings.isSslIgnoreHostNameErrors()) {
-
-        }
         final UniqueNameGenerator nameGenerator = new UniqueNameGenerator(spec == null ? new DataTableSpec() : spec);
-        final Response response =
-            createRequest(spec == null ? -1 : spec.findColumnIndex(m_settings.getUriColumn()), enabledEachRequestAuthentications, row, spec).buildGet()
-                .invoke();
-        final List<DataCell> cells;
-        final List<DataColumnSpec> specs = new ArrayList<>();
-        if (m_settings.isExtractAllResponseFields()) {
-            Stream
-                .concat(Stream.of(Pair.create("Status", IntCell.TYPE)),
-                    response.getStringHeaders().keySet().stream().map(header -> Pair.create(header, StringCell.TYPE)))
-                .forEachOrdered(pair -> {
-                    m_responseHeaderKeys.add(new ResponseHeaderItem(pair.getFirst(), pair.getSecond(),
-                        nameGenerator.newColumn(pair.getFirst(), pair.getSecond()).getName()));
-                });
-        } else {
-            m_responseHeaderKeys
-                .addAll(
-                    m_settings
+        Response response;
+        try {
+            response = invoke(createRequest(spec == null ? -1 : spec.findColumnIndex(m_settings.getUriColumn()),
+                enabledEachRequestAuthentications, row, spec).buildGet());
+        } catch (final ProcessingException procEx) {
+            LOGGER.warn("First call failed: " + procEx.getMessage(), procEx);
+            response = null;
+        }
+        try {
+            final List<DataCell> cells;
+            final List<DataColumnSpec> specs = new ArrayList<>();
+            if (m_settings.isExtractAllResponseFields()) {
+                Stream.concat(Stream.of(Pair.create("Status", IntCell.TYPE)),
+                    (response == null ? Collections.<String> emptyList() : response.getStringHeaders().keySet())
+                        .stream().map(header -> Pair.create(header, StringCell.TYPE)))
+                    .forEachOrdered(pair -> {
+                        m_responseHeaderKeys.add(new ResponseHeaderItem(pair.getFirst(), pair.getSecond(),
+                            nameGenerator.newColumn(pair.getFirst(), pair.getSecond()).getName()));
+                    });
+            } else {
+                m_responseHeaderKeys
+                    .addAll(m_settings
                         .getExtractFields().stream().map(rhi -> new ResponseHeaderItem(rhi.getHeaderKey(),
                             rhi.getType(), nameGenerator.newName(rhi.getOutputColumnName())))
                     .collect(Collectors.toList()));
-        }
-        cells = m_responseHeaderKeys.stream().map(rhi -> {
-            specs.add(/*nameGenerator.newColumn(*/new DataColumnSpecCreator(rhi.getOutputColumnName(), rhi.getType()).createSpec()/*)*/);
-            DataCellFactory cellFactory = rhi.getType().getCellFactory(null).orElseGet(() -> FALLBACK);
-            //List<Object> values = headers.get(e.getKey());
-            if ("Status".equals(rhi.getHeaderKey()) && rhi.getType().isCompatible(IntValue.class)) {
-                return new IntCell(response.getStatus());
             }
-            if (cellFactory instanceof FromString) {
-                FromString fromString = (FromString)cellFactory;
-                String value = response.getHeaderString(rhi.getHeaderKey());
-                if (value == null) {
-                    return DataType.getMissingCell();
+            final Response finalResponse = response;
+            cells = m_responseHeaderKeys.stream().map(rhi -> {
+                specs
+                    .add(/*nameGenerator.newColumn(*/new DataColumnSpecCreator(rhi.getOutputColumnName(), rhi.getType())
+                        .createSpec()/*)*/);
+                DataCellFactory cellFactory = rhi.getType().getCellFactory(null).orElseGet(() -> FALLBACK);
+                //List<Object> values = headers.get(e.getKey());
+                if ("Status".equals(rhi.getHeaderKey()) && rhi.getType().isCompatible(IntValue.class)) {
+                    return finalResponse == null ? DataType.getMissingCell() : new IntCell(finalResponse.getStatus());
                 }
-                return fromString.createCell(value);
+                if (cellFactory instanceof FromString) {
+                    FromString fromString = (FromString)cellFactory;
+                    String value = finalResponse == null ? null : finalResponse.getHeaderString(rhi.getHeaderKey());
+                    if (value == null) {
+                        return DataType.getMissingCell();
+                    }
+                    return fromString.createCell(value);
+                }
+                return DataType.getMissingCell();
+            }).collect(Collectors.toList());
+            examineResponse(response);
+            for (ResponseHeaderItem bodyCol : m_bodyColumns) {
+                specs.add(nameGenerator.newColumn(bodyCol.getOutputColumnName(), bodyCol.getType()));
             }
-            return DataType.getMissingCell();
-        }).collect(Collectors.toList());
-        examineResponse(response);
-        for (ResponseHeaderItem bodyCol : m_bodyColumns) {
-            specs.add(nameGenerator.newColumn(bodyCol.getOutputColumnName(), bodyCol.getType()));
+            addBodyValues(cells, response);
+            m_firstCallValues = cells.toArray(new DataCell[cells.size()]);
+            m_newColumnsBasedOnFirstCall = specs.toArray(new DataColumnSpec[specs.size()]);
+        } finally {
+            if (response != null) {
+                response.close();
+            }
         }
-        addBodyValues(cells, response);
-        m_firstCallValues = cells.toArray(new DataCell[cells.size()]);
-        m_newColumnsBasedOnFirstCall = specs.toArray(new DataColumnSpec[specs.size()]);
+    }
+
+    /**
+     * @param get
+     * @return The response.
+     * @throws ProcessingException
+     */
+    protected Response invoke(final Invocation get) throws ProcessingException {
+        final Future<Response> responseFuture = get.submit();
+        try {
+            return responseFuture.get(m_settings.getTimeoutInSeconds(), TimeUnit.SECONDS);
+        } catch (InterruptedException | ExecutionException | TimeoutException e) {
+            throw new ProcessingException(e);
+        }
     }
 
     /**
@@ -377,8 +411,9 @@ class RestGetNodeModel extends NodeModel {
         return new OutputPortRole[]{OutputPortRole.NONDISTRIBUTED};
     }
 
-    private ColumnRearranger createColumnRearranger(final List<EachRequestAuthentication> enabledEachRequestAuthentications, final DataTableSpec spec, final ExecutionMonitor exec,
-        final long tableSize) throws InvalidSettingsException {
+    private ColumnRearranger createColumnRearranger(
+        final List<EachRequestAuthentication> enabledEachRequestAuthentications, final DataTableSpec spec,
+        final ExecutionMonitor exec, final long tableSize) throws InvalidSettingsException {
         final ColumnRearranger rearranger = new ColumnRearranger(spec);
         final DataColumnSpec[] newColumns = createNewColumnsSpec();
         final int uriColumn = spec.findColumnIndex(m_settings.getUriColumn());
@@ -392,20 +427,29 @@ class RestGetNodeModel extends NodeModel {
                 final Builder request = createRequest(uriColumn, enabledEachRequestAuthentications, row, spec);
                 final List<DataCell> cells;
                 try {
-                    final Response response = request.buildGet().invoke();
+                    Response response;
+                    try {
+                        response = invoke(request.buildGet());
+                    } catch (ProcessingException e) {
+                        LOGGER.debug("Call failed: " + e.getMessage(), e);
+                        response = null;
+                    }
                     try {
                         //MultivaluedMap<String, Object> headers = response.getHeaders();
                         //examineResponse(response);
                         //cells = m_settings.getExtractFields().stream().map(rhi -> {
+                        final Response finalResponse = response;
                         cells = m_responseHeaderKeys.stream().map(rhi -> {
                             DataCellFactory cellFactory = rhi.getType().getCellFactory(null).orElseGet(() -> FALLBACK);
                             //List<Object> values = headers.get(e.getKey());
                             if ("Status".equals(rhi.getHeaderKey()) && rhi.getType().isCompatible(IntValue.class)) {
-                                return new IntCell(response.getStatus());
+                                return finalResponse == null ? DataType.getMissingCell()
+                                    : new IntCell(finalResponse.getStatus());
                             }
                             if (cellFactory instanceof FromString) {
                                 FromString fromString = (FromString)cellFactory;
-                                String value = response.getHeaderString(rhi.getHeaderKey());
+                                String value =
+                                    finalResponse == null ? null : finalResponse.getHeaderString(rhi.getHeaderKey());
                                 if (value == null) {
                                     return DataType.getMissingCell();
                                 }
@@ -415,7 +459,9 @@ class RestGetNodeModel extends NodeModel {
                         }).collect(Collectors.toList());
                         addBodyValues(cells, response);
                     } finally {
-                        response.close();
+                        if (response != null) {
+                            response.close();
+                        }
                     }
                     //TODO wait only when we are requesting from the same domain?
                     if (m_settings.isUseDelay()) {
@@ -448,7 +494,9 @@ class RestGetNodeModel extends NodeModel {
      * @param response
      */
     private void examineResponse(final Response response) {
-        if (response.hasEntity()) {
+        if (response == null) {
+            m_bodyColumns.add(new ResponseHeaderItem(m_settings.getResponseBodyColumn(), BinaryObjectDataCell.TYPE));
+        } else if (response.hasEntity()) {
             final MediaType mediaType = response.getMediaType();
             DataType type = BinaryObjectDataCell.TYPE;
             for (final ResponseBodyParser responseBodyParser : m_responseBodyParsers) {
@@ -547,7 +595,9 @@ class RestGetNodeModel extends NodeModel {
      * @return
      */
     @SuppressWarnings("null")
-    private Builder createRequest(final int uriColumn, final List<EachRequestAuthentication> enabledEachRequestAuthentications, final DataRow row, final DataTableSpec spec) {
+    private Builder createRequest(final int uriColumn,
+        final List<EachRequestAuthentication> enabledEachRequestAuthentications, final DataRow row,
+        final DataTableSpec spec) {
         final Client client = createClient();
         CheckUtils.checkState(m_settings.isUseConstantURI() || row != null,
             "Without the constant uri and input, it is not possible to call a REST service!");
@@ -557,7 +607,7 @@ class RestGetNodeModel extends NodeModel {
                 : ((StringValue)row.getCell(uriColumn)).getStringValue());
 
         final Builder request = target.request();
-        WebClient.getConfig(request).getHttpConduit().getClient().setAutoRedirect(true);
+        WebClient.getConfig(request).getHttpConduit().getClient().setAutoRedirect(m_settings.isFollowRedirects());
         WebClient.getConfig(request).getHttpConduit().getClient().setMaxRetransmits(2);
 
         for (final EachRequestAuthentication era : enabledEachRequestAuthentications) {
@@ -595,7 +645,7 @@ class RestGetNodeModel extends NodeModel {
      */
     protected void addBodyValues(final List<DataCell> cells, final Response response) {
         m_bodyColumns.stream().forEachOrdered(rhi -> {
-            if (response.hasEntity()) {
+            if (response != null && response.hasEntity()) {
                 DataType expectedType = rhi.getType();
                 MediaType mediaType = response.getMediaType();
                 if (mediaType == null) {

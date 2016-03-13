@@ -82,6 +82,8 @@ public class ButtonCell implements TableCellEditor, TableCellRenderer {
         m_button.setFont(m_button.getFont().deriveFont(11f));
         m_buttonRender.setFont(m_buttonRender.getFont().deriveFont(10f));
         m_panel = new JPanel(new FlowLayout(FlowLayout.CENTER, 2, 0));
+        m_button.setBorder(null);
+        m_buttonRender.setBorder(null);
         m_panelRender = new JPanel(new FlowLayout(FlowLayout.CENTER, 2, 0));
         m_panelRender.add(m_buttonRender);
         m_panel.add(m_button);
@@ -164,7 +166,7 @@ public class ButtonCell implements TableCellEditor, TableCellRenderer {
 //        final JLabel label = new JLabel((String)m_action.getValue(Action.NAME), (Icon)m_action.getValue(Action.SMALL_ICON), SwingConstants.CENTER);
 //        panel.add(label);
 //        return panel;
-        return m_buttonRender;//m_panelRender;
+        return m_panelRender;
     }
 
     /**
@@ -176,7 +178,7 @@ public class ButtonCell implements TableCellEditor, TableCellRenderer {
         m_row = row;
         m_panel.repaint();
         m_button.repaint();
-        return m_button;
+        return m_panel;
     }
 
     /**

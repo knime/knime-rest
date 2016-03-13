@@ -62,6 +62,8 @@ import java.awt.KeyboardFocusManager;
 import java.awt.Window;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.FocusEvent;
+import java.awt.event.FocusListener;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -127,7 +129,6 @@ import org.knime.core.node.util.ColumnSelectionPanel;
 import org.knime.core.node.util.StringHistoryPanel;
 import org.knime.core.util.Pair;
 import org.knime.rest.generic.UserConfiguration;
-import org.knime.rest.internals.UsernamePasswordAuthentication;
 import org.knime.rest.nodes.get.RestGetSettings.ParameterKind;
 import org.knime.rest.nodes.get.RestGetSettings.ReferenceType;
 import org.knime.rest.nodes.get.RestGetSettings.RequestHeaderKeyItem;
@@ -167,6 +168,10 @@ final class RestGetNodeDialog extends NodeDialogPane {
 
     private final JCheckBox m_sslIgnoreHostnameMismatches = new JCheckBox("Ignore hostname mismatches"),
             m_sslTrustAll = new JCheckBox("Trust all certificates");
+
+    private final JCheckBox m_followRedirects = new JCheckBox("Follow redirects");
+
+    private final JSpinner m_timeoutInSeconds = new JSpinner(new SpinnerNumberModel(RestGetSettings.DEFAULT_TIMEOUT, 1, Integer.MAX_VALUE, 1));
 
     private final RequestTableModel m_requestHeadersModel = new RequestTableModel();
 
@@ -213,6 +218,12 @@ final class RestGetNodeDialog extends NodeDialogPane {
     private List<Entry<String, List<Entry<String, ? extends List<String>>>>> m_requestTemplates = new ArrayList<>();
 
     private List<Entry<String, ? extends List<String>>> m_requestHeaderOptions;
+
+    private DefaultTableCellRenderer m_responseHeaderKeyCellRenderer;
+
+    private DefaultTableCellRenderer m_responseHeaderValueCellRenderer;
+
+    private DefaultCellEditor m_responseValueCellEditor;
 
     /**
      *
@@ -315,6 +326,16 @@ final class RestGetNodeDialog extends NodeDialogPane {
         sslPanel.add(m_sslTrustAll);
         ret.add(sslPanel, gbc);
         gbc.gridy++;
+        ret.add(m_followRedirects, gbc);
+        gbc.gridy++;
+        gbc.weightx = 0;
+        gbc.gridx = 0;
+        ret.add(new JLabel("Timeout (s)"), gbc);
+        gbc.gridx++;
+        gbc.weightx = 1;
+        ret.add(m_timeoutInSeconds, gbc);
+        gbc.gridx = 0;
+        gbc.gridy++;
         final JPanel body = new JPanel(new FlowLayout(FlowLayout.LEADING));
         body.add(new JLabel("Body column: "));
         body.add(m_bodyColumnName);
@@ -407,6 +428,7 @@ final class RestGetNodeDialog extends NodeDialogPane {
         m_responseHeaderKey.setSelectedItem(m_responseHeadersModel.getValueAt(selectedRow, 0));
         m_responseColumnName
             .setText((String)((Pair<?, ?>)m_responseHeadersModel.getValueAt(selectedRow, 1)).getFirst());
+        updateResponseValueTypes();
         m_responseValueType
             .setSelectedItem(((Pair<?, ?>)m_responseHeadersModel.getValueAt(selectedRow, 1)).getSecond());
         outer.add(panel, BorderLayout.CENTER);
@@ -590,6 +612,7 @@ final class RestGetNodeDialog extends NodeDialogPane {
      * @return
      */
     private JPanel createRequestHeadersTab() {
+        m_requestHeaderValueType.setEditable(false);
         deleteAndInsertRowRequestHeaderActions();
         m_requestHeaders.setAutoCreateColumnsFromModel(false);
         while (m_requestHeaders.getColumnModel().getColumns().hasMoreElements()) {
@@ -662,7 +685,7 @@ final class RestGetNodeDialog extends NodeDialogPane {
         };
         m_requestHeaderValueType.addActionListener(updateRequestValueAlternatives);
         final ButtonCell deleteRequestRow = new ButtonCell();
-        deleteRequestRow.setAction(new AbstractAction("X") {
+        deleteRequestRow.setAction(new AbstractAction(" X ") {
             private static final long serialVersionUID = 1369259160048695493L;
 
             @Override
@@ -674,8 +697,10 @@ final class RestGetNodeDialog extends NodeDialogPane {
                 }
             }
         });
+        final TableColumn deleteRowColumn = new TableColumn(RequestTableModel.Columns.delete.ordinal(), 15, deleteRequestRow, deleteRequestRow);
+        deleteRowColumn.setMaxWidth(25);
         m_requestHeaders.getColumnModel().addColumn(
-            new TableColumn(RequestTableModel.Columns.delete.ordinal(), 5, deleteRequestRow, deleteRequestRow));
+            deleteRowColumn);
         m_requestAddRow.addActionListener(e -> m_requestHeadersModel.newRow());
         m_requestDeleteRow.addActionListener(e -> m_requestHeadersModel.removeRow(m_requestHeaders.getSelectedRow()));
         m_requestEditRow.addActionListener(e -> editRequestHeader(m_requestHeaders.getSelectedRow()));
@@ -840,11 +865,12 @@ final class RestGetNodeDialog extends NodeDialogPane {
             m_responseHeaders.getColumnModel()
                 .removeColumn(m_responseHeaders.getColumnModel().getColumns().nextElement());
         }
+        m_responseHeaderKeyCellRenderer = new DefaultTableCellRenderer();
         final TableColumn keyCol =
-            new TableColumn(0, 67, new DefaultTableCellRenderer(), new DefaultCellEditor(m_responseHeaderKey));
+            new TableColumn(0, 67, m_responseHeaderKeyCellRenderer, new DefaultCellEditor(m_responseHeaderKey));
         keyCol.setHeaderValue("Key");
         m_responseHeaders.getColumnModel().addColumn(keyCol);
-        m_responseHeaders.getColumnModel().addColumn(new TableColumn(1, 67, new DefaultTableCellRenderer() {
+        m_responseHeaderValueCellRenderer = new DefaultTableCellRenderer() {
             private static final long serialVersionUID = 8685506970523457593L;
 
             /**
@@ -869,7 +895,8 @@ final class RestGetNodeDialog extends NodeDialogPane {
                 }
                 return orig;
             }
-        }, new DefaultCellEditor(m_responseColumnName) {
+        };
+        m_responseValueCellEditor = new DefaultCellEditor(m_responseColumnName) {
             private static final long serialVersionUID = 6989656745155391971L;
 
             /**
@@ -900,7 +927,11 @@ final class RestGetNodeDialog extends NodeDialogPane {
                 }
                 return super.getTableCellEditorComponent(table, value, isSelected, row, column);
             }
-        }));
+        };
+        m_responseHeaders.getColumnModel().addColumn(new TableColumn(1, 67, m_responseHeaderValueCellRenderer, m_responseValueCellEditor));
+        m_responseHeaders.getSelectionModel().addListSelectionListener(e -> {
+            updateResponseHeaderControls();
+        });
         m_responseAddRow.addActionListener(e -> m_responseHeadersModel.newRow());
         m_responseDeleteRow
             .addActionListener(e -> m_responseHeadersModel.removeRow(m_responseHeaders.getSelectedRow()));
@@ -914,10 +945,7 @@ final class RestGetNodeDialog extends NodeDialogPane {
         gbc.fill = GridBagConstraints.HORIZONTAL;
         ret.add(m_extractAllHeaders, gbc);
         m_extractAllHeaders.addActionListener(e -> {
-            m_responseHeaders.setEnabled(!m_extractAllHeaders.isSelected());
-            if (m_extractAllHeaders.isSelected()) {
-                m_responseHeaders.getSelectionModel().clearSelection();
-            }
+            updateResponseHeaderControls();
         });
         gbc.fill = GridBagConstraints.BOTH;
         gbc.weighty = 1;
@@ -944,7 +972,55 @@ final class RestGetNodeDialog extends NodeDialogPane {
             }
         });
 
+        ((JTextComponent)m_responseHeaderKey.getEditor().getEditorComponent()).getDocument().addDocumentListener((DocumentEditListener)e -> {
+//            updateResponseValueTypes();
+        });
+        ((JTextComponent)m_responseHeaderKey.getEditor().getEditorComponent()).addFocusListener((FocusLostListener)e -> {
+            updateResponseValueTypes();
+        });
         return ret;
+    }
+
+    /**
+     *
+     */
+    private void updateResponseValueTypes() {
+        if ("Status".equals(m_responseHeaderKey.getSelectedItem())) {
+            if (m_responseValueType.getItemCount() < 2) {
+                m_responseValueType.addItem(IntCell.TYPE);
+            }
+        } else {
+            if (m_responseValueType.getItemCount() == 2) {
+                m_responseValueType.removeItem(IntCell.TYPE);
+            }
+        }
+    }
+
+    /**
+     *
+     */
+    private void updateResponseHeaderControls() {
+        if (m_extractAllHeaders.isSelected()) {
+            m_responseAddRow.setEnabled(false);
+            m_responseDeleteRow.setEnabled(false);
+            m_responseEditRow.setEnabled(false);
+            m_responseHeaders.setEnabled(false);
+            m_responseHeaderKeyCellRenderer.setEnabled(false);
+            m_responseHeaderValueCellRenderer.setEnabled(false);
+            m_responseValueType.setEnabled(false);
+            m_responseValueCellEditor.getComponent().setEnabled(false);
+            m_responseHeaders.clearSelection();
+        } else {
+            m_responseAddRow.setEnabled(true);
+            m_responseHeaders.setEnabled(true);
+            m_responseHeaderKeyCellRenderer.setEnabled(true);
+            m_responseHeaderValueCellRenderer.setEnabled(true);
+            m_responseValueType.setEnabled(true);
+            m_responseValueCellEditor.getComponent().setEnabled(true);
+            final boolean hasSelection = m_responseHeaders.getSelectedRowCount() > 0;
+            m_responseDeleteRow.setEnabled(hasSelection);
+            m_responseEditRow.setEnabled(hasSelection);
+        }
     }
 
     /**
@@ -963,12 +1039,17 @@ final class RestGetNodeDialog extends NodeDialogPane {
         }
         m_settings.setUseConstantURI(m_constantUriOption.isSelected());
         m_settings.setConstantURI(m_constantUri.getSelectedString());
+        if (m_constantUriOption.isSelected()) {
+            m_constantUri.commitSelectedToHistory();
+        }
         m_settings.setUriColumn(m_uriColumn.getSelectedColumn());
         m_settings.setUseDelay(m_useDelay.isSelected());
         m_settings.setDelay(((Number)m_delay.getValue()).longValue());
         m_settings.setConcurrency(((Number)m_concurrency.getValue()).intValue());
         m_settings.setSslIgnoreHostNameErrors(m_sslIgnoreHostnameMismatches.isSelected());
         m_settings.setSslTrustAll(m_sslTrustAll.isSelected());
+        m_settings.setFollowRedirects(m_followRedirects.isSelected());
+        m_settings.setTimeoutInSeconds(((Number)m_timeoutInSeconds.getValue()).intValue());
         m_settings.getRequestHeaders().clear();
         m_settings.getRequestHeaders()
             .addAll(StreamSupport.stream(m_requestHeadersModel.spliterator(), false).collect(Collectors.toList()));
@@ -979,11 +1060,7 @@ final class RestGetNodeDialog extends NodeDialogPane {
         m_settings.setResponseBodyColumn(m_bodyColumnName.getSelectedString());
         m_bodyColumnName.commitSelectedToHistory();
         for (final EnablableUserConfiguration<UserConfiguration> euc : m_settings.getAuthorizationConfigurations()) {
-            final UserConfiguration uc = euc.getUserConfiguration();
-            if (uc instanceof UsernamePasswordAuthentication) {
-                final UserConfiguration upa = uc;
-                upa.updateControls();
-            }
+            euc.getUserConfiguration().updateControls();
         }
         m_settings.saveSettings(settings);
     }
@@ -1010,6 +1087,7 @@ final class RestGetNodeDialog extends NodeDialogPane {
         m_credentials.addAll(getCredentialsNames());
         // TODO Update UI based on settings
         m_constantUriOption.setSelected(m_settings.isUseConstantURI());
+        m_constantUri.updateHistory();
         m_constantUri.setSelectedString(m_settings.getConstantURI());
         //m_uriColumn.setSelectedColumn(m_settings.getUriColumn());
         if (specs[0] != null) {
@@ -1024,6 +1102,8 @@ final class RestGetNodeDialog extends NodeDialogPane {
         m_concurrency.setValue(m_settings.getConcurrency());
         m_sslIgnoreHostnameMismatches.setSelected(m_settings.isSslIgnoreHostNameErrors());
         m_sslTrustAll.setSelected(m_settings.isSslTrustAll());
+        m_followRedirects.setSelected(m_settings.isFollowRedirects());
+        m_timeoutInSeconds.setValue(m_settings.getTimeoutInSeconds());
         m_requestHeadersModel.clear();
         for (int i = 0; i < m_settings.getRequestHeaders().size(); ++i) {
             m_requestHeadersModel.addRow(m_settings.getRequestHeaders().get(i));
@@ -1044,6 +1124,7 @@ final class RestGetNodeDialog extends NodeDialogPane {
                 }
             }
         }
+        updateResponseHeaderControls();
     }
 
     @FunctionalInterface
@@ -1070,6 +1151,16 @@ final class RestGetNodeDialog extends NodeDialogPane {
          * @param e
          */
         void handleEdit(DocumentEvent e);
+    }
+
+    private interface FocusLostListener extends FocusListener {
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        default void focusGained(final FocusEvent e) {
+            //Do nothing.
+        }
     }
 
     /**
