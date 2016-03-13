@@ -19,8 +19,6 @@
       <complexType>
          <sequence minOccurs="1" maxOccurs="unbounded">
             <choice minOccurs="1" maxOccurs="unbounded">
-               <element ref="OneTimeAuthentication" minOccurs="1" maxOccurs="unbounded"/>
-               <element ref="ReconnectAuthentication" minOccurs="1" maxOccurs="unbounded"/>
                <element ref="AuthenticateEachRequest" minOccurs="1" maxOccurs="unbounded"/>
             </choice>
          </sequence>
@@ -46,64 +44,6 @@
                <appInfo>
                   <meta.attribute translatable="true"/>
                </appInfo>
-            </annotation>
-         </attribute>
-      </complexType>
-   </element>
-
-   <element name="OneTimeAuthentication">
-      <complexType>
-         <attribute name="deprecated" type="boolean" use="default" value="false">
-            <annotation>
-               <documentation>
-                  
-               </documentation>
-            </annotation>
-         </attribute>
-         <attribute name="class" type="string">
-            <annotation>
-               <documentation>
-                  Used for once per run authorization.
-               </documentation>
-               <appInfo>
-                  <meta.attribute kind="java" basedOn=":org.knime.rest.generic.OneTimeAuthorization"/>
-               </appInfo>
-            </annotation>
-         </attribute>
-         <attribute name="supportsDistributedExecution" type="boolean" use="default" value="false">
-            <annotation>
-               <documentation>
-                  In case of distributed execution, it should provide the necessary information for all workers.
-               </documentation>
-            </annotation>
-         </attribute>
-      </complexType>
-   </element>
-
-   <element name="ReconnectAuthentication">
-      <complexType>
-         <attribute name="deprecated" type="boolean" use="default" value="false">
-            <annotation>
-               <documentation>
-                  
-               </documentation>
-            </annotation>
-         </attribute>
-         <attribute name="class" type="string" use="required">
-            <annotation>
-               <documentation>
-                  Used only when the request returned 401. It can be specified whether the same request should be retried, or just subsequent requests should use the newly authenticated information.
-               </documentation>
-               <appInfo>
-                  <meta.attribute kind="java" basedOn=":org.knime.rest.generic.ReconnectAuthentication"/>
-               </appInfo>
-            </annotation>
-         </attribute>
-         <attribute name="supportsDistributedExecution" type="boolean" use="default" value="false">
-            <annotation>
-               <documentation>
-                  When true, the extension should distribute the necessary information to the workers.
-               </documentation>
             </annotation>
          </attribute>
       </complexType>
