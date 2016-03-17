@@ -147,4 +147,12 @@ public class NoAuthentication implements EachRequestAuthentication {
     public void updateControls() {
         //No controls to update.
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void updateSettings() {
+        //No settings.
+    }
 }

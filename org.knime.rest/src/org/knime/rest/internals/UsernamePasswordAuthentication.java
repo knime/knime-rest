@@ -135,7 +135,8 @@ public abstract class UsernamePasswordAuthentication implements UserConfiguratio
     /**
      * Updates the settings based on the control values.
      */
-    protected void updateSettings() {
+    @Override
+    public void updateSettings() {
         setUsername(m_usernameControl.getText());
         setPassword(new String(m_passwordControl.getPassword()));
         setUseCredentials(m_useCredentialsCheckBox.isSelected());

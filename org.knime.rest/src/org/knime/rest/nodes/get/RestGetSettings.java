@@ -97,7 +97,7 @@ final class RestGetSettings {
 
     private static final String URI_COLUMN = "URI column";
 
-    private static final String DEFAULT_URI_COLUMN = "URI";
+    private static final String DEFAULT_URI_COLUMN = null;
 
     private static final String USE_DELAY = "delay_enabled";
 

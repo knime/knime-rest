@@ -354,8 +354,8 @@ final class RestGetNodeDialog extends NodeDialogPane {
             m_uriColumn.setEnabled(m_uriColumnOption.isSelected());
             m_constantUri.setEnabled(!m_uriColumnOption.isSelected());
         });
-        m_uriColumnOption.setSelected(true);
         m_constantUriOption.setSelected(true);
+        m_uriColumn.setEnabled(false);
         m_delay.setEnabled(false);
         return ret;
     }
@@ -1060,7 +1060,7 @@ final class RestGetNodeDialog extends NodeDialogPane {
         m_settings.setResponseBodyColumn(m_bodyColumnName.getSelectedString());
         m_bodyColumnName.commitSelectedToHistory();
         for (final EnablableUserConfiguration<UserConfiguration> euc : m_settings.getAuthorizationConfigurations()) {
-            euc.getUserConfiguration().updateControls();
+            euc.getUserConfiguration().updateSettings();
         }
         m_settings.saveSettings(settings);
     }
@@ -1093,6 +1093,7 @@ final class RestGetNodeDialog extends NodeDialogPane {
         if (specs[0] != null) {
             m_uriColumnOption.setEnabled(true);
             m_uriColumn.update(specs[0], m_settings.getUriColumn(), false, true);
+            m_uriColumn.setEnabled(m_uriColumnOption.isSelected());
         } else {
             m_uriColumnOption.setEnabled(false);
             m_uriColumn.setEnabled(false);
@@ -1118,6 +1119,7 @@ final class RestGetNodeDialog extends NodeDialogPane {
         //        m_settings.setResponseBodyColumn(m_bodyColumnName.getSelectedString());
         for (final EnablableUserConfiguration<UserConfiguration> euc : m_settings.getAuthorizationConfigurations()) {
             for (final JRadioButton radioButton : m_authenticationTabTitles) {
+                euc.getUserConfiguration().updateControls();
                 if (radioButton.getName().equals(euc.getUserConfiguration().id())) {
                     radioButton.setSelected(euc.isEnabled());
                     radioButton.getAction().actionPerformed(null);

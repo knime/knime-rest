@@ -109,4 +109,8 @@ public interface UserConfiguration {
      * Updates the control values based on the settings.
      */
     void updateControls();
+    /**
+     * Updates the settings based on the control values.
+     */
+    void updateSettings();
 }
