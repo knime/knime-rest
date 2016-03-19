@@ -336,10 +336,9 @@ final class RestGetNodeDialog extends NodeDialogPane {
         ret.add(m_timeoutInSeconds, gbc);
         gbc.gridx = 0;
         gbc.gridy++;
-        final JPanel body = new JPanel(new FlowLayout(FlowLayout.LEADING));
-        body.add(new JLabel("Body column: "));
-        body.add(m_bodyColumnName);
-        ret.add(body, gbc);
+        ret.add(new JLabel("Body column: "), gbc);
+        gbc.gridx++;
+        ret.add(m_bodyColumnName, gbc);
         gbc.gridy++;
         gbc.gridx = 0;
         gbc.weighty = 1;
@@ -1092,8 +1091,13 @@ final class RestGetNodeDialog extends NodeDialogPane {
         //m_uriColumn.setSelectedColumn(m_settings.getUriColumn());
         if (specs[0] != null) {
             m_uriColumnOption.setEnabled(true);
-            m_uriColumn.update(specs[0], m_settings.getUriColumn(), false, true);
             m_uriColumn.setEnabled(m_uriColumnOption.isSelected());
+            try {
+                m_uriColumn.update(specs[0], m_settings.getUriColumn(), false, true);
+            } catch (NotConfigurableException e) {
+                m_uriColumn.setEnabled(false);
+                m_uriColumnOption.setEnabled(false);
+            }
         } else {
             m_uriColumnOption.setEnabled(false);
             m_uriColumn.setEnabled(false);
