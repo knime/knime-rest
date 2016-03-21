@@ -310,12 +310,14 @@ class RestGetNodeModel extends NodeModel {
      */
     private void createResponseBodyParsers(final ExecutionContext exec) {
         m_responseBodyParsers.clear();
-        m_responseBodyParsers.add(new Default(MediaType.APPLICATION_JSON_TYPE, JSONCell.TYPE, exec)/* {
-                                                                                                   @Override
-                                                                                                   public String valueDescriptor() {
-                                                                                                   return "JSON";
-                                                                                                   }
-                                                                                                   }*/);
+        for (MediaType mediaType : new MediaType[] {MediaType.APPLICATION_JSON_TYPE, MediaType.valueOf("application/vnd.mason+json")}) {
+            m_responseBodyParsers.add(new Default(mediaType, JSONCell.TYPE, exec)/* {
+                                                                                                       @Override
+                                                                                                       public String valueDescriptor() {
+                                                                                                       return "JSON";
+                                                                                                       }
+                                                                                                       }*/);
+        }
         m_responseBodyParsers.add(new Default(MediaType.valueOf("image/png"), PNGImageContent.TYPE, exec)/* {
                                                                                                          @Override
                                                                                                          public String valueDescriptor() {
