@@ -656,9 +656,11 @@ class RestGetNodeModel extends NodeModel {
                     boolean wasAdded = false;
                     for (ResponseBodyParser parser : m_responseBodyParsers) {
                         if (expectedType.isCompatible(parser.producedDataType().getPreferredValueClass())) {
-                            wasAdded = true;
-                            cells.add(parser.create(response));
-                            break;
+                            if (parser.supportedMediaType().isCompatible(response.getMediaType())) {
+                                wasAdded = true;
+                                cells.add(parser.create(response));
+                                break;
+                            }
                         }
                     }
                     if (!wasAdded) {
