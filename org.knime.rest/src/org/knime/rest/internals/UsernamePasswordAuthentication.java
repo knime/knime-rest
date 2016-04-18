@@ -48,24 +48,18 @@
  */
 package org.knime.rest.internals;
 
-import java.awt.GridBagConstraints;
-import java.awt.GridBagLayout;
-import java.awt.Insets;
-import java.awt.event.ActionEvent;
-import java.util.Collection;
-
-import javax.swing.AbstractAction;
-import javax.swing.JCheckBox;
-import javax.swing.JComboBox;
-import javax.swing.JLabel;
 import javax.swing.JPanel;
-import javax.swing.JPasswordField;
-import javax.swing.JTextField;
 
 import org.knime.core.node.InvalidSettingsException;
-import org.knime.core.node.config.base.ConfigBaseRO;
-import org.knime.core.node.config.base.ConfigBaseWO;
+import org.knime.core.node.NodeSettings;
+import org.knime.core.node.NodeSettingsRO;
+import org.knime.core.node.NodeSettingsWO;
+import org.knime.core.node.NotConfigurableException;
+import org.knime.core.node.defaultnodesettings.DialogComponentAuthentication;
+import org.knime.core.node.defaultnodesettings.SettingsModelAuthentication;
+import org.knime.core.node.defaultnodesettings.SettingsModelAuthentication.Type;
 import org.knime.core.node.port.PortObjectSpec;
+import org.knime.core.node.workflow.CredentialsProvider;
 import org.knime.rest.generic.UserConfiguration;
 
 /**
@@ -73,44 +67,24 @@ import org.knime.rest.generic.UserConfiguration;
  * @author Gabor Bakos
  */
 public abstract class UsernamePasswordAuthentication implements UserConfiguration {
-    private static final String USERNAME = "username";
+    private final SettingsModelAuthentication m_settings;
 
-    private static final String PASSWORD = "password";
-    private static final String USE_CREDENTIALS = "useCredentials";
-    private static final String CREDENTIAL = "credential";
+    private final DialogComponentAuthentication m_controls;
 
-    private String m_username, m_password, m_credential;
-    private boolean m_useCredentials;
-
-    private final String m_encryptionKey;
-
-    private final JTextField m_usernameControl = new JTextField(35);
-
-    private final JPasswordField m_passwordControl = new JPasswordField(25);
-
-    private final JComboBox<String> m_credentialsSelection = new JComboBox<>();
-
-    @SuppressWarnings("serial")
-    private final JCheckBox m_useCredentialsCheckBox = new JCheckBox(new AbstractAction("Use credentials") {
-        @Override
-        public void actionPerformed(final ActionEvent e) {
-            m_usernameControl.setEnabled(!m_useCredentialsCheckBox.isSelected());
-            m_passwordControl.setEnabled(!m_useCredentialsCheckBox.isSelected());
-            m_credentialsSelection.setEnabled(m_useCredentialsCheckBox.isSelected());
-        }
-    });
-
-    private final JLabel m_userLabel = new JLabel("User"), m_passwordLabel = new JLabel("Password"),
-            m_credentialLabel = new JLabel("Credential");
+    private CredentialsProvider m_lastCredentialsProvider;
 
     /**
-     * Constructs a UsernamePasswordAuthentication using {@code encryptionKey}.
-     *
-     * @param encryptionKey The encryption key used to store in the settings.
+     * Constructs a UsernamePasswordAuthentication using the default settings.
+     * @param configName The config name.
+     * @param defaultUsername The default user name.
+     * @param defaultPassword The default password.
+     * @param defaultCredential The default credentials key.
      */
-    protected UsernamePasswordAuthentication(final String encryptionKey) {
+    protected UsernamePasswordAuthentication(final String configName, final String defaultUsername,
+        final String defaultPassword, final String defaultCredential) {
         super();
-        m_encryptionKey = encryptionKey;
+        m_settings = new SettingsModelAuthentication(configName, defaultUsername, defaultPassword, defaultCredential);
+        m_controls = new DialogComponentAuthentication(m_settings);
     }
 
     /**
@@ -125,11 +99,8 @@ public abstract class UsernamePasswordAuthentication implements UserConfiguratio
      * {@inheritDoc}
      */
     @Override
-    public void saveUserConfiguration(final ConfigBaseWO userSettings) {
-        userSettings.addString(USERNAME, getUsername());
-        userSettings.addPassword(PASSWORD, m_encryptionKey, getPassword());
-        userSettings.addBoolean(USE_CREDENTIALS, isUseCredentials());
-        userSettings.addString(CREDENTIAL, getCredential());
+    public void saveUserConfiguration(final NodeSettingsWO userSettings) {
+        m_settings.saveSettingsTo(userSettings);
     }
 
     /**
@@ -137,40 +108,31 @@ public abstract class UsernamePasswordAuthentication implements UserConfiguratio
      */
     @Override
     public void updateSettings() {
-        setUsername(m_usernameControl.getText());
-        setPassword(new String(m_passwordControl.getPassword()));
-        setUseCredentials(m_useCredentialsCheckBox.isSelected());
-        setCredential((String)m_credentialsSelection.getSelectedItem());
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public void loadUserConfiguration(final ConfigBaseRO userSettings) throws InvalidSettingsException {
-        setUsername(userSettings.getString(USERNAME));
-        setPassword(userSettings.getPassword(PASSWORD, m_encryptionKey));
-        setUseCredentials(userSettings.getBoolean(USE_CREDENTIALS));
-        setCredential(userSettings.getString(CREDENTIAL));
-        updateControls();
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public void loadUserConfigurationForDialog(final ConfigBaseRO userSettings, final PortObjectSpec[] specs,
-        final Collection<String> credentialNames) {
-        setUsername(userSettings == null ? "" : userSettings.getString(USERNAME, ""));
-        setPassword(userSettings == null ? "" : userSettings.getPassword(PASSWORD, m_encryptionKey, ""));
-        setUseCredentials(userSettings == null ? false: userSettings.getBoolean(USE_CREDENTIALS, false));
-        setCredential(userSettings == null ? null : userSettings.getString(CREDENTIAL, null));
-        m_credentialsSelection.removeAllItems();
-        for (String credential : credentialNames) {
-            m_credentialsSelection.addItem(credential);
+        NodeSettings nodeSettings = new NodeSettings("");
+        try {
+            m_controls.saveSettingsTo(nodeSettings);
+            m_settings.loadSettingsFrom(nodeSettings);
+        } catch (InvalidSettingsException e) {
+            throw new IllegalStateException(e);
         }
-        m_credentialsSelection.setSelectedItem(getCredential());
-        updateControls();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void loadUserConfiguration(final NodeSettingsRO userSettings) throws InvalidSettingsException {
+        m_settings.loadSettingsFrom(userSettings);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void loadUserConfigurationForDialog(final NodeSettingsRO userSettings, final PortObjectSpec[] specs,
+        final CredentialsProvider credentialNames) throws NotConfigurableException {
+        m_controls.loadSettingsFrom(userSettings, specs, credentialNames);
+        m_lastCredentialsProvider = credentialNames;
     }
 
     /**
@@ -178,10 +140,13 @@ public abstract class UsernamePasswordAuthentication implements UserConfiguratio
      */
     @Override
     public void updateControls() {
-        m_usernameControl.setText(getUsername());
-        m_passwordControl.setText(getPassword());
-        m_useCredentialsCheckBox.setSelected(isUseCredentials());
-        m_credentialsSelection.setSelectedItem(getCredential());
+        NodeSettings nodeSettings = new NodeSettings("");
+        m_settings.saveSettingsTo(nodeSettings);
+        try {
+            m_controls.loadSettingsFrom(nodeSettings, null, m_lastCredentialsProvider);
+        } catch (NotConfigurableException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     /**
@@ -189,36 +154,7 @@ public abstract class UsernamePasswordAuthentication implements UserConfiguratio
      */
     @Override
     public void addControls(final JPanel panel) {
-        panel.setLayout(new GridBagLayout());
-        final GridBagConstraints gbc = new GridBagConstraints();
-        gbc.anchor = GridBagConstraints.LINE_START;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.weighty = 0;
-        gbc.insets = new Insets(3, 3, 3, 3);
-        gbc.gridx = 0;
-        gbc.gridy = 0;
-        panel.add(m_userLabel, gbc);
-        gbc.gridx++;
-        panel.add(m_usernameControl, gbc);
-        gbc.gridx = 0;
-        gbc.gridy++;
-        panel.add(m_passwordLabel, gbc);
-        gbc.gridx++;
-        panel.add(m_passwordControl, gbc);
-        gbc.gridx = 0;
-        gbc.gridy++;
-        panel.add(m_useCredentialsCheckBox, gbc);
-        gbc.gridx = 0;
-        gbc.gridy++;
-        panel.add(m_credentialLabel, gbc);
-        gbc.gridx++;
-        panel.add(m_credentialsSelection, gbc);
-        m_useCredentialsCheckBox.getAction().actionPerformed(null);
-        gbc.gridx = 0;
-        gbc.gridy++;
-        gbc.fill = GridBagConstraints.BOTH;
-        gbc.weighty = 1;
-        panel.add(new JPanel(), gbc);
+        panel.add(m_controls.getComponentPanel());
     }
 
     /**
@@ -226,13 +162,8 @@ public abstract class UsernamePasswordAuthentication implements UserConfiguratio
      */
     @Override
     public void enableControls() {
-        m_userLabel.setEnabled(!m_useCredentialsCheckBox.isSelected());
-        m_usernameControl.setEnabled(!m_useCredentialsCheckBox.isSelected());
-        m_passwordLabel.setEnabled(!m_useCredentialsCheckBox.isSelected());
-        m_passwordControl.setEnabled(!m_useCredentialsCheckBox.isSelected());
-        m_useCredentialsCheckBox.setEnabled(true);
-        m_credentialLabel.setEnabled(m_useCredentialsCheckBox.isSelected());
-        m_credentialsSelection.setEnabled(m_useCredentialsCheckBox.isSelected());
+        m_controls.getModel().setEnabled(true);
+        updateControls();
     }
 
     /**
@@ -240,69 +171,64 @@ public abstract class UsernamePasswordAuthentication implements UserConfiguratio
      */
     @Override
     public void disableControls() {
-        m_userLabel.setEnabled(false);
-        m_usernameControl.setEnabled(false);
-        m_passwordLabel.setEnabled(false);
-        m_passwordControl.setEnabled(false);
-        m_useCredentialsCheckBox.setEnabled(false);
-        m_credentialLabel.setEnabled(false);
-        m_credentialsSelection.setEnabled(false);
+        m_controls.getModel().setEnabled(false);
+        updateControls();
     }
 
     /**
      * @return the username
      */
     public String getUsername() {
-        return m_username;
+        return m_settings.getUsername();
     }
 
     /**
      * @param username the username to set
      */
     public void setUsername(final String username) {
-        m_username = username;
+        m_settings.setValues(m_settings.getCredential(), Type.USER_PWD, username, m_settings.getPassword());
     }
 
     /**
      * @return the password
      */
     public String getPassword() {
-        return m_password;
+        return m_settings.getPassword();
     }
 
     /**
      * @param password the password to set
      */
     public void setPassword(final String password) {
-        m_password = password;
+        m_settings.setValues(m_settings.getCredential(), Type.USER_PWD, m_settings.getUsername(), password);
     }
 
     /**
      * @return the credential
      */
     public String getCredential() {
-        return m_credential;
+        return m_settings.getCredential();
     }
 
     /**
      * @param credential the credential to set
      */
     public void setCredential(final String credential) {
-        m_credential = credential;
+        m_settings.setValues(credential, Type.CREDENTIALS, m_settings.getUsername(), m_settings.getPassword());
     }
 
     /**
      * @return the useCredentials
      */
     public boolean isUseCredentials() {
-        return m_useCredentials;
+        return m_settings.getSelectedType() == Type.CREDENTIALS;
     }
 
     /**
      * @param useCredentials the useCredentials to set
      */
     public void setUseCredentials(final boolean useCredentials) {
-        m_useCredentials = useCredentials;
+        m_settings.setValues(m_settings.getCredential(), useCredentials ? Type.CREDENTIALS : Type.USER_PWD, m_settings.getUsername(), m_settings.getPassword());
     }
 
     /**

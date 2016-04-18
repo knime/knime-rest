@@ -48,15 +48,13 @@
  */
 package org.knime.rest.internals;
 
-import java.util.Collection;
-
 import javax.swing.JPanel;
 import javax.ws.rs.client.Invocation.Builder;
 
 import org.knime.core.data.DataRow;
 import org.knime.core.node.InvalidSettingsException;
-import org.knime.core.node.config.base.ConfigBaseRO;
-import org.knime.core.node.config.base.ConfigBaseWO;
+import org.knime.core.node.NodeSettingsRO;
+import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.node.workflow.CredentialsProvider;
 import org.knime.rest.generic.EachRequestAuthentication;
@@ -79,7 +77,7 @@ public class NoAuthentication implements EachRequestAuthentication {
      * {@inheritDoc}
      */
     @Override
-    public void saveUserConfiguration(final ConfigBaseWO userSettings) {
+    public void saveUserConfiguration(final NodeSettingsWO userSettings) {
         //No configuration
     }
 
@@ -87,7 +85,7 @@ public class NoAuthentication implements EachRequestAuthentication {
      * {@inheritDoc}
      */
     @Override
-    public void loadUserConfiguration(final ConfigBaseRO userSettings) throws InvalidSettingsException {
+    public void loadUserConfiguration(final NodeSettingsRO userSettings) throws InvalidSettingsException {
         //No configuration
     }
 
@@ -95,8 +93,8 @@ public class NoAuthentication implements EachRequestAuthentication {
      * {@inheritDoc}
      */
     @Override
-    public void loadUserConfigurationForDialog(final ConfigBaseRO userSettings, final PortObjectSpec[] specs,
-        final Collection<String> credentialNames) {
+    public void loadUserConfigurationForDialog(final NodeSettingsRO userSettings, final PortObjectSpec[] specs,
+        final CredentialsProvider credentialNames) {
         //No configuration
     }
 

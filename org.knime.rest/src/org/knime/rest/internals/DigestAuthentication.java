@@ -71,7 +71,7 @@ public class DigestAuthentication extends UsernamePasswordAuthentication impleme
      *
      */
     public DigestAuthentication() {
-        super("Digest auth");
+        super("Digest auth", "", "", "");
     }
 
     /**

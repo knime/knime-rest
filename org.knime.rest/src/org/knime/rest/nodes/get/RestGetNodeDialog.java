@@ -1071,7 +1071,7 @@ final class RestGetNodeDialog extends NodeDialogPane {
     protected void loadSettingsFrom(final NodeSettingsRO settings, final DataTableSpec[] specs)
         throws NotConfigurableException {
         try {
-            m_settings.loadSettingsForDialog(settings, getCredentialsNames(), specs);
+            m_settings.loadSettingsForDialog(settings, getCredentialsProvider(), specs);
         } catch (InvalidSettingsException e) {
             throw new NotConfigurableException(e.getMessage(), e);
         }

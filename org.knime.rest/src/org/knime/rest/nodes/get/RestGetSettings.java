@@ -50,7 +50,6 @@ package org.knime.rest.nodes.get;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
@@ -63,10 +62,11 @@ import org.knime.core.data.def.IntCell;
 import org.knime.core.data.def.StringCell;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeLogger;
-import org.knime.core.node.config.ConfigRO;
-import org.knime.core.node.config.ConfigWO;
-import org.knime.core.node.config.base.ConfigBase;
+import org.knime.core.node.NodeSettingsRO;
+import org.knime.core.node.NodeSettingsWO;
+import org.knime.core.node.NotConfigurableException;
 import org.knime.core.node.util.CheckUtils;
+import org.knime.core.node.workflow.CredentialsProvider;
 import org.knime.rest.generic.UserConfiguration;
 import org.knime.rest.internals.NoAuthentication;
 
@@ -178,17 +178,19 @@ final class RestGetSettings {
 
     //Request
     enum ReferenceType {
-            Constant, FlowVariable{
+            Constant, FlowVariable {
                 @Override
                 public String toString() {
                     return "Flow variable";
                 }
-            }, Column, CredentialName {
+            },
+            Column, CredentialName {
                 @Override
                 public String toString() {
                     return "Credential name";
                 }
-            }, CredentialPassword{
+            },
+            CredentialPassword {
                 @Override
                 public String toString() {
                     return "Credential password";
@@ -461,7 +463,8 @@ final class RestGetSettings {
     RestGetSettings() {
         IConfigurationElement[] configurationElements =
             Platform.getExtensionRegistry().getConfigurationElementsFor(EXTENSION_ID);
-        final EnablableUserConfiguration<UserConfiguration> noAuth = new EnablableUserConfiguration<UserConfiguration>(new NoAuthentication());
+        final EnablableUserConfiguration<UserConfiguration> noAuth =
+            new EnablableUserConfiguration<UserConfiguration>(new NoAuthentication());
         noAuth.setEnabled(true);
         m_authorizationConfigurations.add(noAuth);
         for (final IConfigurationElement configurationElement : configurationElements) {
@@ -666,7 +669,7 @@ final class RestGetSettings {
         return Collections.unmodifiableList(m_authorizationConfigurations);
     }
 
-    void saveSettings(final ConfigWO settings) {
+    void saveSettings(final NodeSettingsWO settings) {
         settings.addBoolean(USE_CONSTANT_URI, m_isUseConstantURI);
         settings.addString(CONSTANT_URI, m_constantURI);
         settings.addString(URI_COLUMN, m_uriColumn);
@@ -690,7 +693,7 @@ final class RestGetSettings {
         settings.addString(BODY_COLUMN_NAME, m_responseBodyColumn);
         for (final EnablableUserConfiguration<UserConfiguration> euc : m_authorizationConfigurations) {
             final UserConfiguration uc = euc.getUserConfiguration();
-            final ConfigBase configBase = settings.addConfigBase(uc.id());
+            final NodeSettingsWO configBase = settings.addNodeSettings(uc.id());
             uc.saveUserConfiguration(configBase);
             settings.addBoolean(uc.id() + ENABLED_SUFFIX, euc.isEnabled());
         }
@@ -698,7 +701,7 @@ final class RestGetSettings {
         settings.addInt(TIMEOUT, m_timeoutInSeconds);
     }
 
-    void loadSettingsFrom(final ConfigRO settings) throws InvalidSettingsException {
+    void loadSettingsFrom(final NodeSettingsRO settings) throws InvalidSettingsException {
         m_isUseConstantURI = settings.getBoolean(USE_CONSTANT_URI);
         m_constantURI = settings.getString(CONSTANT_URI);
         m_uriColumn = settings.getString(URI_COLUMN);
@@ -737,7 +740,7 @@ final class RestGetSettings {
             final UserConfiguration uc = euc.getUserConfiguration();
             euc.setEnabled(settings.getBoolean(uc.id() + ENABLED_SUFFIX, false));
             try {
-                final ConfigBase base = settings.getConfigBase(uc.id());
+                final NodeSettingsRO base = settings.getNodeSettings(uc.id());
                 uc.loadUserConfiguration(base);
             } catch (InvalidSettingsException e) {
                 LOGGER.warn("", e);
@@ -747,7 +750,7 @@ final class RestGetSettings {
         m_timeoutInSeconds = settings.getInt(TIMEOUT);
     }
 
-    void loadSettingsForDialog(final ConfigRO settings, final Collection<String> credentialNames,
+    void loadSettingsForDialog(final NodeSettingsRO settings, final CredentialsProvider credentialNames,
         final DataTableSpec... specs) throws InvalidSettingsException {
         m_isUseConstantURI = settings.getBoolean(USE_CONSTANT_URI, DEFAULT_USE_CONSTANT_URI);
         m_constantURI = settings.getString(CONSTANT_URI, DEFAULT_CONSTANT_URI);
@@ -794,10 +797,14 @@ final class RestGetSettings {
             final UserConfiguration uc = euc.getUserConfiguration();
             euc.setEnabled(settings.getBoolean(uc.id() + ENABLED_SUFFIX, uc instanceof NoAuthentication));
             try {
-                final ConfigBase base = settings.getConfigBase(uc.id());
-                uc.loadUserConfigurationForDialog(base, specs, credentialNames);
-            } catch (InvalidSettingsException e) {
-                uc.loadUserConfigurationForDialog(null, specs, credentialNames);
+                try {
+                    final NodeSettingsRO base = settings.getNodeSettings(uc.id());
+                    uc.loadUserConfigurationForDialog(base, specs, credentialNames);
+                } catch (InvalidSettingsException e) {
+                    uc.loadUserConfigurationForDialog(null, specs, credentialNames);
+                }
+            } catch (NotConfigurableException e1) {
+                throw new IllegalStateException(e1);
             }
         }
         m_followRedirects = settings.getBoolean(FOLLOW_REDIRECTS, DEFAULT_FOLLOW_REDIRECTS);

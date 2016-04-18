@@ -63,7 +63,7 @@ public class BasicAuthentication extends UsernamePasswordAuthentication implemen
      *
      */
     public BasicAuthentication() {
-        super("BASIC auth");
+        super("BASIC auth", "", "", "");
     }
 
     /**

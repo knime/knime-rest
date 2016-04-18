@@ -48,11 +48,12 @@
  */
 package org.knime.rest.generic;
 
-import java.util.Collection;
-
 import javax.swing.JPanel;
 
 import org.knime.core.node.InvalidSettingsException;
+import org.knime.core.node.NodeSettingsRO;
+import org.knime.core.node.NodeSettingsWO;
+import org.knime.core.node.NotConfigurableException;
 import org.knime.core.node.config.base.ConfigBaseRO;
 import org.knime.core.node.config.base.ConfigBaseWO;
 import org.knime.core.node.port.PortObjectSpec;
@@ -72,22 +73,23 @@ public interface UserConfiguration {
      * Saves the user configuration to {@code userSettings}.
      * @param userSettings A {@link ConfigBaseWO} to save the configuration.
      */
-    void saveUserConfiguration(ConfigBaseWO userSettings);
+    void saveUserConfiguration(NodeSettingsWO userSettings);
     /**
      * Loads the configuration in the model (probably for validation).
      *
      * @param userSettings A {@link ConfigBaseRO} to read the configuration from.
      * @throws InvalidSettingsException When the settings are not all valid.
      */
-    void loadUserConfiguration(ConfigBaseRO userSettings) throws InvalidSettingsException;
+    void loadUserConfiguration(NodeSettingsRO userSettings) throws InvalidSettingsException;
     /**
      * Loads the configuration in the dialog.
      *
      * @param userSettings A {@link ConfigBaseRO} to read the configuration from.
      * @param specs The input {@link PortObjectSpec}s.
      * @param credentialNames The {@link CredentialsProvider} names.
+     * @throws NotConfigurableException When there is no option to configure this extension.
      */
-    void loadUserConfigurationForDialog(ConfigBaseRO userSettings, PortObjectSpec[] specs, final Collection<String> credentialNames);
+    void loadUserConfigurationForDialog(NodeSettingsRO userSettings, PortObjectSpec[] specs, final CredentialsProvider credentialNames) throws NotConfigurableException;
     /**
      * Adds the dialog controls to {@code panel}.
      * @param panel A {@link JPanel}.
@@ -107,8 +109,9 @@ public interface UserConfiguration {
     String id();
     /**
      * Updates the control values based on the settings.
+     * @throws NotConfigurableException When cannot be configured for some reason.
      */
-    void updateControls();
+    void updateControls() throws NotConfigurableException;
     /**
      * Updates the settings based on the control values.
      */
