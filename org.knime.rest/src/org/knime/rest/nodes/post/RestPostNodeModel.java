@@ -46,7 +46,7 @@
  * History
  *   23. Jan. 2016. (Gabor Bakos): created
  */
-package org.knime.rest.nodes.get;
+package org.knime.rest.nodes.post;
 
 import java.io.File;
 import java.io.IOException;
@@ -67,6 +67,7 @@ import javax.net.ssl.TrustManager;
 import javax.ws.rs.ProcessingException;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
+import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.Invocation;
 import javax.ws.rs.client.Invocation.Builder;
 import javax.ws.rs.client.WebTarget;
@@ -121,18 +122,18 @@ import org.knime.core.util.UniqueNameGenerator;
 import org.knime.rest.generic.EachRequestAuthentication;
 import org.knime.rest.generic.ResponseBodyParser;
 import org.knime.rest.generic.ResponseBodyParser.Default;
-import org.knime.rest.nodes.get.RestGetSettings.RequestHeaderKeyItem;
-import org.knime.rest.nodes.get.RestGetSettings.ResponseHeaderItem;
+import org.knime.rest.nodes.post.RestPostSettings.RequestHeaderKeyItem;
+import org.knime.rest.nodes.post.RestPostSettings.ResponseHeaderItem;
 import org.knime.rest.util.DelegatingX509TrustManager;
 
 /**
  *
  * @author Gabor Bakos
  */
-class RestGetNodeModel extends NodeModel {
-    private static final NodeLogger LOGGER = NodeLogger.getLogger(RestGetNodeModel.class);
+class RestPostNodeModel extends NodeModel {
+    private static final NodeLogger LOGGER = NodeLogger.getLogger(RestPostNodeModel.class);
 
-    private final RestGetSettings m_settings = new RestGetSettings();
+    private final RestPostSettings m_settings = new RestPostSettings();
 
     private DataColumnSpec[] m_newColumnsBasedOnFirstCall;
 
@@ -166,10 +167,13 @@ class RestGetNodeModel extends NodeModel {
 
     };
 
+    //    @Inject
+    //    private IExtensionRegistry m_extensionRegistry;
+
     /**
      *
      */
-    public RestGetNodeModel() {
+    public RestPostNodeModel() {
         super(new PortType[]{BufferedDataTable.TYPE_OPTIONAL}, new PortType[]{BufferedDataTable.TYPE});
         System.setProperty(ClientBuilder.JAXRS_DEFAULT_CLIENT_BUILDER_PROPERTY, ClientBuilderImpl.class.getName());
         System.setProperty(RuntimeDelegate.JAXRS_RUNTIME_DELEGATE_PROPERTY, RuntimeDelegateImpl.class.getName());
@@ -230,8 +234,10 @@ class RestGetNodeModel extends NodeModel {
         final UniqueNameGenerator nameGenerator = new UniqueNameGenerator(spec == null ? new DataTableSpec() : spec);
         Response response;
         try {
-            response = invoke(createRequest(spec == null ? -1 : spec.findColumnIndex(m_settings.getUriColumn()),
-                enabledEachRequestAuthentications, row, spec).buildGet());
+            //https://www.w3.org/TR/html401/interact/forms.html#form-data-set
+            //http://cxf.apache.org/docs/jax-rs-multiparts.html
+            response = invoke(invocation(createRequest(spec == null ? -1 : spec.findColumnIndex(m_settings.getUriColumn()),
+                enabledEachRequestAuthentications, row, spec), spec == null ? -1 : spec.findColumnIndex(m_settings.getRequestBodyColumn()), row));
         } catch (final ProcessingException procEx) {
             LOGGER.warn("First call failed: " + procEx.getMessage(), procEx);
             response = null;
@@ -286,6 +292,35 @@ class RestGetNodeModel extends NodeModel {
                 response.close();
             }
         }
+    }
+
+    /**
+     * @param request
+     * @param row
+     * @param i
+     * @return
+     */
+    private Invocation invocation(final Builder request, final int bodyColumn, final DataRow row) {
+        Entity<?> entity = Entity.entity(m_settings.isUseConstantRequestBody() ? createObjectFromString(m_settings.getConstantRequestBody()) : createObjectFromCell(row.getCell(bodyColumn)), m_settings.getRequestBodyMediaType());
+        return request.buildPost(entity);
+    }
+
+    /**
+     * @param cell
+     * @return
+     */
+    private Object createObjectFromCell(final DataCell cell) {
+        // TODO Auto-generated method stub
+        return cell.toString();
+    }
+
+    /**
+     * @param string
+     * @return
+     */
+    private Object createObjectFromString(final String string) {
+        // TODO Auto-generated method stub
+        return string;
     }
 
     /**
@@ -395,7 +430,11 @@ class RestGetNodeModel extends NodeModel {
      */
     @Override
     public InputPortRole[] getInputPortRoles() {
+        //        if (m_settings.isExtractAllResponseFields()) {
         return new InputPortRole[]{InputPortRole.NONDISTRIBUTED_STREAMABLE};
+        //        } else {
+        //            return new InputPortRole[]{InputPortRole.DISTRIBUTED_STREAMABLE};
+        //        }
     }
 
     /**
@@ -526,7 +565,7 @@ class RestGetNodeModel extends NodeModel {
      */
     @Override
     protected void validateSettings(final NodeSettingsRO settings) throws InvalidSettingsException {
-        new RestGetSettings().loadSettingsFrom(settings);
+        new RestPostSettings().loadSettingsFrom(settings);
     }
 
     /**
@@ -543,7 +582,8 @@ class RestGetNodeModel extends NodeModel {
     @Override
     protected void loadInternals(final File nodeInternDir, final ExecutionMonitor exec)
         throws IOException, CanceledExecutionException {
-        //No internals
+        // TODO Auto-generated method stub
+
     }
 
     /**
@@ -552,7 +592,8 @@ class RestGetNodeModel extends NodeModel {
     @Override
     protected void saveInternals(final File nodeInternDir, final ExecutionMonitor exec)
         throws IOException, CanceledExecutionException {
-        //No internals
+        // TODO Auto-generated method stub
+
     }
 
     /**
@@ -658,6 +699,82 @@ class RestGetNodeModel extends NodeModel {
                         cells.add(new MissingCell("Could not parse the body because the body was "
                             + response.getMediaType() + ", but was expecting: " + expectedType.getName()));
                     }
+                    //                                    if (MediaType.APPLICATION_JSON_TYPE.isCompatible(mediaType)) {
+                    //                                        if (expectedType.isCompatible(JSONValue.class)) {
+                    //                                            try {
+                    //                                                cells.add(
+                    //                                                    JSONCellFactory.create((InputStream)response.getEntity(), false));
+                    //                                            } catch (final IOException e1) {
+                    //                                                cells.add(new MissingCell(e1.getMessage()));
+                    //                                            }
+                    //                                        } else {
+                    //                                            cells.add(new MissingCell("The value in the body has " + mediaType
+                    //                                                + ", but was expecting a JSON value."));
+                    //                                        }
+                    //                                    } else if (MediaType.valueOf("image/png").isCompatible(mediaType)) {
+                    //                                        if (expectedType.isCompatible(PNGImageValue.class)) {
+                    //                                            try {
+                    //                                                cells.add(
+                    //                                                    PNGImageCellFactory.create(response.readEntity(InputStream.class)));
+                    //                                            } catch (IOException e) {
+                    //                                                cells.add(new MissingCell(e.getMessage()));
+                    //                                            }
+                    //                                        } else {
+                    //                                            cells.add(new MissingCell("The value in the body has " + mediaType
+                    //                                                + ", but was expecting a png value."));
+                    //                                        }
+                    //                                    } else if (MediaType.APPLICATION_SVG_XML_TYPE.isCompatible(mediaType)) {
+                    //                                        if (expectedType.isCompatible(XMLValue.class)) {
+                    //                                            try {
+                    //                                                cells.add(new SvgCellFactory()
+                    //                                                    .createCell(response.readEntity(InputStream.class)));
+                    //                                            } catch (IOException e1) {
+                    //                                                cells.add(new MissingCell(e1.getMessage()));
+                    //                                            }
+                    //                                        } else {
+                    //                                            cells.add(new MissingCell("The value in the body has " + mediaType
+                    //                                                + ", but was expecting an XML/SVG value."));
+                    //                                        }
+                    //                                    } else if (MediaType.APPLICATION_XML_TYPE.isCompatible(mediaType)
+                    //                                        || MediaType.TEXT_XML_TYPE.isCompatible(mediaType)
+                    //                                        || MediaType.APPLICATION_ATOM_XML_TYPE.isCompatible(mediaType)
+                    //                                        || MediaType.APPLICATION_XHTML_XML_TYPE.isCompatible(mediaType)) {
+                    //                                        if (expectedType.isCompatible(XMLValue.class)) {
+                    //                                            try {
+                    //                                                cells.add(XMLCellFactory.create((InputStream)response.getEntity()));
+                    //                                            } catch (IOException | ParserConfigurationException | SAXException
+                    //                                                    | XMLStreamException e1) {
+                    //                                                cells.add(new MissingCell(e1.getMessage()));
+                    //                                            }
+                    //                                        } else {
+                    //                                            cells.add(new MissingCell("The value in the body has " + mediaType
+                    //                                                + ", but was expecting an XML value."));
+                    //                                        }
+                    //                                    } else if (MediaType.TEXT_PLAIN_TYPE.isCompatible(mediaType)
+                    //                                        || MediaType.TEXT_HTML_TYPE.isCompatible(mediaType)) {
+                    //                                        if (expectedType.isCompatible(StringValue.class)) {
+                    //                                            String responseText = response.readEntity(String.class);
+                    //                                            cells.add(new StringCell(responseText));
+                    //                                        } else {
+                    //                                            cells.add(new MissingCell("The value in the body has " + mediaType
+                    //                                                + ", but was expecting a String value."));
+                    //                                        }
+                    //                                    } else if (MediaType.APPLICATION_OCTET_STREAM_TYPE.isCompatible(mediaType)
+                    //                                        || true/*TODO make it use an extension and provide this as a fallback*/) {
+                    //                                        if (expectedType.isCompatible(BinaryObjectDataValue.class)) {
+                    //                                            InputStream is = response.readEntity(InputStream.class);
+                    //                                            try {
+                    //                                                cells.add(m_binaryObjectCellFactory.create(is));
+                    //                                            } catch (IOException e) {
+                    //                                                cells.add(new MissingCell(e.getMessage()));
+                    //                                            }
+                    //                                        } else {
+                    //                                            cells.add(new MissingCell("The value in the body has " + mediaType
+                    //                                                + ", but was expecting binary data value."));
+                    //                                        }
+                    //                                    } else {
+                    //                                        cells.add(DataType.getMissingCell());
+                    //                                    }
                 }
             } else {
                 cells.add(DataType.getMissingCell());

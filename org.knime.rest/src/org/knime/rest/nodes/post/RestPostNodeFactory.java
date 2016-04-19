@@ -44,30 +44,73 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   7. Febr. 2016. (Gabor Bakos): created
+ *   23. Jan. 2016. (Gabor Bakos): created
  */
-package org.knime.rest.generic;
+package org.knime.rest.nodes.post;
 
-import javax.ws.rs.client.Invocation.Builder;
-
-import org.knime.core.data.DataRow;
-import org.knime.core.node.workflow.CredentialsProvider;
+import org.knime.core.node.NodeDialogPane;
+import org.knime.core.node.NodeFactory;
+import org.knime.core.node.NodeView;
 
 /**
- * Each request should use the same information for authentication (like
- * <a href="https://en.wikipedia.org/wiki/Basic_access_authentication">Basic</a> or
- * <a href="https://en.wikipedia.org/wiki/Digest_access_authentication">Digest</a>).
  *
  * @author Gabor Bakos
  */
-public interface EachRequestAuthentication extends UserConfiguration {
+public class RestPostNodeFactory extends NodeFactory<RestPostNodeModel> {
+
     /**
-     * Updates the request with authentication information.
      *
-     * @param request The {@link Builder} of the request.
-     * @param row The {@link DataRow} for the parameters (might be {@code null}).
-     * @param credProvider The {@link CredentialsProvider}.
-     * @return The updated request {@link Builder}.
      */
-    public Builder updateRequest(Builder request, DataRow row, CredentialsProvider credProvider);
+    public RestPostNodeFactory() {
+        // TODO Auto-generated constructor stub
+    }
+
+    /**
+     * @param lazyInitialization
+     */
+    public RestPostNodeFactory(final boolean lazyInitialization) {
+        super(lazyInitialization);
+        // TODO Auto-generated constructor stub
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public RestPostNodeModel createNodeModel() {
+        return new RestPostNodeModel();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    protected int getNrNodeViews() {
+        return 0;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public NodeView<RestPostNodeModel> createNodeView(final int viewIndex, final RestPostNodeModel nodeModel) {
+        throw new IllegalStateException("No views: " + viewIndex);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    protected boolean hasDialog() {
+        return true;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    protected NodeDialogPane createNodeDialogPane() {
+        return new RestPostNodeDialog();
+    }
+
 }

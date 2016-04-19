@@ -46,9 +46,7 @@
  * History
  *   2016. febr. 14. (Gabor Bakos): created
  */
-package org.knime.rest.nodes.get;
-
-import org.knime.rest.generic.UserConfiguration;
+package org.knime.rest.generic;
 
 /**
  *

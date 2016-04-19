@@ -46,7 +46,7 @@
  * History
  *   23. Jan. 2016. (Gabor Bakos): created
  */
-package org.knime.rest.nodes.get;
+package org.knime.rest.nodes.post;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -72,20 +72,20 @@ import org.knime.rest.generic.UserConfiguration;
 import org.knime.rest.internals.NoAuthentication;
 
 /**
- * Node settings for the GET REST node.
+ * Node settings for the POST REST node.
  *
  * @author Gabor Bakos
  */
-final class RestGetSettings {
+final class RestPostSettings {
     static final String EXTENSION_ID = "org.knime.rest.authentication";
 
-    private static final NodeLogger LOGGER = NodeLogger.getLogger(RestGetSettings.class);
+    private static final NodeLogger LOGGER = NodeLogger.getLogger(RestPostSettings.class);
 
     /**
      *
      */
     enum ParameterKind {
-            Header, Body, Path
+            Header, BodyMultiPart, BodyFrom, Path
     }
 
     private static final String USE_CONSTANT_URI = "Use constant URI";
@@ -99,6 +99,22 @@ final class RestGetSettings {
     private static final String URI_COLUMN = "URI column";
 
     private static final String DEFAULT_URI_COLUMN = null;
+
+    private static final String USE_CONSTANT_REQUEST_BODY = "Use constant request body";
+
+    private static final boolean DEFAULT_USE_CONSTANT_REQUEST_BODY = true;
+
+    private static final String CONSTANT_REQUEST_BODY = "Constant request body";
+
+    private static final String DEFAULT_CONSTANT_REQUEST_BODY = "";
+
+    private static final String REQUEST_BODY_COLUMN = "Request body column";
+
+    private static final String DEFAULT_REQUEST_BODY_COLUMN = null;
+
+    private static final String REQUEST_BODY_MEDIA_TYPE = "Request body media type";
+
+    private static final String DEFAULT_REQUEST_BODY_MEDIA_TYPE = "application/json";
 
     private static final String USE_DELAY = "delay_enabled";
 
@@ -142,9 +158,9 @@ final class RestGetSettings {
         Collections.unmodifiableList(Arrays.asList(new ResponseHeaderItem("Status", IntCell.TYPE),
             new ResponseHeaderItem("Content-Type", "Content type")));
 
-    private static final String BODY_COLUMN_NAME = "Body column name";
+    private static final String RESPONSE_BODY_COLUMN_NAME = "Body column name";
 
-    private static final String DEFAULT_BODY_COLUMN_NAME = "body";
+    private static final String DEFAULT_RESPONSE_BODY_COLUMN_NAME = "body";
 
     private static final String ENABLED_SUFFIX = "_enabled";
 
@@ -162,6 +178,14 @@ final class RestGetSettings {
     private String m_constantURI = DEFAULT_CONSTANT_URI;
 
     private String m_uriColumn = DEFAULT_URI_COLUMN;
+
+    private boolean m_useConstantRequestBody = DEFAULT_USE_CONSTANT_REQUEST_BODY;
+
+    private String m_constantRequestBody = DEFAULT_CONSTANT_REQUEST_BODY;
+
+    private String m_requestBodyColumn = DEFAULT_REQUEST_BODY_COLUMN;
+
+    private String m_requestBodyMediaType = DEFAULT_REQUEST_BODY_MEDIA_TYPE;
 
     private boolean m_useDelay = DEFAULT_USE_DELAY;
 
@@ -454,14 +478,14 @@ final class RestGetSettings {
         m_extractFields.add(new ResponseHeaderItem("Content-Type", StringCell.TYPE, "Content type"));
     }
 
-    private String m_responseBodyColumn = DEFAULT_BODY_COLUMN_NAME;
+    private String m_responseBodyColumn = DEFAULT_RESPONSE_BODY_COLUMN_NAME;
 
     private List<EnablableUserConfiguration<UserConfiguration>> m_authorizationConfigurations = new ArrayList<>();
 
     /**
      *
      */
-    RestGetSettings() {
+    RestPostSettings() {
         IConfigurationElement[] configurationElements =
             Platform.getExtensionRegistry().getConfigurationElementsFor(EXTENSION_ID);
         final EnablableUserConfiguration<UserConfiguration> noAuth =
@@ -521,6 +545,62 @@ final class RestGetSettings {
      */
     void setUriColumn(final String uriColumn) {
         m_uriColumn = uriColumn;
+    }
+
+    /**
+     * @return the useConstantRequestBody
+     */
+    boolean isUseConstantRequestBody() {
+        return m_useConstantRequestBody;
+    }
+
+    /**
+     * @param useConstantRequestBody the useConstantRequestBody to set
+     */
+    void setUseConstantRequestBody(final boolean useConstantRequestBody) {
+        m_useConstantRequestBody = useConstantRequestBody;
+    }
+
+    /**
+     * @return the constantRequestBody
+     */
+    String getConstantRequestBody() {
+        return m_constantRequestBody;
+    }
+
+    /**
+     * @param constantRequestBody the constantRequestBody to set
+     */
+    void setConstantRequestBody(final String constantRequestBody) {
+        m_constantRequestBody = constantRequestBody;
+    }
+
+    /**
+     * @return the requestBodyColumn
+     */
+    String getRequestBodyColumn() {
+        return m_requestBodyColumn;
+    }
+
+    /**
+     * @param requestBodyColumn the requestBodyColumn to set
+     */
+    void setRequestBodyColumn(final String requestBodyColumn) {
+        m_requestBodyColumn = requestBodyColumn;
+    }
+
+    /**
+     * @return the requestBodyMediaType
+     */
+    String getRequestBodyMediaType() {
+        return m_requestBodyMediaType;
+    }
+
+    /**
+     * @param requestBodyMediaType the requestBodyMediaType to set
+     */
+    void setRequestBodyMediaType(final String requestBodyMediaType) {
+        m_requestBodyMediaType = requestBodyMediaType;
     }
 
     /**
@@ -674,6 +754,10 @@ final class RestGetSettings {
         settings.addBoolean(USE_CONSTANT_URI, m_isUseConstantURI);
         settings.addString(CONSTANT_URI, m_constantURI);
         settings.addString(URI_COLUMN, m_uriColumn);
+        settings.addBoolean(USE_CONSTANT_REQUEST_BODY, m_useConstantRequestBody);
+        settings.addString(CONSTANT_REQUEST_BODY, m_constantRequestBody);
+        settings.addString(REQUEST_BODY_COLUMN, m_requestBodyColumn);
+        settings.addString(REQUEST_BODY_MEDIA_TYPE, m_requestBodyMediaType);
         settings.addBoolean(USE_DELAY, m_useDelay);
         settings.addLong(DELAY, m_delay);
         settings.addInt(CONCURRENCY, m_concurrency);
@@ -691,7 +775,7 @@ final class RestGetSettings {
         //settings.addStringArray(RESPONSE_HEADER_VALUE_TYPE, m_extractFields.stream().map(rh -> rh.getType().getName()).toArray(n -> new String[n]));
         settings.addStringArray(RESPONSE_HEADER_COLUMN_NAME,
             m_extractFields.stream().map(rh -> rh.getOutputColumnName()).toArray(n -> new String[n]));
-        settings.addString(BODY_COLUMN_NAME, m_responseBodyColumn);
+        settings.addString(RESPONSE_BODY_COLUMN_NAME, m_responseBodyColumn);
         for (final EnablableUserConfiguration<UserConfiguration> euc : m_authorizationConfigurations) {
             final UserConfiguration uc = euc.getUserConfiguration();
             final NodeSettingsWO configBase = settings.addNodeSettings(uc.id());
@@ -706,6 +790,10 @@ final class RestGetSettings {
         m_isUseConstantURI = settings.getBoolean(USE_CONSTANT_URI);
         m_constantURI = settings.getString(CONSTANT_URI);
         m_uriColumn = settings.getString(URI_COLUMN);
+        m_useConstantRequestBody = settings.getBoolean(USE_CONSTANT_REQUEST_BODY);
+        m_constantRequestBody = settings.getString(CONSTANT_REQUEST_BODY);
+        m_requestBodyColumn = settings.getString(REQUEST_BODY_COLUMN);
+        m_requestBodyMediaType = settings.getString(REQUEST_BODY_MEDIA_TYPE);
         m_useDelay = settings.getBoolean(USE_DELAY);
         m_delay = settings.getLong(DELAY);
         m_concurrency = settings.getInt(CONCURRENCY);
@@ -736,7 +824,7 @@ final class RestGetSettings {
         for (int i = 0; i < responseKeys.length; ++i) {
             m_extractFields.add(new ResponseHeaderItem(responseKeys[i], responseColumns[i]));
         }
-        m_responseBodyColumn = settings.getString(BODY_COLUMN_NAME);
+        m_responseBodyColumn = settings.getString(RESPONSE_BODY_COLUMN_NAME);
         for (final EnablableUserConfiguration<UserConfiguration> euc : m_authorizationConfigurations) {
             final UserConfiguration uc = euc.getUserConfiguration();
             euc.setEnabled(settings.getBoolean(uc.id() + ENABLED_SUFFIX, false));
@@ -756,6 +844,10 @@ final class RestGetSettings {
         m_isUseConstantURI = settings.getBoolean(USE_CONSTANT_URI, DEFAULT_USE_CONSTANT_URI);
         m_constantURI = settings.getString(CONSTANT_URI, DEFAULT_CONSTANT_URI);
         m_uriColumn = settings.getString(URI_COLUMN, DEFAULT_URI_COLUMN);
+        m_useConstantRequestBody = settings.getBoolean(USE_CONSTANT_REQUEST_BODY, DEFAULT_USE_CONSTANT_REQUEST_BODY);
+        m_constantRequestBody = settings.getString(CONSTANT_REQUEST_BODY, DEFAULT_CONSTANT_REQUEST_BODY);
+        m_requestBodyColumn = settings.getString(REQUEST_BODY_COLUMN, DEFAULT_REQUEST_BODY_COLUMN);
+        m_requestBodyMediaType = settings.getString(REQUEST_BODY_MEDIA_TYPE, DEFAULT_REQUEST_BODY_MEDIA_TYPE);
         m_useDelay = settings.getBoolean(USE_DELAY, DEFAULT_USE_DELAY);
         m_delay = settings.getLong(DELAY, DEFAULT_DELAY);
         m_concurrency = settings.getInt(CONCURRENCY, DEFAULT_CONCURRENCY);
@@ -793,7 +885,7 @@ final class RestGetSettings {
         for (int i = 0; i < responseKeys.length; ++i) {
             m_extractFields.add(new ResponseHeaderItem(responseKeys[i], responseColumns[i]));
         }
-        m_responseBodyColumn = settings.getString(BODY_COLUMN_NAME, DEFAULT_BODY_COLUMN_NAME);
+        m_responseBodyColumn = settings.getString(RESPONSE_BODY_COLUMN_NAME, DEFAULT_RESPONSE_BODY_COLUMN_NAME);
         for (final EnablableUserConfiguration<UserConfiguration> euc : m_authorizationConfigurations) {
             final UserConfiguration uc = euc.getUserConfiguration();
             euc.setEnabled(settings.getBoolean(uc.id() + ENABLED_SUFFIX, uc instanceof NoAuthentication));

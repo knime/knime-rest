@@ -46,7 +46,7 @@
  * History
  *   2016. jan. 23. (Gabor Bakos): created
  */
-package org.knime.rest.nodes.get;
+package org.knime.rest.nodes.post;
 
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
@@ -130,22 +130,22 @@ import org.knime.core.node.util.StringHistoryPanel;
 import org.knime.core.util.Pair;
 import org.knime.rest.generic.EnablableUserConfiguration;
 import org.knime.rest.generic.UserConfiguration;
-import org.knime.rest.nodes.get.RestGetSettings.ParameterKind;
-import org.knime.rest.nodes.get.RestGetSettings.ReferenceType;
-import org.knime.rest.nodes.get.RestGetSettings.RequestHeaderKeyItem;
+import org.knime.rest.nodes.post.RestPostSettings.ParameterKind;
+import org.knime.rest.nodes.post.RestPostSettings.ReferenceType;
+import org.knime.rest.nodes.post.RestPostSettings.RequestHeaderKeyItem;
 import org.knime.rest.util.ButtonCell;
 
 /**
  *
  * @author Gabor Bakos
  */
-final class RestGetNodeDialog extends NodeDialogPane {
+final class RestPostNodeDialog extends NodeDialogPane {
     private static final String EXTENSION_ID_FOR_REQUEST_HEADER_TEMPLATES = "org.knime.rest.header.template";
 
     private final List<String> m_credentials = new ArrayList<>(), m_flowVariables = new ArrayList<>(),
             m_columns = new ArrayList<>();
 
-    private final RestGetSettings m_settings = new RestGetSettings();
+    private final RestPostSettings m_settings = new RestPostSettings();
 
     private final JRadioButton m_constantUriOption = new JRadioButton("URI: "),
             m_uriColumnOption = new JRadioButton("URI column: ");
@@ -172,7 +172,7 @@ final class RestGetNodeDialog extends NodeDialogPane {
 
     private final JCheckBox m_followRedirects = new JCheckBox("Follow redirects");
 
-    private final JSpinner m_timeoutInSeconds = new JSpinner(new SpinnerNumberModel(RestGetSettings.DEFAULT_TIMEOUT, 1, Integer.MAX_VALUE, 1));
+    private final JSpinner m_timeoutInSeconds = new JSpinner(new SpinnerNumberModel(RestPostSettings.DEFAULT_TIMEOUT, 1, Integer.MAX_VALUE, 1));
 
     private final RequestTableModel m_requestHeadersModel = new RequestTableModel();
 
@@ -229,7 +229,7 @@ final class RestGetNodeDialog extends NodeDialogPane {
     /**
      *
      */
-    public RestGetNodeDialog() {
+    public RestPostNodeDialog() {
         m_requestTemplates.add(new SimpleImmutableEntry<>("", new ArrayList<>()));
         final IConfigurationElement[] elements =
             Platform.getExtensionRegistry().getConfigurationElementsFor(EXTENSION_ID_FOR_REQUEST_HEADER_TEMPLATES);
