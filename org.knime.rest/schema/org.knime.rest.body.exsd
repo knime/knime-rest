@@ -3,10 +3,10 @@
 <schema targetNamespace="org.knime.rest" xmlns="http://www.w3.org/2001/XMLSchema">
 <annotation>
       <appInfo>
-         <meta.schema plugin="org.knime.rest" id="org.knime.rest.authentication" name="Authentication"/>
+         <meta.schema plugin="org.knime.rest" id="org.knime.rest.body" name="REST body parser"/>
       </appInfo>
       <documentation>
-         Extension point for KNIME REST authentication methods.
+         Extension point to be able to convert String to a request body object.
       </documentation>
    </annotation>
 
@@ -18,9 +18,7 @@
       </annotation>
       <complexType>
          <sequence minOccurs="1" maxOccurs="unbounded">
-            <choice minOccurs="1" maxOccurs="unbounded">
-               <element ref="AuthenticateEachRequest" minOccurs="1" maxOccurs="unbounded"/>
-            </choice>
+            <element ref="RequestBodyParser"/>
          </sequence>
          <attribute name="point" type="string" use="required">
             <annotation>
@@ -49,31 +47,37 @@
       </complexType>
    </element>
 
-   <element name="AuthenticateEachRequest">
+   <element name="RequestBodyParser">
       <complexType>
-         <attribute name="deprecated" type="boolean" use="default" value="false">
+         <attribute name="class" type="string" use="required">
+            <annotation>
+               <documentation>
+                  The class of a MediaHandler, should be able to be initialized using a public zero-arg constructor.
+               </documentation>
+               <appInfo>
+                  <meta.attribute kind="java" basedOn=":org.knime.rest.generic.MediaHandler"/>
+               </appInfo>
+            </annotation>
+         </attribute>
+         <attribute name="deprecated" type="boolean">
             <annotation>
                <documentation>
                   
                </documentation>
             </annotation>
          </attribute>
-         <attribute name="class" type="string" use="required">
+         <attribute name="priority">
             <annotation>
                <documentation>
-                  Used for each request to authenticate.
-               </documentation>
-               <appInfo>
-                  <meta.attribute kind="java" basedOn=":org.knime.rest.generic.EachRequestAuthentication"/>
-               </appInfo>
-            </annotation>
-         </attribute>
-         <attribute name="supportsDistributedExecution" type="boolean" use="default" value="true">
-            <annotation>
-               <documentation>
-                  When true, the workers should be able to provide the necessary information for login for each request.
+                  Higher priority means this should be tried sooner. Default priority is 50.
                </documentation>
             </annotation>
+            <simpleType>
+               <restriction base="integer">
+                  <minInclusive value="0"/>
+                  <maxInclusive value="100"/>
+               </restriction>
+            </simpleType>
          </attribute>
       </complexType>
    </element>
@@ -83,7 +87,7 @@
          <meta.section type="since"/>
       </appInfo>
       <documentation>
-         KNIME 3.2.
+         KNIME 3.2
       </documentation>
    </annotation>
 
@@ -110,7 +114,7 @@
          <meta.section type="implementation"/>
       </appInfo>
       <documentation>
-         The Basic, Digest authentication extensions are part of this plugin.
+         [Enter information about supplied implementation of this extension point.]
       </documentation>
    </annotation>
 

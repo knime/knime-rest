@@ -101,6 +101,7 @@ import javax.swing.JRadioButton;
 import javax.swing.JScrollPane;
 import javax.swing.JSpinner;
 import javax.swing.JTable;
+import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.KeyStroke;
 import javax.swing.SpinnerNumberModel;
@@ -111,6 +112,7 @@ import javax.swing.event.DocumentListener;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.TableColumn;
 import javax.swing.text.JTextComponent;
+import javax.ws.rs.core.MediaType;
 
 import org.eclipse.core.runtime.IConfigurationElement;
 import org.eclipse.core.runtime.Platform;
@@ -163,8 +165,9 @@ final class RestPostNodeDialog extends NodeDialogPane {
 
     private final JCheckBox m_useDelay = new JCheckBox("Delay (ms): ");
 
-    private final JSpinner m_delay = new JSpinner(new SpinnerNumberModel(Long.valueOf(0l), Long.valueOf(0L),
-        Long.valueOf(30L * 60 * 1000L/*30 minutes*/), Long.valueOf(100L))),
+    private final JSpinner m_delay =
+        new JSpinner(new SpinnerNumberModel(Long.valueOf(0l), Long.valueOf(0L),
+            Long.valueOf(30L * 60 * 1000L/*30 minutes*/), Long.valueOf(100L))),
             m_concurrency = new JSpinner(new SpinnerNumberModel(1, 1, 16/*TODO find proper default*/, 1));
 
     private final JCheckBox m_sslIgnoreHostnameMismatches = new JCheckBox("Ignore hostname mismatches"),
@@ -172,7 +175,8 @@ final class RestPostNodeDialog extends NodeDialogPane {
 
     private final JCheckBox m_followRedirects = new JCheckBox("Follow redirects");
 
-    private final JSpinner m_timeoutInSeconds = new JSpinner(new SpinnerNumberModel(RestPostSettings.DEFAULT_TIMEOUT, 1, Integer.MAX_VALUE, 1));
+    private final JSpinner m_timeoutInSeconds =
+        new JSpinner(new SpinnerNumberModel(RestPostSettings.DEFAULT_TIMEOUT, 1, Integer.MAX_VALUE, 1));
 
     private final RequestTableModel m_requestHeadersModel = new RequestTableModel();
 
@@ -184,6 +188,20 @@ final class RestPostNodeDialog extends NodeDialogPane {
 
     private final JTable m_requestHeaders = new JTable(m_requestHeadersModel),
             m_responseHeaders = new JTable(m_responseHeadersModel);
+
+    private final JRadioButton m_useConstantRequestBody = new JRadioButton("Use constant body"),
+            m_useRequestBodyColumn = new JRadioButton("Use column's content as body");
+    {
+        final ButtonGroup bg = new ButtonGroup();
+        bg.add(m_useConstantRequestBody);
+        bg.add(m_useRequestBodyColumn);
+    }
+
+    private final JTextArea m_constantRequestBody = new JTextArea();
+
+    private final ColumnSelectionPanel m_requestBodyColumn = new ColumnSelectionPanel("Body");
+
+    private final JComboBox<MediaType> m_requestBodyMediaType = new JComboBox<>();
 
     private final JButton m_responseAddRow = new JButton("Add header parameter"),
             m_responseEditRow = new JButton("Edit header parameter"),
@@ -233,7 +251,7 @@ final class RestPostNodeDialog extends NodeDialogPane {
         m_requestTemplates.add(new SimpleImmutableEntry<>("", new ArrayList<>()));
         final IConfigurationElement[] elements =
             Platform.getExtensionRegistry().getConfigurationElementsFor(EXTENSION_ID_FOR_REQUEST_HEADER_TEMPLATES);
-        for (Entry<String, List<IConfigurationElement>> element : Stream.of(elements)
+        for (final Entry<String, List<IConfigurationElement>> element : Stream.of(elements)
             .collect(Collectors.groupingBy(element -> element.getDeclaringExtension().getLabel())).entrySet()) {
             final List<IConfigurationElement> entries = element.getValue();
             final List<Entry<String, ? extends List<String>>> entryList = new ArrayList<>();
@@ -247,7 +265,7 @@ final class RestPostNodeDialog extends NodeDialogPane {
         }
         addTab("Connection Settings", createConnectionSettingsTab());
         addTab("Authentication", createAuthenticationTab());
-        addTab("Request Headers", createRequestHeadersTab());
+        addTab("Request", createRequestTab());
         addTab("Response Headers", createResponseHeadersTab());
     }
 
@@ -264,8 +282,8 @@ final class RestPostNodeDialog extends NodeDialogPane {
              * {@inheritDoc}
              */
             @Override
-            public Component getListCellRendererComponent(final JList<?> list, final Object value, final int index, final boolean isSelected,
-                final boolean cellHasFocus) {
+            public Component getListCellRendererComponent(final JList<?> list, final Object value, final int index,
+                final boolean isSelected, final boolean cellHasFocus) {
                 setToolTipText(value.toString());
                 final Component res = super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
                 if (res instanceof JLabel) {
@@ -611,7 +629,7 @@ final class RestPostNodeDialog extends NodeDialogPane {
     /**
      * @return
      */
-    private JPanel createRequestHeadersTab() {
+    private JPanel createRequestTab() {
         m_requestHeaderValueType.setEditable(false);
         deleteAndInsertRowRequestHeaderActions();
         m_requestHeaders.setAutoCreateColumnsFromModel(false);
@@ -697,10 +715,10 @@ final class RestPostNodeDialog extends NodeDialogPane {
                 }
             }
         });
-        final TableColumn deleteRowColumn = new TableColumn(RequestTableModel.Columns.delete.ordinal(), 15, deleteRequestRow, deleteRequestRow);
+        final TableColumn deleteRowColumn =
+            new TableColumn(RequestTableModel.Columns.delete.ordinal(), 15, deleteRequestRow, deleteRequestRow);
         deleteRowColumn.setMaxWidth(25);
-        m_requestHeaders.getColumnModel().addColumn(
-            deleteRowColumn);
+        m_requestHeaders.getColumnModel().addColumn(deleteRowColumn);
         m_requestAddRow.addActionListener(e -> m_requestHeadersModel.newRow());
         m_requestDeleteRow.addActionListener(e -> m_requestHeadersModel.removeRow(m_requestHeaders.getSelectedRow()));
         m_requestEditRow.addActionListener(e -> editRequestHeader(m_requestHeaders.getSelectedRow()));
@@ -741,7 +759,8 @@ final class RestPostNodeDialog extends NodeDialogPane {
             m_requestHeaderTemplate.addItem(entry.getKey());
         }
 
-        m_requestHeaderTemplateMerge.setToolTipText("Merge the template values with the current settings (adds rows not present)");
+        m_requestHeaderTemplateMerge
+            .setToolTipText("Merge the template values with the current settings (adds rows not present)");
         m_requestHeaderTemplateMerge.addActionListener(e -> {
             m_requestHeaderOptions = m_requestTemplates.stream()
                 .filter(entry -> Objects.equals(m_requestHeaderTemplate.getSelectedItem(), entry.getKey()))
@@ -790,8 +809,10 @@ final class RestPostNodeDialog extends NodeDialogPane {
         gbc.gridy++;
         gbc.gridx = 0;
         gbc.gridwidth = 3;
+        gbc.weighty = .7;
         m_requestHeaders.setVisible(true);
         ret.add(new JScrollPane(m_requestHeaders), gbc);
+        gbc.weighty = 0;
         gbc.gridy++;
         gbc.gridwidth = 1;
         gbc.weighty = 0;
@@ -804,6 +825,39 @@ final class RestPostNodeDialog extends NodeDialogPane {
         m_requestHeaders.getColumnModel().getColumn(1).setHeaderValue("Value");
         m_requestHeaders.getColumnModel().getColumn(2).setHeaderValue("Value kind");
         //        m_requestHeaders.getColumnModel().getColumn(3).setHeaderValue("Key kind");
+        gbc.gridy++;
+        gbc.gridwidth = 3;
+        gbc.gridx = 0;
+        gbc.weightx = 1;
+        gbc.weighty = .3;
+        ret.add(createRequestBodyPanel(), gbc);
+        return ret;
+    }
+
+    /**
+     * @return
+     */
+    private JPanel createRequestBodyPanel() {
+        final JPanel ret = new JPanel(new GridBagLayout());
+        final GridBagConstraints gbc = new GridBagConstraints();
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        ret.add(m_useConstantRequestBody, gbc);
+        gbc.gridx++;
+        ret.add(m_useRequestBodyColumn, gbc);
+        gbc.gridy++;
+        gbc.gridwidth = 2;
+        final JPanel cards = new JPanel(new CardLayout());
+        ret.add(cards, gbc);
+        cards.add(m_constantRequestBody, m_useConstantRequestBody.getText());
+        cards.add(m_requestBodyColumn, m_useRequestBodyColumn.getText());
+        ret.add(cards, gbc);
+        gbc.gridy++;
+        ret.add(m_requestBodyMediaType, gbc);
+        m_requestBodyMediaType.setEditable(true);
+        RestPostNodeModel.REQUEST_BODY_HANDLERS.stream().forEach(entry -> m_requestBodyMediaType.addItem(entry.getKey()));
+        m_useConstantRequestBody.addActionListener(v -> ((CardLayout)cards.getLayout()).show(cards, m_useConstantRequestBody.getText()));
+        m_useRequestBodyColumn.addActionListener(v -> ((CardLayout)cards.getLayout()).show(cards, m_useRequestBodyColumn.getText()));
         return ret;
     }
 
@@ -928,7 +982,8 @@ final class RestPostNodeDialog extends NodeDialogPane {
                 return super.getTableCellEditorComponent(table, value, isSelected, row, column);
             }
         };
-        m_responseHeaders.getColumnModel().addColumn(new TableColumn(1, 67, m_responseHeaderValueCellRenderer, m_responseValueCellEditor));
+        m_responseHeaders.getColumnModel()
+            .addColumn(new TableColumn(1, 67, m_responseHeaderValueCellRenderer, m_responseValueCellEditor));
         m_responseHeaders.getSelectionModel().addListSelectionListener(e -> {
             updateResponseHeaderControls();
         });
@@ -972,12 +1027,14 @@ final class RestPostNodeDialog extends NodeDialogPane {
             }
         });
 
-        ((JTextComponent)m_responseHeaderKey.getEditor().getEditorComponent()).getDocument().addDocumentListener((DocumentEditListener)e -> {
-//            updateResponseValueTypes();
-        });
-        ((JTextComponent)m_responseHeaderKey.getEditor().getEditorComponent()).addFocusListener((FocusLostListener)e -> {
-            updateResponseValueTypes();
-        });
+        ((JTextComponent)m_responseHeaderKey.getEditor().getEditorComponent()).getDocument()
+            .addDocumentListener((DocumentEditListener)e -> {
+                //            updateResponseValueTypes();
+            });
+        ((JTextComponent)m_responseHeaderKey.getEditor().getEditorComponent())
+            .addFocusListener((FocusLostListener)e -> {
+                updateResponseValueTypes();
+            });
         return ret;
     }
 
@@ -1053,6 +1110,10 @@ final class RestPostNodeDialog extends NodeDialogPane {
         m_settings.getRequestHeaders().clear();
         m_settings.getRequestHeaders()
             .addAll(StreamSupport.stream(m_requestHeadersModel.spliterator(), false).collect(Collectors.toList()));
+        m_settings.setUseConstantRequestBody(m_useConstantRequestBody.isSelected());
+        m_settings.setConstantRequestBody(m_constantRequestBody.getText());
+        m_settings.setRequestBodyColumn(m_requestBodyColumn.getSelectedColumn());
+        m_settings.setRequestBodyMediaType(((MediaType)m_requestBodyMediaType.getSelectedItem()).toString());
         m_settings.setExtractAllResponseFields(m_extractAllHeaders.isSelected());
         m_settings.getExtractFields().clear();
         m_settings.getExtractFields()
@@ -1115,6 +1176,13 @@ final class RestPostNodeDialog extends NodeDialogPane {
             m_requestHeadersModel.addRow(m_settings.getRequestHeaders().get(i));
         }
         enableRequestHeaderChangeControls(m_settings.getRequestHeaders().size() > 0);
+        m_useRequestBodyColumn.setSelected(m_settings.isUseConstantRequestBody());
+        m_useRequestBodyColumn.setSelected(!m_settings.isUseConstantRequestBody());
+        m_constantRequestBody.setText(m_settings.getConstantRequestBody());
+        if (specs.length > 0 && specs[0] != null) {
+            m_requestBodyColumn.update(specs[0], m_settings.getRequestBodyColumn());
+        }
+        m_requestBodyMediaType.setSelectedItem(MediaType.valueOf(m_settings.getRequestBodyMediaType()));
         m_extractAllHeaders.setSelected(m_settings.isExtractAllResponseFields());
         m_responseHeadersModel.clear();
         for (int i = 0; i < m_settings.getExtractFields().size(); ++i) {

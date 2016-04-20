@@ -52,13 +52,18 @@ import java.io.File;
 import java.io.IOException;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
+import java.util.AbstractMap.SimpleImmutableEntry;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -78,6 +83,9 @@ import javax.ws.rs.ext.RuntimeDelegate;
 import org.apache.cxf.jaxrs.client.WebClient;
 import org.apache.cxf.jaxrs.client.spec.ClientBuilderImpl;
 import org.apache.cxf.jaxrs.impl.RuntimeDelegateImpl;
+import org.eclipse.core.runtime.CoreException;
+import org.eclipse.core.runtime.IConfigurationElement;
+import org.eclipse.core.runtime.Platform;
 import org.eclipse.e4.core.di.annotations.Execute;
 import org.knime.base.data.xml.SvgCell;
 import org.knime.core.data.DataCell;
@@ -120,6 +128,7 @@ import org.knime.core.node.util.CheckUtils;
 import org.knime.core.util.Pair;
 import org.knime.core.util.UniqueNameGenerator;
 import org.knime.rest.generic.EachRequestAuthentication;
+import org.knime.rest.generic.MediaHandler;
 import org.knime.rest.generic.ResponseBodyParser;
 import org.knime.rest.generic.ResponseBodyParser.Default;
 import org.knime.rest.nodes.post.RestPostSettings.RequestHeaderKeyItem;
@@ -131,6 +140,8 @@ import org.knime.rest.util.DelegatingX509TrustManager;
  * @author Gabor Bakos
  */
 class RestPostNodeModel extends NodeModel {
+    private static final String EXTENSION_ID_FOR_REQUEST_BODY_HANDLERS = "org.knime.rest.body";
+
     private static final NodeLogger LOGGER = NodeLogger.getLogger(RestPostNodeModel.class);
 
     private final RestPostSettings m_settings = new RestPostSettings();
@@ -166,6 +177,38 @@ class RestPostNodeModel extends NodeModel {
         }
 
     };
+
+    static final List<Entry<MediaType, List<MediaHandler<?>>>> REQUEST_BODY_HANDLERS;
+    static {
+        List<Entry<MediaType, List<MediaHandler<?>>>> tmp = new ArrayList<>();
+        final IConfigurationElement[] bodyElements =
+            Platform.getExtensionRegistry().getConfigurationElementsFor(EXTENSION_ID_FOR_REQUEST_BODY_HANDLERS);
+        final Map<MediaType, List<Pair<MediaType, Pair<MediaHandler<?>, Integer>>>> intermediate =
+            Stream.of(bodyElements).flatMap(v -> {
+                MediaHandler<?> mh;
+                try {
+                    mh = (MediaHandler<?>)v.createExecutableExtension("class");
+                    return mh.getMediaType().stream()
+                        .map(mt -> Pair.<MediaType, Pair<MediaHandler<?>, Integer>> create(mt,
+                            Pair.create(mh, v.getAttribute("priority") == null ? 50 : Integer.valueOf(v.getAttribute("priority")))));
+                } catch (CoreException e) {
+                    throw new RuntimeException(e);
+                    //                return Stream.<Pair<MediaType, MediaHandler<?>>>empty();
+                }
+            }).collect(
+                Collectors.<Pair<MediaType, Pair<MediaHandler<?>, Integer>>, MediaType> groupingBy(p -> p.getFirst()));
+        tmp.addAll(
+            intermediate.entrySet().stream()
+                .map(entry -> new SimpleImmutableEntry<MediaType, List<MediaHandler<?>>>(entry.getKey(),
+                    entry.getValue().stream()
+                    //Sort by priority descending
+                        .sorted((p1, p2) -> p2.getSecond().getSecond() - p1.getSecond().getSecond())
+                        //collect only MediaHandlers
+                        .map(p -> p.getSecond().getFirst()).collect(Collectors.toList()))
+
+                ).collect(Collectors.toList()));
+        REQUEST_BODY_HANDLERS = Collections.unmodifiableList(tmp);
+    }
 
     //    @Inject
     //    private IExtensionRegistry m_extensionRegistry;
@@ -236,8 +279,10 @@ class RestPostNodeModel extends NodeModel {
         try {
             //https://www.w3.org/TR/html401/interact/forms.html#form-data-set
             //http://cxf.apache.org/docs/jax-rs-multiparts.html
-            response = invoke(invocation(createRequest(spec == null ? -1 : spec.findColumnIndex(m_settings.getUriColumn()),
-                enabledEachRequestAuthentications, row, spec), spec == null ? -1 : spec.findColumnIndex(m_settings.getRequestBodyColumn()), row));
+            response = invoke(invocation(
+                createRequest(spec == null ? -1 : spec.findColumnIndex(m_settings.getUriColumn()),
+                    enabledEachRequestAuthentications, row, spec),
+                spec == null ? -1 : spec.findColumnIndex(m_settings.getRequestBodyColumn()), row));
         } catch (final ProcessingException procEx) {
             LOGGER.warn("First call failed: " + procEx.getMessage(), procEx);
             response = null;
@@ -258,7 +303,7 @@ class RestPostNodeModel extends NodeModel {
                     .addAll(m_settings
                         .getExtractFields().stream().map(rhi -> new ResponseHeaderItem(rhi.getHeaderKey(),
                             rhi.getType(), nameGenerator.newName(rhi.getOutputColumnName())))
-                    .collect(Collectors.toList()));
+                        .collect(Collectors.toList()));
             }
             final Response finalResponse = response;
             cells = m_responseHeaderKeys.stream().map(rhi -> {
@@ -301,7 +346,9 @@ class RestPostNodeModel extends NodeModel {
      * @return
      */
     private Invocation invocation(final Builder request, final int bodyColumn, final DataRow row) {
-        Entity<?> entity = Entity.entity(m_settings.isUseConstantRequestBody() ? createObjectFromString(m_settings.getConstantRequestBody()) : createObjectFromCell(row.getCell(bodyColumn)), m_settings.getRequestBodyMediaType());
+        Entity<?> entity = Entity
+            .entity(m_settings.isUseConstantRequestBody() ? createObjectFromString(m_settings.getConstantRequestBody())
+                : createObjectFromCell(row.getCell(bodyColumn)), m_settings.getRequestBodyMediaType());
         return request.buildPost(entity);
     }
 
@@ -319,7 +366,24 @@ class RestPostNodeModel extends NodeModel {
      * @return
      */
     private Object createObjectFromString(final String string) {
-        // TODO Auto-generated method stub
+        MediaType mediaType = MediaType.valueOf(m_settings.getRequestBodyMediaType());
+        if (REQUEST_BODY_HANDLERS.contains(mediaType)) {
+            Optional<Entry<MediaType, List<MediaHandler<?>>>> opt =
+                REQUEST_BODY_HANDLERS.stream().filter(v -> v.getKey().equals(mediaType)).findFirst();
+            Function<Entry<MediaType, List<MediaHandler<?>>>, /*Stream<*/Optional<Object>>/*>*/ f =
+                e -> e.getValue().stream().map(v -> {
+                    try {
+                        Object o = v.transformString(string);
+                        return Optional.of(o);
+                    } catch (Exception __) {
+                        return Optional.empty();
+                    }
+                }).filter(o -> o.isPresent()).findAny().flatMap(Function.identity());
+            Optional<Object> result = opt.flatMap(f);
+            if (result.isPresent()) {
+                return result.get();
+            }
+        }
         return string;
     }
 
@@ -342,7 +406,8 @@ class RestPostNodeModel extends NodeModel {
      */
     private void createResponseBodyParsers(final ExecutionContext exec) {
         m_responseBodyParsers.clear();
-        for (MediaType mediaType : new MediaType[] {MediaType.APPLICATION_JSON_TYPE, MediaType.valueOf("application/vnd.mason+json")}) {
+        for (MediaType mediaType : new MediaType[]{MediaType.APPLICATION_JSON_TYPE,
+            MediaType.valueOf("application/vnd.mason+json")}) {
             m_responseBodyParsers.add(new Default(mediaType, JSONCell.TYPE, exec)/* {
                                                                                                        @Override
                                                                                                        public String valueDescriptor() {
