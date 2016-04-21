@@ -60,13 +60,13 @@ import org.knime.core.node.defaultnodesettings.SettingsModelAuthentication;
 import org.knime.core.node.defaultnodesettings.SettingsModelAuthentication.Type;
 import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.node.workflow.CredentialsProvider;
-import org.knime.rest.generic.UserConfiguration;
+import org.knime.rest.generic.EachRequestAuthentication;
 
 /**
  *
  * @author Gabor Bakos
  */
-public abstract class UsernamePasswordAuthentication implements UserConfiguration {
+public abstract class UsernamePasswordAuthentication extends EachRequestAuthentication {
     private final SettingsModelAuthentication m_settings;
 
     private final DialogComponentAuthentication m_controls;
@@ -158,24 +158,6 @@ public abstract class UsernamePasswordAuthentication implements UserConfiguratio
     }
 
     /**
-     * {@inheritDoc}
-     */
-    @Override
-    public void enableControls() {
-        m_controls.getModel().setEnabled(true);
-        updateControls();
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public void disableControls() {
-        m_controls.getModel().setEnabled(false);
-        updateControls();
-    }
-
-    /**
      * @return the username
      */
     public String getUsername() {
@@ -236,6 +218,6 @@ public abstract class UsernamePasswordAuthentication implements UserConfiguratio
      */
     @Override
     public String toString() {
-        return id() + "[" + getUsername() + "]";
+        return getName() + "[" + getUsername() + "]";
     }
 }

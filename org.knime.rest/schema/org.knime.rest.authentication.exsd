@@ -68,13 +68,6 @@
                </appInfo>
             </annotation>
          </attribute>
-         <attribute name="supportsDistributedExecution" type="boolean" use="default" value="true">
-            <annotation>
-               <documentation>
-                  When true, the workers should be able to provide the necessary information for login for each request.
-               </documentation>
-            </annotation>
-         </attribute>
       </complexType>
    </element>
 

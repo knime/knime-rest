@@ -81,13 +81,6 @@ final class RestPostSettings {
 
     private static final NodeLogger LOGGER = NodeLogger.getLogger(RestPostSettings.class);
 
-    /**
-     *
-     */
-    enum ParameterKind {
-            Header, BodyMultiPart, BodyFrom, Path
-    }
-
     private static final String USE_CONSTANT_URI = "Use constant URI";
 
     private static final boolean DEFAULT_USE_CONSTANT_URI = true;
@@ -111,10 +104,6 @@ final class RestPostSettings {
     private static final String REQUEST_BODY_COLUMN = "Request body column";
 
     private static final String DEFAULT_REQUEST_BODY_COLUMN = null;
-
-    private static final String REQUEST_BODY_MEDIA_TYPE = "Request body media type";
-
-    private static final String DEFAULT_REQUEST_BODY_MEDIA_TYPE = "application/json";
 
     private static final String USE_DELAY = "delay_enabled";
 
@@ -185,8 +174,6 @@ final class RestPostSettings {
 
     private String m_requestBodyColumn = DEFAULT_REQUEST_BODY_COLUMN;
 
-    private String m_requestBodyMediaType = DEFAULT_REQUEST_BODY_MEDIA_TYPE;
-
     private boolean m_useDelay = DEFAULT_USE_DELAY;
 
     private long m_delay = DEFAULT_DELAY;
@@ -231,7 +218,6 @@ final class RestPostSettings {
         private final ReferenceType m_kind;
 
         //private final Function<InputType, String> m_conversionFunction;
-        private final ParameterKind m_parameterKind = ParameterKind.Header;
 
         /**
          * @param key
@@ -275,13 +261,6 @@ final class RestPostSettings {
         //        final Function<InputType, String> getConversionFunction() {
         //            return m_conversionFunction;
         //        }
-
-        /**
-         * @return the parameterKind
-         */
-        ParameterKind getParameterKind() {
-            return m_parameterKind;
-        }
 
         /**
          * {@inheritDoc}
@@ -590,20 +569,6 @@ final class RestPostSettings {
     }
 
     /**
-     * @return the requestBodyMediaType
-     */
-    String getRequestBodyMediaType() {
-        return m_requestBodyMediaType;
-    }
-
-    /**
-     * @param requestBodyMediaType the requestBodyMediaType to set
-     */
-    void setRequestBodyMediaType(final String requestBodyMediaType) {
-        m_requestBodyMediaType = requestBodyMediaType;
-    }
-
-    /**
      * @return the useDelay
      */
     boolean isUseDelay() {
@@ -757,7 +722,6 @@ final class RestPostSettings {
         settings.addBoolean(USE_CONSTANT_REQUEST_BODY, m_useConstantRequestBody);
         settings.addString(CONSTANT_REQUEST_BODY, m_constantRequestBody);
         settings.addString(REQUEST_BODY_COLUMN, m_requestBodyColumn);
-        settings.addString(REQUEST_BODY_MEDIA_TYPE, m_requestBodyMediaType);
         settings.addBoolean(USE_DELAY, m_useDelay);
         settings.addLong(DELAY, m_delay);
         settings.addInt(CONCURRENCY, m_concurrency);
@@ -778,9 +742,9 @@ final class RestPostSettings {
         settings.addString(RESPONSE_BODY_COLUMN_NAME, m_responseBodyColumn);
         for (final EnablableUserConfiguration<UserConfiguration> euc : m_authorizationConfigurations) {
             final UserConfiguration uc = euc.getUserConfiguration();
-            final NodeSettingsWO configBase = settings.addNodeSettings(uc.id());
+            final NodeSettingsWO configBase = settings.addNodeSettings(uc.getName());
             uc.saveUserConfiguration(configBase);
-            settings.addBoolean(uc.id() + ENABLED_SUFFIX, euc.isEnabled());
+            settings.addBoolean(uc.getName() + ENABLED_SUFFIX, euc.isEnabled());
         }
         settings.addBoolean(FOLLOW_REDIRECTS, m_followRedirects);
         settings.addInt(TIMEOUT, m_timeoutInSeconds);
@@ -793,7 +757,6 @@ final class RestPostSettings {
         m_useConstantRequestBody = settings.getBoolean(USE_CONSTANT_REQUEST_BODY);
         m_constantRequestBody = settings.getString(CONSTANT_REQUEST_BODY);
         m_requestBodyColumn = settings.getString(REQUEST_BODY_COLUMN);
-        m_requestBodyMediaType = settings.getString(REQUEST_BODY_MEDIA_TYPE);
         m_useDelay = settings.getBoolean(USE_DELAY);
         m_delay = settings.getLong(DELAY);
         m_concurrency = settings.getInt(CONCURRENCY);
@@ -827,9 +790,9 @@ final class RestPostSettings {
         m_responseBodyColumn = settings.getString(RESPONSE_BODY_COLUMN_NAME);
         for (final EnablableUserConfiguration<UserConfiguration> euc : m_authorizationConfigurations) {
             final UserConfiguration uc = euc.getUserConfiguration();
-            euc.setEnabled(settings.getBoolean(uc.id() + ENABLED_SUFFIX, false));
+            euc.setEnabled(settings.getBoolean(uc.getName() + ENABLED_SUFFIX, false));
             try {
-                final NodeSettingsRO base = settings.getNodeSettings(uc.id());
+                final NodeSettingsRO base = settings.getNodeSettings(uc.getName());
                 uc.loadUserConfiguration(base);
             } catch (InvalidSettingsException e) {
                 LOGGER.warn("", e);
@@ -847,7 +810,6 @@ final class RestPostSettings {
         m_useConstantRequestBody = settings.getBoolean(USE_CONSTANT_REQUEST_BODY, DEFAULT_USE_CONSTANT_REQUEST_BODY);
         m_constantRequestBody = settings.getString(CONSTANT_REQUEST_BODY, DEFAULT_CONSTANT_REQUEST_BODY);
         m_requestBodyColumn = settings.getString(REQUEST_BODY_COLUMN, DEFAULT_REQUEST_BODY_COLUMN);
-        m_requestBodyMediaType = settings.getString(REQUEST_BODY_MEDIA_TYPE, DEFAULT_REQUEST_BODY_MEDIA_TYPE);
         m_useDelay = settings.getBoolean(USE_DELAY, DEFAULT_USE_DELAY);
         m_delay = settings.getLong(DELAY, DEFAULT_DELAY);
         m_concurrency = settings.getInt(CONCURRENCY, DEFAULT_CONCURRENCY);
@@ -888,10 +850,10 @@ final class RestPostSettings {
         m_responseBodyColumn = settings.getString(RESPONSE_BODY_COLUMN_NAME, DEFAULT_RESPONSE_BODY_COLUMN_NAME);
         for (final EnablableUserConfiguration<UserConfiguration> euc : m_authorizationConfigurations) {
             final UserConfiguration uc = euc.getUserConfiguration();
-            euc.setEnabled(settings.getBoolean(uc.id() + ENABLED_SUFFIX, uc instanceof NoAuthentication));
+            euc.setEnabled(settings.getBoolean(uc.getName() + ENABLED_SUFFIX, uc instanceof NoAuthentication));
             try {
                 try {
-                    final NodeSettingsRO base = settings.getNodeSettings(uc.id());
+                    final NodeSettingsRO base = settings.getNodeSettings(uc.getName());
                     uc.loadUserConfigurationForDialog(base, specs, credentialNames);
                 } catch (InvalidSettingsException e) {
                     uc.loadUserConfigurationForDialog(null, specs, credentialNames);

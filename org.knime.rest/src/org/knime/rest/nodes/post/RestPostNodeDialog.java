@@ -112,7 +112,6 @@ import javax.swing.event.DocumentListener;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.TableColumn;
 import javax.swing.text.JTextComponent;
-import javax.ws.rs.core.MediaType;
 
 import org.eclipse.core.runtime.IConfigurationElement;
 import org.eclipse.core.runtime.Platform;
@@ -132,7 +131,6 @@ import org.knime.core.node.util.StringHistoryPanel;
 import org.knime.core.util.Pair;
 import org.knime.rest.generic.EnablableUserConfiguration;
 import org.knime.rest.generic.UserConfiguration;
-import org.knime.rest.nodes.post.RestPostSettings.ParameterKind;
 import org.knime.rest.nodes.post.RestPostSettings.ReferenceType;
 import org.knime.rest.nodes.post.RestPostSettings.RequestHeaderKeyItem;
 import org.knime.rest.util.ButtonCell;
@@ -197,11 +195,9 @@ final class RestPostNodeDialog extends NodeDialogPane {
         bg.add(m_useRequestBodyColumn);
     }
 
-    private final JTextArea m_constantRequestBody = new JTextArea();
+    private final JTextArea m_constantRequestBody = new JTextArea(15, 111);
 
     private final ColumnSelectionPanel m_requestBodyColumn = new ColumnSelectionPanel("Body");
-
-    private final JComboBox<MediaType> m_requestBodyMediaType = new JComboBox<>();
 
     private final JButton m_responseAddRow = new JButton("Add header parameter"),
             m_responseEditRow = new JButton("Edit header parameter"),
@@ -215,9 +211,6 @@ final class RestPostNodeDialog extends NodeDialogPane {
             m_requestHeaderValue = createEditableComboBox();
 
     private final JComboBox<ReferenceType> m_requestHeaderValueType = createEditableComboBox(ReferenceType.values());
-
-    private final JComboBox<ParameterKind> m_requestHeaderKeyType =
-        new JComboBox<>(new ParameterKind[]{ParameterKind.Header});
 
     private JComboBox<String> m_responseHeaderKey = createEditableComboBox();
 
@@ -265,7 +258,8 @@ final class RestPostNodeDialog extends NodeDialogPane {
         }
         addTab("Connection Settings", createConnectionSettingsTab());
         addTab("Authentication", createAuthenticationTab());
-        addTab("Request", createRequestTab());
+        addTab("Request Headers", createRequestTab());
+        addTab("Request Body", createRequestBodyPanel());
         addTab("Response Headers", createResponseHeadersTab());
     }
 
@@ -513,8 +507,6 @@ final class RestPostNodeDialog extends NodeDialogPane {
 
         gbc.gridx = 0;
         panel.add(m_requestHeaderValueType, gbc);
-        gbc.gridx = 1;
-        panel.add(m_requestHeaderKeyType, gbc);
         gbc.gridy++;
 
     }
@@ -573,25 +565,22 @@ final class RestPostNodeDialog extends NodeDialogPane {
             final JPanel tabPanel = new JPanel();
             final JScrollPane scrollPane = new JScrollPane(tabPanel);
             final UserConfiguration userConfiguration = euc.getUserConfiguration();
-            tabs.add(userConfiguration.id(), scrollPane);
-            final JRadioButton radioButton = new JRadioButton(userConfiguration.id());
+            tabs.add(userConfiguration.getName(), scrollPane);
+            final JRadioButton radioButton = new JRadioButton(userConfiguration.getName());
             buttonGroup.add(radioButton);
             radioButtons.add(radioButton);
-            radioButton.setAction(new AbstractAction(userConfiguration.id()) {
+            radioButton.setAction(new AbstractAction(userConfiguration.getName()) {
                 private static final long serialVersionUID = -8514095622936885670L;
 
                 @Override
                 public void actionPerformed(final ActionEvent e) {
                     final CardLayout layout = (CardLayout)tabs.getLayout();
                     if (radioButton.isSelected()) {
-                        layout.show(tabs, userConfiguration.id());
-                        userConfiguration.enableControls();
-                    } else {
-                        userConfiguration.disableControls();
+                        layout.show(tabs, userConfiguration.getName());
                     }
                 }
             });
-            radioButton.setName(userConfiguration.id());
+            radioButton.setName(userConfiguration.getName());
             m_authenticationTabTitles.add(radioButton);
             userConfiguration.addControls(tabPanel);
         }
@@ -809,10 +798,12 @@ final class RestPostNodeDialog extends NodeDialogPane {
         gbc.gridy++;
         gbc.gridx = 0;
         gbc.gridwidth = 3;
-        gbc.weighty = .7;
+        gbc.weighty = 1;
+        gbc.weightx = 1;
         m_requestHeaders.setVisible(true);
         ret.add(new JScrollPane(m_requestHeaders), gbc);
         gbc.weighty = 0;
+        gbc.weightx = 0;
         gbc.gridy++;
         gbc.gridwidth = 1;
         gbc.weighty = 0;
@@ -826,11 +817,6 @@ final class RestPostNodeDialog extends NodeDialogPane {
         m_requestHeaders.getColumnModel().getColumn(2).setHeaderValue("Value kind");
         //        m_requestHeaders.getColumnModel().getColumn(3).setHeaderValue("Key kind");
         gbc.gridy++;
-        gbc.gridwidth = 3;
-        gbc.gridx = 0;
-        gbc.weightx = 1;
-        gbc.weighty = .3;
-        ret.add(createRequestBodyPanel(), gbc);
         return ret;
     }
 
@@ -842,23 +828,31 @@ final class RestPostNodeDialog extends NodeDialogPane {
         final GridBagConstraints gbc = new GridBagConstraints();
         gbc.gridx = 0;
         gbc.gridy = 0;
-        ret.add(m_useConstantRequestBody, gbc);
-        gbc.gridx++;
         ret.add(m_useRequestBodyColumn, gbc);
+        gbc.gridx++;
+        ret.add(m_requestBodyColumn, gbc);
+        gbc.gridx = 0;
         gbc.gridy++;
+        ret.add(m_useConstantRequestBody, gbc);
+        gbc.gridy++;
+        gbc.gridx = 0;
         gbc.gridwidth = 2;
-        final JPanel cards = new JPanel(new CardLayout());
-        ret.add(cards, gbc);
-        cards.add(m_constantRequestBody, m_useConstantRequestBody.getText());
-        cards.add(m_requestBodyColumn, m_useRequestBodyColumn.getText());
-        ret.add(cards, gbc);
+        gbc.weightx = 1;
+        gbc.weighty = 1;
+        ret.add(m_constantRequestBody, gbc);
         gbc.gridy++;
-        ret.add(m_requestBodyMediaType, gbc);
-        m_requestBodyMediaType.setEditable(true);
-        RestPostNodeModel.REQUEST_BODY_HANDLERS.stream().forEach(entry -> m_requestBodyMediaType.addItem(entry.getKey()));
-        m_useConstantRequestBody.addActionListener(v -> ((CardLayout)cards.getLayout()).show(cards, m_useConstantRequestBody.getText()));
-        m_useRequestBodyColumn.addActionListener(v -> ((CardLayout)cards.getLayout()).show(cards, m_useRequestBodyColumn.getText()));
+        m_useConstantRequestBody.addActionListener(v -> enableConstantRequestBodyColumn(true));
+        m_useRequestBodyColumn.addActionListener(v -> enableConstantRequestBodyColumn(false));
+        m_useConstantRequestBody.setSelected(true);
         return ret;
+    }
+
+    /**
+     * @param enable
+     */
+    private void enableConstantRequestBodyColumn(final boolean enable) {
+        m_constantRequestBody.setEnabled(enable);
+        m_requestBodyColumn.setEnabled(!enable);
     }
 
     /**
@@ -1089,7 +1083,7 @@ final class RestPostNodeDialog extends NodeDialogPane {
         for (JRadioButton radioButton : m_authenticationTabTitles) {
             for (final EnablableUserConfiguration<UserConfiguration> euc : m_settings
                 .getAuthorizationConfigurations()) {
-                if (radioButton.getName().equals(euc.getUserConfiguration().id())) {
+                if (radioButton.getName().equals(euc.getUserConfiguration().getName())) {
                     euc.setEnabled(radioButton.isSelected());
                 }
             }
@@ -1113,7 +1107,6 @@ final class RestPostNodeDialog extends NodeDialogPane {
         m_settings.setUseConstantRequestBody(m_useConstantRequestBody.isSelected());
         m_settings.setConstantRequestBody(m_constantRequestBody.getText());
         m_settings.setRequestBodyColumn(m_requestBodyColumn.getSelectedColumn());
-        m_settings.setRequestBodyMediaType(((MediaType)m_requestBodyMediaType.getSelectedItem()).toString());
         m_settings.setExtractAllResponseFields(m_extractAllHeaders.isSelected());
         m_settings.getExtractFields().clear();
         m_settings.getExtractFields()
@@ -1176,13 +1169,15 @@ final class RestPostNodeDialog extends NodeDialogPane {
             m_requestHeadersModel.addRow(m_settings.getRequestHeaders().get(i));
         }
         enableRequestHeaderChangeControls(m_settings.getRequestHeaders().size() > 0);
-        m_useRequestBodyColumn.setSelected(m_settings.isUseConstantRequestBody());
+        m_useConstantRequestBody.setSelected(m_settings.isUseConstantRequestBody());
         m_useRequestBodyColumn.setSelected(!m_settings.isUseConstantRequestBody());
         m_constantRequestBody.setText(m_settings.getConstantRequestBody());
         if (specs.length > 0 && specs[0] != null) {
+            m_useRequestBodyColumn.setEnabled(true);
             m_requestBodyColumn.update(specs[0], m_settings.getRequestBodyColumn());
+        } else {
+            m_useRequestBodyColumn.setEnabled(false);
         }
-        m_requestBodyMediaType.setSelectedItem(MediaType.valueOf(m_settings.getRequestBodyMediaType()));
         m_extractAllHeaders.setSelected(m_settings.isExtractAllResponseFields());
         m_responseHeadersModel.clear();
         for (int i = 0; i < m_settings.getExtractFields().size(); ++i) {
@@ -1193,7 +1188,7 @@ final class RestPostNodeDialog extends NodeDialogPane {
         for (final EnablableUserConfiguration<UserConfiguration> euc : m_settings.getAuthorizationConfigurations()) {
             for (final JRadioButton radioButton : m_authenticationTabTitles) {
                 euc.getUserConfiguration().updateControls();
-                if (radioButton.getName().equals(euc.getUserConfiguration().id())) {
+                if (radioButton.getName().equals(euc.getUserConfiguration().getName())) {
                     radioButton.setSelected(euc.isEnabled());
                     radioButton.getAction().actionPerformed(null);
                 }

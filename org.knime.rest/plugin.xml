@@ -3,7 +3,6 @@
 <plugin>
    <extension-point id="org.knime.rest.authentication" name="REST Authentication" schema="schema/org.knime.rest.authentication.exsd"/>
    <extension-point id="org.knime.rest.header.template" name="REST header template" schema="schema/org.knime.rest.header.template.exsd"/>
-   <extension-point id="org.knime.rest.body" name="REST body parser" schema="schema/org.knime.rest.body.exsd"/>
     <extension point="org.knime.workbench.repository.categories">
         <category icon="icons/rest_category.png" level-id="rest" name="REST Web Services" path="/labs/"/>
     </extension>
@@ -182,11 +181,5 @@
        <Entry
              key="If-Match">
        </Entry>
-    </extension>
-    <extension
-          point="org.knime.rest.body">
-       <RequestBodyParser
-             class="org.knime.rest.internals.JsonMediaHandler">
-       </RequestBodyParser>
     </extension>
 </plugin>

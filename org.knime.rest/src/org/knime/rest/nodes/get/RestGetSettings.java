@@ -81,13 +81,6 @@ final class RestGetSettings {
 
     private static final NodeLogger LOGGER = NodeLogger.getLogger(RestGetSettings.class);
 
-    /**
-     *
-     */
-    enum ParameterKind {
-            Header, Body, Path
-    }
-
     private static final String USE_CONSTANT_URI = "Use constant URI";
 
     private static final boolean DEFAULT_USE_CONSTANT_URI = true;
@@ -207,7 +200,6 @@ final class RestGetSettings {
         private final ReferenceType m_kind;
 
         //private final Function<InputType, String> m_conversionFunction;
-        private final ParameterKind m_parameterKind = ParameterKind.Header;
 
         /**
          * @param key
@@ -251,13 +243,6 @@ final class RestGetSettings {
         //        final Function<InputType, String> getConversionFunction() {
         //            return m_conversionFunction;
         //        }
-
-        /**
-         * @return the parameterKind
-         */
-        ParameterKind getParameterKind() {
-            return m_parameterKind;
-        }
 
         /**
          * {@inheritDoc}
@@ -694,9 +679,9 @@ final class RestGetSettings {
         settings.addString(BODY_COLUMN_NAME, m_responseBodyColumn);
         for (final EnablableUserConfiguration<UserConfiguration> euc : m_authorizationConfigurations) {
             final UserConfiguration uc = euc.getUserConfiguration();
-            final NodeSettingsWO configBase = settings.addNodeSettings(uc.id());
+            final NodeSettingsWO configBase = settings.addNodeSettings(uc.getName());
             uc.saveUserConfiguration(configBase);
-            settings.addBoolean(uc.id() + ENABLED_SUFFIX, euc.isEnabled());
+            settings.addBoolean(uc.getName() + ENABLED_SUFFIX, euc.isEnabled());
         }
         settings.addBoolean(FOLLOW_REDIRECTS, m_followRedirects);
         settings.addInt(TIMEOUT, m_timeoutInSeconds);
@@ -739,9 +724,9 @@ final class RestGetSettings {
         m_responseBodyColumn = settings.getString(BODY_COLUMN_NAME);
         for (final EnablableUserConfiguration<UserConfiguration> euc : m_authorizationConfigurations) {
             final UserConfiguration uc = euc.getUserConfiguration();
-            euc.setEnabled(settings.getBoolean(uc.id() + ENABLED_SUFFIX, false));
+            euc.setEnabled(settings.getBoolean(uc.getName() + ENABLED_SUFFIX, false));
             try {
-                final NodeSettingsRO base = settings.getNodeSettings(uc.id());
+                final NodeSettingsRO base = settings.getNodeSettings(uc.getName());
                 uc.loadUserConfiguration(base);
             } catch (InvalidSettingsException e) {
                 LOGGER.warn("", e);
@@ -796,10 +781,10 @@ final class RestGetSettings {
         m_responseBodyColumn = settings.getString(BODY_COLUMN_NAME, DEFAULT_BODY_COLUMN_NAME);
         for (final EnablableUserConfiguration<UserConfiguration> euc : m_authorizationConfigurations) {
             final UserConfiguration uc = euc.getUserConfiguration();
-            euc.setEnabled(settings.getBoolean(uc.id() + ENABLED_SUFFIX, uc instanceof NoAuthentication));
+            euc.setEnabled(settings.getBoolean(uc.getName() + ENABLED_SUFFIX, uc instanceof NoAuthentication));
             try {
                 try {
-                    final NodeSettingsRO base = settings.getNodeSettings(uc.id());
+                    final NodeSettingsRO base = settings.getNodeSettings(uc.getName());
                     uc.loadUserConfigurationForDialog(base, specs, credentialNames);
                 } catch (InvalidSettingsException e) {
                     uc.loadUserConfigurationForDialog(null, specs, credentialNames);

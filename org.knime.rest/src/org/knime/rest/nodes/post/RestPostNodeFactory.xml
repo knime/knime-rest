@@ -36,6 +36,10 @@
             <option name="Header kind">value Flow variable/Constant/Column or Credential name/password</option>
             <!-- option name="Header type">in case we need to convert the type to string, the conversion option</option-->
         </tab>
+        <tab name="Request Body">
+        	<option name="Use column's content as body">Use the selected column's content as the body of the request.</option>
+        	<option name="Use constant body">Use the specified content below as the body of the request.</option>
+        </tab>
         <tab name="Response Headers">
             <option name="Extract all fields">Extracts all header fields (present in the first response)</option>
             <option name="Header key">The name of the header value to extract</option>

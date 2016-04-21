@@ -64,23 +64,23 @@ import org.knime.core.node.workflow.CredentialsProvider;
  *
  * @author Gabor Bakos
  */
-public interface UserConfiguration {
+public abstract class UserConfiguration {
     /**
      * @return Whether there is a user configuration.
      */
-    boolean hasUserConfiguration();
+    public abstract boolean hasUserConfiguration();
     /**
      * Saves the user configuration to {@code userSettings}.
      * @param userSettings A {@link ConfigBaseWO} to save the configuration.
      */
-    void saveUserConfiguration(NodeSettingsWO userSettings);
+    public abstract void saveUserConfiguration(NodeSettingsWO userSettings);
     /**
      * Loads the configuration in the model (probably for validation).
      *
      * @param userSettings A {@link ConfigBaseRO} to read the configuration from.
      * @throws InvalidSettingsException When the settings are not all valid.
      */
-    void loadUserConfiguration(NodeSettingsRO userSettings) throws InvalidSettingsException;
+    public abstract void loadUserConfiguration(NodeSettingsRO userSettings) throws InvalidSettingsException;
     /**
      * Loads the configuration in the dialog.
      *
@@ -89,31 +89,31 @@ public interface UserConfiguration {
      * @param credentialNames The {@link CredentialsProvider} names.
      * @throws NotConfigurableException When there is no option to configure this extension.
      */
-    void loadUserConfigurationForDialog(NodeSettingsRO userSettings, PortObjectSpec[] specs, final CredentialsProvider credentialNames) throws NotConfigurableException;
+    public abstract void loadUserConfigurationForDialog(NodeSettingsRO userSettings, PortObjectSpec[] specs, final CredentialsProvider credentialNames) throws NotConfigurableException;
     /**
      * Adds the dialog controls to {@code panel}.
      * @param panel A {@link JPanel}.
      */
-    void addControls(JPanel panel);
-    /**
-     * Enables the controls.
-     */
-    void enableControls();
-    /**
-     * Disables the controls.
-     */
-    void disableControls();
+    public abstract void addControls(JPanel panel);
+//    /**
+//     * Enables the controls.
+//     */
+//    void enableControls();
+//    /**
+//     * Disables the controls.
+//     */
+//    void disableControls();
     /**
      * @return The identifier of {@link UserConfiguration}.
      */
-    String id();
+    public abstract String getName();
     /**
      * Updates the control values based on the settings.
      * @throws NotConfigurableException When cannot be configured for some reason.
      */
-    void updateControls() throws NotConfigurableException;
+    public abstract void updateControls() throws NotConfigurableException;
     /**
      * Updates the settings based on the control values.
      */
-    void updateSettings();
+    public abstract void updateSettings();
 }

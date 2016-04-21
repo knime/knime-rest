@@ -48,6 +48,8 @@
  */
 package org.knime.rest.internals;
 
+import java.util.Map;
+
 import javax.swing.JPanel;
 import javax.ws.rs.client.Invocation.Builder;
 import javax.xml.ws.BindingProvider;
@@ -56,17 +58,13 @@ import org.apache.cxf.jaxrs.client.WebClient;
 import org.apache.cxf.transport.http.auth.DigestAuthSupplier;
 import org.knime.core.data.DataRow;
 import org.knime.core.node.workflow.CredentialsProvider;
-import org.knime.rest.generic.EachRequestAuthentication;
+import org.knime.core.node.workflow.FlowVariable;
 
 /**
  *
  * @author Gabor Bakos
  */
-public class DigestAuthentication extends UsernamePasswordAuthentication implements EachRequestAuthentication {
-//    private JLabel m_realmLabel = new JLabel("Realm:");
-//
-//    private JTextField m_realm = new JTextField(22);
-
+public class DigestAuthentication extends UsernamePasswordAuthentication {
     /**
      *
      */
@@ -78,15 +76,10 @@ public class DigestAuthentication extends UsernamePasswordAuthentication impleme
      * {@inheritDoc}
      */
     @Override
-    public Builder updateRequest(final Builder request, final DataRow row, final CredentialsProvider credProvider) {
-//        final AuthorizationPolicy authPolicy = new AuthorizationPolicy();
-//        authPolicy.setUserName(getUsername());
-//        authPolicy.setPassword(getPassword());
+    public Builder updateRequest(final Builder request, final DataRow row, final CredentialsProvider credProvider, final Map<String, FlowVariable> flowVariables) {
         WebClient.getConfig(request).getHttpConduit().setAuthSupplier(new DigestAuthSupplier());
         request.property(BindingProvider.USERNAME_PROPERTY, getUsername());
         request.property(BindingProvider.PASSWORD_PROPERTY, getPassword());
-//        request.header("Authorization",
-//            new DigestAuthSupplier().getAuthorization(authPolicy, null/*uri*/, null/*message*/, null/*fullHeader*/));
         return request;
     }
 
@@ -96,39 +89,13 @@ public class DigestAuthentication extends UsernamePasswordAuthentication impleme
     @Override
     public void addControls(final JPanel panel) {
         super.addControls(panel);
-//        GridBagConstraints gbc = new GridBagConstraints();
-//        gbc.gridx = 0;
-//        gbc.gridy = 4;
-//        panel.add(m_realmLabel, gbc);
-//        gbc.gridx++;
-//        panel.add(m_realm, gbc);
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void disableControls() {
-        super.disableControls();
-//        m_realmLabel.setEnabled(false);
-//        m_realm.setEnabled(false);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public void enableControls() {
-        super.enableControls();
-//        m_realmLabel.setEnabled(true);
-//        m_realm.setEnabled(true);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public String id() {
+    public String getName() {
         return "Digest";
     }
 

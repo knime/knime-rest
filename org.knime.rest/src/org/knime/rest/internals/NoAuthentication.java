@@ -48,6 +48,8 @@
  */
 package org.knime.rest.internals;
 
+import java.util.Map;
+
 import javax.swing.JPanel;
 import javax.ws.rs.client.Invocation.Builder;
 
@@ -57,6 +59,7 @@ import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.node.workflow.CredentialsProvider;
+import org.knime.core.node.workflow.FlowVariable;
 import org.knime.rest.generic.EachRequestAuthentication;
 
 /**
@@ -64,7 +67,7 @@ import org.knime.rest.generic.EachRequestAuthentication;
  *
  * @author Gabor Bakos
  */
-public class NoAuthentication implements EachRequestAuthentication {
+public class NoAuthentication extends EachRequestAuthentication {
     /**
      * {@inheritDoc}
      */
@@ -110,23 +113,7 @@ public class NoAuthentication implements EachRequestAuthentication {
      * {@inheritDoc}
      */
     @Override
-    public void enableControls() {
-        //No configuration
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public void disableControls() {
-        //No configuration
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public String id() {
+    public String getName() {
         return "None";
     }
 
@@ -134,7 +121,7 @@ public class NoAuthentication implements EachRequestAuthentication {
      * {@inheritDoc}
      */
     @Override
-    public Builder updateRequest(final Builder request, final DataRow row, final CredentialsProvider credProvider) {
+    public Builder updateRequest(final Builder request, final DataRow row, final CredentialsProvider credProvider, final Map<String, FlowVariable> flowVariables) {
         return request;
     }
 

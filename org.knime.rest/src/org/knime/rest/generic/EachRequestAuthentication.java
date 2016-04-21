@@ -48,10 +48,13 @@
  */
 package org.knime.rest.generic;
 
+import java.util.Map;
+
 import javax.ws.rs.client.Invocation.Builder;
 
 import org.knime.core.data.DataRow;
 import org.knime.core.node.workflow.CredentialsProvider;
+import org.knime.core.node.workflow.FlowVariable;
 
 /**
  * Each request should use the same information for authentication (like
@@ -60,7 +63,7 @@ import org.knime.core.node.workflow.CredentialsProvider;
  *
  * @author Gabor Bakos
  */
-public interface EachRequestAuthentication extends UserConfiguration {
+public abstract class EachRequestAuthentication extends UserConfiguration {
     /**
      * Updates the request with authentication information.
      *
@@ -69,5 +72,5 @@ public interface EachRequestAuthentication extends UserConfiguration {
      * @param credProvider The {@link CredentialsProvider}.
      * @return The updated request {@link Builder}.
      */
-    public Builder updateRequest(Builder request, DataRow row, CredentialsProvider credProvider);
+    public abstract Builder updateRequest(Builder request, DataRow row, CredentialsProvider credProvider, Map<String, FlowVariable> flowVariables);
 }

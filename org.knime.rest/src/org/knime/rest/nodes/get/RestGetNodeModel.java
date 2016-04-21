@@ -604,7 +604,7 @@ class RestGetNodeModel extends NodeModel {
         WebClient.getConfig(request).getHttpConduit().getClient().setMaxRetransmits(2);
 
         for (final EachRequestAuthentication era : enabledEachRequestAuthentications) {
-            era.updateRequest(request, row, getCredentialsProvider());
+            era.updateRequest(request, row, getCredentialsProvider(), getAvailableFlowVariables());
         }
         for (final RequestHeaderKeyItem headerItem : m_settings.getRequestHeaders()) {
             Object value;

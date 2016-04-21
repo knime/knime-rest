@@ -130,7 +130,6 @@ import org.knime.core.node.util.StringHistoryPanel;
 import org.knime.core.util.Pair;
 import org.knime.rest.generic.EnablableUserConfiguration;
 import org.knime.rest.generic.UserConfiguration;
-import org.knime.rest.nodes.get.RestGetSettings.ParameterKind;
 import org.knime.rest.nodes.get.RestGetSettings.ReferenceType;
 import org.knime.rest.nodes.get.RestGetSettings.RequestHeaderKeyItem;
 import org.knime.rest.util.ButtonCell;
@@ -197,9 +196,6 @@ final class RestGetNodeDialog extends NodeDialogPane {
             m_requestHeaderValue = createEditableComboBox();
 
     private final JComboBox<ReferenceType> m_requestHeaderValueType = createEditableComboBox(ReferenceType.values());
-
-    private final JComboBox<ParameterKind> m_requestHeaderKeyType =
-        new JComboBox<>(new ParameterKind[]{ParameterKind.Header});
 
     private JComboBox<String> m_responseHeaderKey = createEditableComboBox();
 
@@ -495,8 +491,6 @@ final class RestGetNodeDialog extends NodeDialogPane {
 
         gbc.gridx = 0;
         panel.add(m_requestHeaderValueType, gbc);
-        gbc.gridx = 1;
-        panel.add(m_requestHeaderKeyType, gbc);
         gbc.gridy++;
 
     }
@@ -555,25 +549,22 @@ final class RestGetNodeDialog extends NodeDialogPane {
             final JPanel tabPanel = new JPanel();
             final JScrollPane scrollPane = new JScrollPane(tabPanel);
             final UserConfiguration userConfiguration = euc.getUserConfiguration();
-            tabs.add(userConfiguration.id(), scrollPane);
-            final JRadioButton radioButton = new JRadioButton(userConfiguration.id());
+            tabs.add(userConfiguration.getName(), scrollPane);
+            final JRadioButton radioButton = new JRadioButton(userConfiguration.getName());
             buttonGroup.add(radioButton);
             radioButtons.add(radioButton);
-            radioButton.setAction(new AbstractAction(userConfiguration.id()) {
+            radioButton.setAction(new AbstractAction(userConfiguration.getName()) {
                 private static final long serialVersionUID = -8514095622936885670L;
 
                 @Override
                 public void actionPerformed(final ActionEvent e) {
                     final CardLayout layout = (CardLayout)tabs.getLayout();
                     if (radioButton.isSelected()) {
-                        layout.show(tabs, userConfiguration.id());
-                        userConfiguration.enableControls();
-                    } else {
-                        userConfiguration.disableControls();
+                        layout.show(tabs, userConfiguration.getName());
                     }
                 }
             });
-            radioButton.setName(userConfiguration.id());
+            radioButton.setName(userConfiguration.getName());
             m_authenticationTabTitles.add(radioButton);
             userConfiguration.addControls(tabPanel);
         }
@@ -1032,7 +1023,7 @@ final class RestGetNodeDialog extends NodeDialogPane {
         for (JRadioButton radioButton : m_authenticationTabTitles) {
             for (final EnablableUserConfiguration<UserConfiguration> euc : m_settings
                 .getAuthorizationConfigurations()) {
-                if (radioButton.getName().equals(euc.getUserConfiguration().id())) {
+                if (radioButton.getName().equals(euc.getUserConfiguration().getName())) {
                     euc.setEnabled(radioButton.isSelected());
                 }
             }
@@ -1125,7 +1116,7 @@ final class RestGetNodeDialog extends NodeDialogPane {
         for (final EnablableUserConfiguration<UserConfiguration> euc : m_settings.getAuthorizationConfigurations()) {
             for (final JRadioButton radioButton : m_authenticationTabTitles) {
                 euc.getUserConfiguration().updateControls();
-                if (radioButton.getName().equals(euc.getUserConfiguration().id())) {
+                if (radioButton.getName().equals(euc.getUserConfiguration().getName())) {
                     radioButton.setSelected(euc.isEnabled());
                     radioButton.getAction().actionPerformed(null);
                 }

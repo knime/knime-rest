@@ -52,18 +52,13 @@ import java.io.File;
 import java.io.IOException;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
-import java.util.AbstractMap.SimpleImmutableEntry;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -78,14 +73,12 @@ import javax.ws.rs.client.Invocation.Builder;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import javax.ws.rs.core.Variant;
 import javax.ws.rs.ext.RuntimeDelegate;
 
 import org.apache.cxf.jaxrs.client.WebClient;
 import org.apache.cxf.jaxrs.client.spec.ClientBuilderImpl;
 import org.apache.cxf.jaxrs.impl.RuntimeDelegateImpl;
-import org.eclipse.core.runtime.CoreException;
-import org.eclipse.core.runtime.IConfigurationElement;
-import org.eclipse.core.runtime.Platform;
 import org.eclipse.e4.core.di.annotations.Execute;
 import org.knime.base.data.xml.SvgCell;
 import org.knime.core.data.DataCell;
@@ -128,9 +121,9 @@ import org.knime.core.node.util.CheckUtils;
 import org.knime.core.util.Pair;
 import org.knime.core.util.UniqueNameGenerator;
 import org.knime.rest.generic.EachRequestAuthentication;
-import org.knime.rest.generic.MediaHandler;
 import org.knime.rest.generic.ResponseBodyParser;
 import org.knime.rest.generic.ResponseBodyParser.Default;
+import org.knime.rest.nodes.post.RestPostSettings.ReferenceType;
 import org.knime.rest.nodes.post.RestPostSettings.RequestHeaderKeyItem;
 import org.knime.rest.nodes.post.RestPostSettings.ResponseHeaderItem;
 import org.knime.rest.util.DelegatingX509TrustManager;
@@ -140,8 +133,6 @@ import org.knime.rest.util.DelegatingX509TrustManager;
  * @author Gabor Bakos
  */
 class RestPostNodeModel extends NodeModel {
-    private static final String EXTENSION_ID_FOR_REQUEST_BODY_HANDLERS = "org.knime.rest.body";
-
     private static final NodeLogger LOGGER = NodeLogger.getLogger(RestPostNodeModel.class);
 
     private final RestPostSettings m_settings = new RestPostSettings();
@@ -177,41 +168,6 @@ class RestPostNodeModel extends NodeModel {
         }
 
     };
-
-    static final List<Entry<MediaType, List<MediaHandler<?>>>> REQUEST_BODY_HANDLERS;
-    static {
-        List<Entry<MediaType, List<MediaHandler<?>>>> tmp = new ArrayList<>();
-        final IConfigurationElement[] bodyElements =
-            Platform.getExtensionRegistry().getConfigurationElementsFor(EXTENSION_ID_FOR_REQUEST_BODY_HANDLERS);
-        final Map<MediaType, List<Pair<MediaType, Pair<MediaHandler<?>, Integer>>>> intermediate =
-            Stream.of(bodyElements).flatMap(v -> {
-                MediaHandler<?> mh;
-                try {
-                    mh = (MediaHandler<?>)v.createExecutableExtension("class");
-                    return mh.getMediaType().stream()
-                        .map(mt -> Pair.<MediaType, Pair<MediaHandler<?>, Integer>> create(mt,
-                            Pair.create(mh, v.getAttribute("priority") == null ? 50 : Integer.valueOf(v.getAttribute("priority")))));
-                } catch (CoreException e) {
-                    throw new RuntimeException(e);
-                    //                return Stream.<Pair<MediaType, MediaHandler<?>>>empty();
-                }
-            }).collect(
-                Collectors.<Pair<MediaType, Pair<MediaHandler<?>, Integer>>, MediaType> groupingBy(p -> p.getFirst()));
-        tmp.addAll(
-            intermediate.entrySet().stream()
-                .map(entry -> new SimpleImmutableEntry<MediaType, List<MediaHandler<?>>>(entry.getKey(),
-                    entry.getValue().stream()
-                    //Sort by priority descending
-                        .sorted((p1, p2) -> p2.getSecond().getSecond() - p1.getSecond().getSecond())
-                        //collect only MediaHandlers
-                        .map(p -> p.getSecond().getFirst()).collect(Collectors.toList()))
-
-                ).collect(Collectors.toList()));
-        REQUEST_BODY_HANDLERS = Collections.unmodifiableList(tmp);
-    }
-
-    //    @Inject
-    //    private IExtensionRegistry m_extensionRegistry;
 
     /**
      *
@@ -282,7 +238,7 @@ class RestPostNodeModel extends NodeModel {
             response = invoke(invocation(
                 createRequest(spec == null ? -1 : spec.findColumnIndex(m_settings.getUriColumn()),
                     enabledEachRequestAuthentications, row, spec),
-                spec == null ? -1 : spec.findColumnIndex(m_settings.getRequestBodyColumn()), row));
+                spec == null ? -1 : spec.findColumnIndex(m_settings.getRequestBodyColumn()), row, spec));
         } catch (final ProcessingException procEx) {
             LOGGER.warn("First call failed: " + procEx.getMessage(), procEx);
             response = null;
@@ -345,10 +301,14 @@ class RestPostNodeModel extends NodeModel {
      * @param i
      * @return
      */
-    private Invocation invocation(final Builder request, final int bodyColumn, final DataRow row) {
+    private Invocation invocation(final Builder request, final int bodyColumn, final DataRow row,
+        final DataTableSpec spec) {
+        final MediaType mediaType = MediaType.valueOf((String)computeHeaderValue(row, spec,
+            m_settings.getRequestHeaders().stream().filter(v -> "Content-Type".equals(v.getKey())).findAny()
+                .orElse(new RequestHeaderKeyItem("Content-Type", "application/json", ReferenceType.Constant))));
         Entity<?> entity = Entity
             .entity(m_settings.isUseConstantRequestBody() ? createObjectFromString(m_settings.getConstantRequestBody())
-                : createObjectFromCell(row.getCell(bodyColumn)), m_settings.getRequestBodyMediaType());
+                : createObjectFromCell(row.getCell(bodyColumn)), new Variant(mediaType, (String)null, "UTF-8"));
         return request.buildPost(entity);
     }
 
@@ -366,24 +326,6 @@ class RestPostNodeModel extends NodeModel {
      * @return
      */
     private Object createObjectFromString(final String string) {
-        MediaType mediaType = MediaType.valueOf(m_settings.getRequestBodyMediaType());
-        if (REQUEST_BODY_HANDLERS.contains(mediaType)) {
-            Optional<Entry<MediaType, List<MediaHandler<?>>>> opt =
-                REQUEST_BODY_HANDLERS.stream().filter(v -> v.getKey().equals(mediaType)).findFirst();
-            Function<Entry<MediaType, List<MediaHandler<?>>>, /*Stream<*/Optional<Object>>/*>*/ f =
-                e -> e.getValue().stream().map(v -> {
-                    try {
-                        Object o = v.transformString(string);
-                        return Optional.of(o);
-                    } catch (Exception __) {
-                        return Optional.empty();
-                    }
-                }).filter(o -> o.isPresent()).findAny().flatMap(Function.identity());
-            Optional<Object> result = opt.flatMap(f);
-            if (result.isPresent()) {
-                return result.get();
-            }
-        }
         return string;
     }
 
@@ -528,7 +470,8 @@ class RestPostNodeModel extends NodeModel {
                 try {
                     Response response;
                     try {
-                        response = invoke(request.buildGet());
+                        response = invoke(
+                            invocation(request, spec.findColumnIndex(m_settings.getRequestBodyColumn()), row, spec));
                     } catch (ProcessingException e) {
                         LOGGER.debug("Call failed: " + e.getMessage(), e);
                         response = null;
@@ -707,35 +650,48 @@ class RestPostNodeModel extends NodeModel {
 
         final Builder request = target.request();
         WebClient.getConfig(request).getHttpConduit().getClient().setAutoRedirect(m_settings.isFollowRedirects());
-        WebClient.getConfig(request).getHttpConduit().getClient().setMaxRetransmits(2);
+        WebClient.getConfig(request).getHttpConduit().getClient()
+            .setMaxRetransmits(Integer.parseInt(System.getProperty("org.knime.rest.maxretransits", "2")));
 
         for (final EachRequestAuthentication era : enabledEachRequestAuthentications) {
-            era.updateRequest(request, row, getCredentialsProvider());
+            era.updateRequest(request, row, getCredentialsProvider(), getAvailableFlowVariables());
         }
         for (final RequestHeaderKeyItem headerItem : m_settings.getRequestHeaders()) {
-            Object value;
-            switch (headerItem.getKind()) {
-                case Constant:
-                    value = headerItem.getValueReference();
-                    break;
-                case Column:
-                    value = row.getCell(spec.findColumnIndex(headerItem.getValueReference())).toString();
-                    break;
-                case FlowVariable:
-                    value = getAvailableInputFlowVariables().get(headerItem.getKey()).getValueAsString();
-                    break;
-                case CredentialName:
-                    value = getCredentialsProvider().get(headerItem.getKey()).getLogin();
-                    break;
-                case CredentialPassword:
-                    value = getCredentialsProvider().get(headerItem.getKey()).getPassword();
-                    break;
-                default:
-                    throw new UnsupportedOperationException("Unknown: " + headerItem.getKind() + " in: " + headerItem);
-            }
+            Object value = computeHeaderValue(row, spec, headerItem);
             request.header(headerItem.getKey(), value);
         }
         return request;
+    }
+
+    /**
+     * @param row
+     * @param spec
+     * @param headerItem
+     * @return
+     */
+    private Object computeHeaderValue(final DataRow row, final DataTableSpec spec,
+        final RequestHeaderKeyItem headerItem) {
+        Object value;
+        switch (headerItem.getKind()) {
+            case Constant:
+                value = headerItem.getValueReference();
+                break;
+            case Column:
+                value = row.getCell(spec.findColumnIndex(headerItem.getValueReference())).toString();
+                break;
+            case FlowVariable:
+                value = getAvailableInputFlowVariables().get(headerItem.getKey()).getValueAsString();
+                break;
+            case CredentialName:
+                value = getCredentialsProvider().get(headerItem.getKey()).getLogin();
+                break;
+            case CredentialPassword:
+                value = getCredentialsProvider().get(headerItem.getKey()).getPassword();
+                break;
+            default:
+                throw new UnsupportedOperationException("Unknown: " + headerItem.getKind() + " in: " + headerItem);
+        }
+        return value;
     }
 
     /**

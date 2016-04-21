@@ -48,17 +48,19 @@
  */
 package org.knime.rest.internals;
 
+import java.util.Map;
+
 import javax.ws.rs.client.Invocation.Builder;
 
 import org.knime.core.data.DataRow;
 import org.knime.core.node.workflow.CredentialsProvider;
-import org.knime.rest.generic.EachRequestAuthentication;
+import org.knime.core.node.workflow.FlowVariable;
 
 /**
  *
  * @author Gabor Bakos
  */
-public class BasicAuthentication extends UsernamePasswordAuthentication implements EachRequestAuthentication {
+public class BasicAuthentication extends UsernamePasswordAuthentication {
     /**
      *
      */
@@ -70,7 +72,7 @@ public class BasicAuthentication extends UsernamePasswordAuthentication implemen
      * {@inheritDoc}
      */
     @Override
-    public Builder updateRequest(final Builder request, final DataRow row, final CredentialsProvider credProvider) {
+    public Builder updateRequest(final Builder request, final DataRow row, final CredentialsProvider credProvider, final Map<String, FlowVariable> flowVariables) {
         final String username =  isUseCredentials() ? credProvider.get(getCredential()).getLogin() : getUsername();
         final String password = isUseCredentials() ? credProvider.get(getCredential()).getPassword() : getPassword();
         request.header("Authorization", "Basic "
@@ -82,7 +84,7 @@ public class BasicAuthentication extends UsernamePasswordAuthentication implemen
      * {@inheritDoc}
      */
     @Override
-    public String id() {
+    public String getName() {
         return "Basic";
     }
 
