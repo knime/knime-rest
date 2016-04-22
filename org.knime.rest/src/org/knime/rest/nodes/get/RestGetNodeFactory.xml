@@ -15,6 +15,8 @@
             <option name="Concurrency">Number of concurrent requests</option>
             <option name="Ignore hostname mismatches">Trust the certificate even if it was generated for a different host.</option>
             <option name="Trust all certificates">Trust all certificates regardless their origin or expiration date</option>
+            <option name="Fail on connection problems (e.g. timeout, certificate errors, …)">Fails on connection problems when checked, otherwise just logs the error and continues execution.</option>
+            <option name="Fail on http errors (e.g. page not found)">Fails on errors reported from the server (status codes with 4xx, 5xx) when checked, otherwise just logs the error and continues execution.</option>
             <option name="Follow redirects">Follows redirects (on <tt>3xx</tt> status codes) when checked</option>
             <option name="Timeout (s)">Timeout in seconds</option>
             <option name="Body">Name of the response body column</option>

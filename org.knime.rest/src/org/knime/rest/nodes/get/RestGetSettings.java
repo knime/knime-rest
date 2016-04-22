@@ -113,6 +113,14 @@ final class RestGetSettings {
 
     private static final boolean DEFAULT_SSL_TRUST_ALL = false;
 
+    private static final String FAIL_ON_CONNECTION_PROBLEMS = "Fail on connection problems";
+
+    static final boolean DEFAULT_FAIL_ON_CONNECTION_PROBLEMS = false;
+
+    private static final String FAIL_ON_HTTP_ERRORS = "Fail on HTTP errors";
+
+    static final boolean DEFAULT_FAIL_ON_HTTP_ERRORS = false;
+
     private static final String REQUEST_HEADER_KEYS = "Request header keys";
 
     private static final String REQUEST_HEADER_KEY_SELECTOR = "Request header key selector";
@@ -165,6 +173,10 @@ final class RestGetSettings {
     private boolean m_sslIgnoreHostNameErrors = DEFAULT_IGNORE_HOSTNAME_ERRORS;
 
     private boolean m_sslTrustAll = DEFAULT_SSL_TRUST_ALL;
+
+    private boolean m_failOnConnectionProblems = DEFAULT_FAIL_ON_CONNECTION_PROBLEMS;
+
+    private boolean m_failOnHttpErrors = DEFAULT_FAIL_ON_HTTP_ERRORS;
 
     private boolean m_followRedirects = DEFAULT_FOLLOW_REDIRECTS;
 
@@ -579,6 +591,34 @@ final class RestGetSettings {
     }
 
     /**
+     * @return the failOnConnectionProblems
+     */
+    boolean isFailOnConnectionProblems() {
+        return m_failOnConnectionProblems;
+    }
+
+    /**
+     * @param failOnConnectionProblems the failOnConnectionProblems to set
+     */
+    void setFailOnConnectionProblems(final boolean failOnConnectionProblems) {
+        m_failOnConnectionProblems = failOnConnectionProblems;
+    }
+
+    /**
+     * @return the failOnHttpErrors
+     */
+    boolean isFailOnHttpErrors() {
+        return m_failOnHttpErrors;
+    }
+
+    /**
+     * @param failOnHttpErrors the failOnHttpErrors to set
+     */
+    void setFailOnHttpErrors(final boolean failOnHttpErrors) {
+        m_failOnHttpErrors = failOnHttpErrors;
+    }
+
+    /**
      * @return the extractAllResponseFields
      */
     boolean isExtractAllResponseFields() {
@@ -664,6 +704,8 @@ final class RestGetSettings {
         settings.addInt(CONCURRENCY, m_concurrency);
         settings.addBoolean(SSL_IGNORE_HOSTNAME_ERRORS, m_sslIgnoreHostNameErrors);
         settings.addBoolean(SSL_TRUST_ALL, m_sslTrustAll);
+        settings.addBoolean(FAIL_ON_CONNECTION_PROBLEMS, m_failOnConnectionProblems);
+        settings.addBoolean(FAIL_ON_HTTP_ERRORS, m_failOnHttpErrors);
         settings.addStringArray(REQUEST_HEADER_KEYS,
             m_requestHeaders.stream().map(rh -> rh.getKey()).toArray(n -> new String[n]));
         settings.addStringArray(REQUEST_HEADER_KEY_SELECTOR,
@@ -696,6 +738,8 @@ final class RestGetSettings {
         m_concurrency = settings.getInt(CONCURRENCY);
         m_sslIgnoreHostNameErrors = settings.getBoolean(SSL_IGNORE_HOSTNAME_ERRORS);
         m_sslTrustAll = settings.getBoolean(SSL_TRUST_ALL);
+        m_failOnConnectionProblems = settings.getBoolean(FAIL_ON_CONNECTION_PROBLEMS);
+        m_failOnHttpErrors = settings.getBoolean(FAIL_ON_HTTP_ERRORS);
         m_requestHeaders.clear();
         String[] requestKeys = settings.getStringArray(REQUEST_HEADER_KEYS);
         String[] requestKeySelectors = settings.getStringArray(REQUEST_HEADER_KEY_SELECTOR);
@@ -746,6 +790,8 @@ final class RestGetSettings {
         m_concurrency = settings.getInt(CONCURRENCY, DEFAULT_CONCURRENCY);
         m_sslIgnoreHostNameErrors = settings.getBoolean(SSL_IGNORE_HOSTNAME_ERRORS, DEFAULT_IGNORE_HOSTNAME_ERRORS);
         m_sslTrustAll = settings.getBoolean(SSL_TRUST_ALL, DEFAULT_SSL_TRUST_ALL);
+        m_failOnConnectionProblems = settings.getBoolean(FAIL_ON_CONNECTION_PROBLEMS, DEFAULT_FAIL_ON_CONNECTION_PROBLEMS);
+        m_failOnHttpErrors = settings.getBoolean(FAIL_ON_HTTP_ERRORS, DEFAULT_FAIL_ON_HTTP_ERRORS);
         m_requestHeaders.clear();
         String[] requestKeys = settings.getStringArray(REQUEST_HEADER_KEYS,
             DEFAULT_REQUEST_HEADER_KEY_ITEMS.stream().map(RequestHeaderKeyItem::getKey).toArray(n -> new String[n]));

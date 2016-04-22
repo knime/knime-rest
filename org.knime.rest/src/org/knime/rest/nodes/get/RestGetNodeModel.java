@@ -229,11 +229,17 @@ class RestGetNodeModel extends NodeModel {
         m_firstRow = row == null ? null : row.getKey();
         final UniqueNameGenerator nameGenerator = new UniqueNameGenerator(spec == null ? new DataTableSpec() : spec);
         Response response;
+        DataCell missing;
         try {
             response = invoke(createRequest(spec == null ? -1 : spec.findColumnIndex(m_settings.getUriColumn()),
                 enabledEachRequestAuthentications, row, spec).buildGet());
+            missing = null;
         } catch (final ProcessingException procEx) {
             LOGGER.warn("First call failed: " + procEx.getMessage(), procEx);
+            if (m_settings.isFailOnConnectionProblems()) {
+                throw new IllegalStateException(procEx);
+            }
+            missing = new MissingCell(procEx.getMessage());
             response = null;
         }
         try {
@@ -255,6 +261,7 @@ class RestGetNodeModel extends NodeModel {
                     .collect(Collectors.toList()));
             }
             final Response finalResponse = response;
+            checkResponse(response);
             cells = m_responseHeaderKeys.stream().map(rhi -> {
                 specs
                     .add(/*nameGenerator.newColumn(*/new DataColumnSpecCreator(rhi.getOutputColumnName(), rhi.getType())
@@ -278,7 +285,7 @@ class RestGetNodeModel extends NodeModel {
             for (ResponseHeaderItem bodyCol : m_bodyColumns) {
                 specs.add(nameGenerator.newColumn(bodyCol.getOutputColumnName(), bodyCol.getType()));
             }
-            addBodyValues(cells, response);
+            addBodyValues(cells, response, missing);
             m_firstCallValues = cells.toArray(new DataCell[cells.size()]);
             m_newColumnsBasedOnFirstCall = specs.toArray(new DataColumnSpec[specs.size()]);
         } finally {
@@ -421,12 +428,17 @@ class RestGetNodeModel extends NodeModel {
                 assert m_consumedRows > 0;
                 final Builder request = createRequest(uriColumn, enabledEachRequestAuthentications, row, spec);
                 final List<DataCell> cells;
+                DataCell missing = null;
                 try {
                     Response response;
                     try {
                         response = invoke(request.buildGet());
                     } catch (ProcessingException e) {
                         LOGGER.debug("Call failed: " + e.getMessage(), e);
+                        if (m_settings.isFailOnConnectionProblems()) {
+                            throw new IllegalStateException(e);
+                        }
+                        missing = new MissingCell(e.getMessage());
                         response = null;
                     }
                     try {
@@ -434,6 +446,7 @@ class RestGetNodeModel extends NodeModel {
                         //examineResponse(response);
                         //cells = m_settings.getExtractFields().stream().map(rhi -> {
                         final Response finalResponse = response;
+                        checkResponse(response);
                         cells = m_responseHeaderKeys.stream().map(rhi -> {
                             DataCellFactory cellFactory = rhi.getType().getCellFactory(null).orElseGet(() -> FALLBACK);
                             //List<Object> values = headers.get(e.getKey());
@@ -452,7 +465,7 @@ class RestGetNodeModel extends NodeModel {
                             }
                             return DataType.getMissingCell();
                         }).collect(Collectors.toList());
-                        addBodyValues(cells, response);
+                        addBodyValues(cells, response, missing);
                     } finally {
                         if (response != null) {
                             response.close();
@@ -483,6 +496,17 @@ class RestGetNodeModel extends NodeModel {
         factory.setParallelProcessing(true, concurrency, 4 * concurrency);
         rearranger.append(factory);
         return rearranger;
+    }
+
+    /**
+     * @param response
+     */
+    private void checkResponse(final Response response) throws IllegalStateException {
+        if (response != null && m_settings.isFailOnHttpErrors()) {
+            if (response.getStatus() >= 400 && response.getStatus() < 600) {
+                throw new IllegalStateException("Wrong status: " + response.getStatus() + " " + response.getStatusInfo().getReasonPhrase());
+            }
+        }
     }
 
     /**
@@ -635,8 +659,9 @@ class RestGetNodeModel extends NodeModel {
     /**
      * @param cells
      * @param response
+     * @param missing
      */
-    protected void addBodyValues(final List<DataCell> cells, final Response response) {
+    protected void addBodyValues(final List<DataCell> cells, final Response response, final DataCell missing) {
         m_bodyColumns.stream().forEachOrdered(rhi -> {
             if (response != null && response.hasEntity()) {
                 DataType expectedType = rhi.getType();
@@ -660,7 +685,7 @@ class RestGetNodeModel extends NodeModel {
                     }
                 }
             } else {
-                cells.add(DataType.getMissingCell());
+                cells.add(missing);
             }
         });
     }

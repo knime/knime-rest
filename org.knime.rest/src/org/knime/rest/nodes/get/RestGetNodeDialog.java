@@ -169,6 +169,8 @@ final class RestGetNodeDialog extends NodeDialogPane {
     private final JCheckBox m_sslIgnoreHostnameMismatches = new JCheckBox("Ignore hostname mismatches"),
             m_sslTrustAll = new JCheckBox("Trust all certificates");
 
+    private final JCheckBox m_failOnConnectionProblems = new JCheckBox("Fail on connection problems (e.g. timeout, certificate errors, ...)"), m_failOnHttpErrors = new JCheckBox("Fail on http errors (e.g. page not found)");
+
     private final JCheckBox m_followRedirects = new JCheckBox("Follow redirects");
 
     private final JSpinner m_timeoutInSeconds = new JSpinner(new SpinnerNumberModel(RestGetSettings.DEFAULT_TIMEOUT, 1, Integer.MAX_VALUE, 1));
@@ -323,6 +325,10 @@ final class RestGetNodeDialog extends NodeDialogPane {
         sslPanel.add(m_sslTrustAll);
         ret.add(sslPanel, gbc);
         gbc.gridy++;
+        ret.add(m_failOnConnectionProblems, gbc);
+        gbc.gridy++;
+        ret.add(m_failOnHttpErrors, gbc);
+        gbc.gridy++;
         ret.add(m_followRedirects, gbc);
         gbc.gridy++;
         gbc.weightx = 0;
@@ -353,6 +359,8 @@ final class RestGetNodeDialog extends NodeDialogPane {
         m_constantUriOption.setSelected(true);
         m_uriColumn.setEnabled(false);
         m_delay.setEnabled(false);
+        m_failOnConnectionProblems.setSelected(RestGetSettings.DEFAULT_FAIL_ON_CONNECTION_PROBLEMS);
+        m_failOnHttpErrors.setSelected(RestGetSettings.DEFAULT_FAIL_ON_HTTP_ERRORS);
         return ret;
     }
 
@@ -1039,6 +1047,8 @@ final class RestGetNodeDialog extends NodeDialogPane {
         m_settings.setConcurrency(((Number)m_concurrency.getValue()).intValue());
         m_settings.setSslIgnoreHostNameErrors(m_sslIgnoreHostnameMismatches.isSelected());
         m_settings.setSslTrustAll(m_sslTrustAll.isSelected());
+        m_settings.setFailOnConnectionProblems(m_failOnConnectionProblems.isSelected());
+        m_settings.setFailOnHttpErrors(m_failOnHttpErrors.isSelected());
         m_settings.setFollowRedirects(m_followRedirects.isSelected());
         m_settings.setTimeoutInSeconds(((Number)m_timeoutInSeconds.getValue()).intValue());
         m_settings.getRequestHeaders().clear();
@@ -1099,6 +1109,8 @@ final class RestGetNodeDialog extends NodeDialogPane {
         m_concurrency.setValue(m_settings.getConcurrency());
         m_sslIgnoreHostnameMismatches.setSelected(m_settings.isSslIgnoreHostNameErrors());
         m_sslTrustAll.setSelected(m_settings.isSslTrustAll());
+        m_failOnConnectionProblems.setSelected(m_settings.isFailOnConnectionProblems());
+        m_failOnHttpErrors.setSelected(m_settings.isFailOnHttpErrors());
         m_followRedirects.setSelected(m_settings.isFollowRedirects());
         m_timeoutInSeconds.setValue(m_settings.getTimeoutInSeconds());
         m_requestHeadersModel.clear();
