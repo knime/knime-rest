@@ -46,7 +46,7 @@
  * History
  *   30. Jan. 2016. (Gabor Bakos): created
  */
-package org.knime.rest.nodes.get;
+package org.knime.rest.nodes.common;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -55,27 +55,30 @@ import java.util.Objects;
 
 import javax.swing.table.AbstractTableModel;
 
-import org.knime.core.data.DataType;
-import org.knime.core.util.Pair;
-import org.knime.rest.nodes.get.RestGetSettings.ResponseHeaderItem;
+import org.knime.rest.nodes.common.RestSettings.ReferenceType;
+import org.knime.rest.nodes.common.RestSettings.RequestHeaderKeyItem;
 
 /**
  *
  * @author Gabor Bakos
  */
-class ResponseTableModel extends AbstractTableModel implements Iterable<ResponseHeaderItem> {
-    private static final long serialVersionUID = -7048890183554347405L;
-
-    private static enum Columns {
-            headerKey, outputColumn;
+class RequestTableModel extends AbstractTableModel implements Iterable<RequestHeaderKeyItem> {
+    static enum Columns {
+            headerKey, value, kind/*, parameterKind*/, delete;
     }
 
-    private final List<ResponseHeaderItem> content = new ArrayList<>();
+    private final List<RequestHeaderKeyItem> m_content = new ArrayList<>();
 
     /**
      *
      */
-    public ResponseTableModel() {
+    private static final long serialVersionUID = 4397800184937700474L;
+
+    /**
+     *
+     */
+    public RequestTableModel() {
+        // TODO Auto-generated constructor stub
     }
 
     /**
@@ -83,7 +86,7 @@ class ResponseTableModel extends AbstractTableModel implements Iterable<Response
      */
     @Override
     public int getRowCount() {
-        return content.size();
+        return m_content.size();
     }
 
     /**
@@ -91,7 +94,7 @@ class ResponseTableModel extends AbstractTableModel implements Iterable<Response
      */
     @Override
     public int getColumnCount() {
-        return 2;//key, output column name + type
+        return 3;//header key, value, value kind (, key kind for non-get)
     }
 
     /**
@@ -101,14 +104,20 @@ class ResponseTableModel extends AbstractTableModel implements Iterable<Response
      */
     @Override
     public Object getValueAt(final int rowIndex, final int columnIndex) {
-        ResponseHeaderItem setting = content.get(rowIndex);
+        RequestHeaderKeyItem setting = m_content.get(rowIndex);
         Columns col = Columns.values()[columnIndex];
         switch (col) {
             case headerKey://output+
                 return //Pair.create(setting.getKey(), setting.getType());
-                setting.getHeaderKey();
-            case outputColumn:
-                return Pair.create(setting.getOutputColumnName(), setting.getType());
+                setting.getKey();
+            case value:
+                return setting.getValueReference();
+            case kind:
+                return setting.getKind();
+            /*case parameterKind:
+                return setting.getParameterKind();*/
+            case delete:
+                return null;
             default:
                 throw new IllegalStateException("Unknown column: ");
         }
@@ -120,49 +129,75 @@ class ResponseTableModel extends AbstractTableModel implements Iterable<Response
     @Override
     public void setValueAt(final Object aValue, final int rowIndex, final int columnIndex) {
         Columns col = Columns.values()[columnIndex];
-        if (rowIndex >= content.size()) {
+        if (rowIndex >= m_content.size()) {
             return;
         }
-        ResponseHeaderItem setting = content.get(rowIndex);
+        RequestHeaderKeyItem setting = m_content.get(rowIndex);
         switch (col) {
             case headerKey: {
-                if (aValue instanceof String) {
-                    String headerKey = (String)aValue;
-                    String key = setting.getHeaderKey();
-                    content.set(rowIndex,
-                        new ResponseHeaderItem(headerKey, setting.getType(), setting.getOutputColumnName()));
-                    if (!Objects.equals(key, headerKey)) {
-                        fireTableCellUpdated(rowIndex, columnIndex);
-                    }
-                }
-                break;
-            }
-            case outputColumn: {
-                if (aValue instanceof Pair<?, ?>) {
+                /*if (aValue instanceof Pair<?, ?>) {
                     Pair<?, ?> pair = (Pair<?, ?>)aValue;
                     Object first = pair.getFirst();
                     Object second = pair.getSecond();
                     setValueAt(first, rowIndex, columnIndex);
                     setValueAt(second, rowIndex, columnIndex);
-                } else if (aValue instanceof String) {
-                    String outputColumn = (String)aValue;
-                    String output = setting.getOutputColumnName();
-                    content.set(rowIndex,
-                        new ResponseHeaderItem(setting.getHeaderKey(), setting.getType(), outputColumn));
-                    if (!Objects.equals(output, outputColumn)) {
+                } else*/ if (aValue instanceof String) {
+                    String headerKey = (String)aValue;
+                    String key = setting.getKey();
+                    m_content.set(rowIndex,
+                        new RequestHeaderKeyItem(headerKey, setting.getValueReference(), setting.getKind()));
+                    if (!Objects.equals(key, headerKey)) {
                         fireTableCellUpdated(rowIndex, columnIndex);
                     }
-                } else if (aValue instanceof DataType) {
-                    DataType outputType = (DataType)aValue;
-                    DataType returnType = setting.getType();
-                    content.set(rowIndex,
-                        new ResponseHeaderItem(setting.getHeaderKey(), outputType, setting.getOutputColumnName()));
+                } /*else if (aValue instanceof OutputType) {
+                    OutputType outputType = (OutputType)aValue;
+                    OutputType returnType = setting.getReturnType();
+                    setting.setReturnType(outputType);
                     if (!Objects.equals(returnType, outputType)) {
+                        fireTableCellUpdated(rowIndex, columnIndex);
+                    }
+                  }*/
+                break;
+            }
+            case value: {
+                if (aValue instanceof String) {
+                    String newReference = (String)aValue;
+                    String reference = setting.getValueReference();
+                    m_content.set(rowIndex, new RequestHeaderKeyItem(setting.getKey(), newReference, setting.getKind()));
+                    if (!Objects.equals(newReference, reference)) {
                         fireTableCellUpdated(rowIndex, columnIndex);
                     }
                 }
                 break;
             }
+            case kind: {
+                if (aValue instanceof ReferenceType) {
+                    ReferenceType newKind = (ReferenceType)aValue;
+                    ReferenceType kind = setting.getKind();
+                    m_content.set(rowIndex,
+                        new RequestHeaderKeyItem(setting.getKey(), setting.getValueReference(), newKind));
+                    if (newKind != kind) {
+                        fireTableCellUpdated(rowIndex, columnIndex);
+                    }
+                }
+                break;
+            }
+//            case parameterKind: {
+//                if (aValue instanceof ParameterKind) {
+//                    ParameterKind paths = (ParameterKind)aValue;
+//                    ParameterKind returnPaths = setting.getParameterKind();
+//                    m_content.set(rowIndex, setting);
+//                    if (paths != returnPaths) {
+//                        fireTableCellUpdated(rowIndex, columnIndex);
+//                    }
+//                }
+//                break;
+//            }
+            case delete: {
+                break;
+            }
+            default:
+                throw new UnsupportedOperationException();
         }
     }
 
@@ -170,8 +205,8 @@ class ResponseTableModel extends AbstractTableModel implements Iterable<Response
      * {@inheritDoc}
      */
     @Override
-    public Iterator<ResponseHeaderItem> iterator() {
-        return content.iterator();
+    public Iterator<RequestHeaderKeyItem> iterator() {
+        return m_content.iterator();
     }
 
     /**
@@ -182,27 +217,27 @@ class ResponseTableModel extends AbstractTableModel implements Iterable<Response
         return true;
     }
 
-    void addRow(final ResponseHeaderItem setting) {
-        content.add(setting);
-        fireTableRowsInserted(content.size() - 1, content.size() - 1);
+    void addRow(final RequestHeaderKeyItem setting) {
+        m_content.add(setting);
+        fireTableRowsInserted(m_content.size() - 1, m_content.size() - 1);
     }
 
-    ResponseHeaderItem newRow() {
-        ResponseHeaderItem ret = new ResponseHeaderItem("");
+    RequestHeaderKeyItem newRow() {
+        final RequestHeaderKeyItem ret = new RequestHeaderKeyItem("", "", ReferenceType.Constant);
         addRow(ret);
         return ret;
     }
 
-    void insertRow(final int rowIndex, final ResponseHeaderItem setting) {
-        if (rowIndex >= 0 && rowIndex <= content.size()) {
-            content.add(rowIndex, setting);
+    void insertRow(final int rowIndex, final RequestHeaderKeyItem setting) {
+        if (rowIndex >= 0 && rowIndex <= m_content.size()) {
+            m_content.add(rowIndex, setting);
             fireTableRowsInserted(rowIndex, rowIndex);
         }
     }
 
     void removeRow(final int rowIndex) {
         if (rowIndex >= 0) {
-            content.remove(rowIndex);
+            m_content.remove(rowIndex);
             fireTableRowsDeleted(rowIndex, rowIndex);
         }
     }
@@ -211,8 +246,8 @@ class ResponseTableModel extends AbstractTableModel implements Iterable<Response
      *
      */
     void clear() {
-        int origSize = content.size();
-        content.clear();
+        int origSize = m_content.size();
+        m_content.clear();
         if (origSize > 0) {
             fireTableRowsDeleted(0, origSize - 1);
         }
