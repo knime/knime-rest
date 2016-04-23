@@ -766,7 +766,7 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
                 }
             }
         });
-        for (Entry<String, ?> entry : m_requestTemplates) {
+        for (final Entry<String, ?> entry : m_requestTemplates) {
             m_requestHeaderTemplate.addItem(entry.getKey());
         }
 
@@ -805,31 +805,43 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
 
         final JPanel ret = new JPanel(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
+        gbc.anchor = GridBagConstraints.FIRST_LINE_START;
         gbc.insets = new Insets(2, 4, 2, 4);
         gbc.gridx = 0;
         gbc.gridy = 0;
-        gbc.gridwidth = 1;
-        gbc.weighty = 1;
+        gbc.gridwidth = 3;
         gbc.weightx = 1;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
         ret.add(m_requestHeaderTemplate, gbc);
+        gbc.gridwidth = 1;
         gbc.weightx = 0;
-        gbc.gridx++;
+        gbc.gridx+=3;
         ret.add(m_requestHeaderTemplateMerge, gbc);
         gbc.gridx++;
         ret.add(m_requestHeaderTemplateReset, gbc);
         gbc.gridy++;
+        gbc.weighty = 1;
         gbc.gridx = 0;
-        gbc.gridwidth = 3;
+        gbc.gridwidth = 5;
+        gbc.fill = GridBagConstraints.BOTH;
         m_requestHeaders.setVisible(true);
         ret.add(new JScrollPane(m_requestHeaders), gbc);
         gbc.gridy++;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.gridwidth = 1;
         gbc.weighty = 0;
+        gbc.weightx = .5;
+        ret.add(new JPanel(), gbc);
+        gbc.gridx++;
+        gbc.weightx = 0;
         ret.add(m_requestAddRow, gbc);
         gbc.gridx++;
         ret.add(m_requestDeleteRow, gbc);
         gbc.gridx++;
         ret.add(m_requestEditRow, gbc);
+        gbc.gridx++;
+        gbc.weightx = .5;
+        ret.add(new JPanel(), gbc);
         m_requestHeaders.getColumnModel().getColumn(0).setHeaderValue("Key");
         m_requestHeaders.getColumnModel().getColumn(1).setHeaderValue("Value");
         m_requestHeaders.getColumnModel().getColumn(2).setHeaderValue("Value kind");
@@ -972,7 +984,7 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.gridx = 0;
         gbc.gridy = 0;
-        gbc.gridwidth = 3;
+        gbc.gridwidth = 5;
         gbc.fill = GridBagConstraints.HORIZONTAL;
         ret.add(m_extractAllHeaders, gbc);
         m_extractAllHeaders.addActionListener(e -> {
@@ -980,19 +992,25 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         });
         gbc.fill = GridBagConstraints.BOTH;
         gbc.weighty = 1;
+        gbc.weightx = 1;
         gbc.gridy++;
         ret.add(new JScrollPane(m_responseHeaders), gbc);
         gbc.gridy++;
         gbc.weighty = 0;
+        gbc.weightx = .5;
         gbc.gridwidth = 1;
+        ret.add(new JPanel(), gbc);
+        gbc.weightx = 0;
+        gbc.gridx++;
         ret.add(m_responseAddRow, gbc);
         gbc.gridx++;
         ret.add(m_responseEditRow, gbc);
         gbc.gridx++;
         ret.add(m_responseDeleteRow, gbc);
-        gbc.gridx = 0;
+        gbc.gridx++;
+        gbc.weightx = .5;
+        ret.add(new JPanel(), gbc);
         gbc.gridy++;
-        gbc.gridwidth = 3;
 
         m_responseHeaders.addMouseListener(new MouseAdapter() {
             @Override

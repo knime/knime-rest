@@ -54,6 +54,7 @@ import java.awt.GridBagLayout;
 import javax.swing.ButtonGroup;
 import javax.swing.JPanel;
 import javax.swing.JRadioButton;
+import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 
 import org.knime.core.data.DataTableSpec;
@@ -79,7 +80,7 @@ final class RestPostNodeDialog extends RestNodeDialog<RestPostSettings> {
 
     private final JTextArea m_constantRequestBody = new JTextArea(15, 111);
 
-    private final ColumnSelectionPanel m_requestBodyColumn = new ColumnSelectionPanel("Body");
+    private final ColumnSelectionPanel m_requestBodyColumn = new ColumnSelectionPanel((String)null);
 
     /**
      *
@@ -102,10 +103,12 @@ final class RestPostNodeDialog extends RestNodeDialog<RestPostSettings> {
     private JPanel createRequestBodyPanel() {
         final JPanel ret = new JPanel(new GridBagLayout());
         final GridBagConstraints gbc = new GridBagConstraints();
+        gbc.anchor = GridBagConstraints.FIRST_LINE_START;
         gbc.gridx = 0;
         gbc.gridy = 0;
         ret.add(m_useRequestBodyColumn, gbc);
         gbc.gridx++;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
         ret.add(m_requestBodyColumn, gbc);
         gbc.gridx = 0;
         gbc.gridy++;
@@ -115,7 +118,8 @@ final class RestPostNodeDialog extends RestNodeDialog<RestPostSettings> {
         gbc.gridwidth = 2;
         gbc.weightx = 1;
         gbc.weighty = 1;
-        ret.add(m_constantRequestBody, gbc);
+        gbc.fill = GridBagConstraints.BOTH;
+        ret.add(new JScrollPane(m_constantRequestBody), gbc);
         gbc.gridy++;
         m_useConstantRequestBody.addActionListener(v -> enableConstantRequestBodyColumn(true));
         m_useRequestBodyColumn.addActionListener(v -> enableConstantRequestBodyColumn(false));
@@ -155,9 +159,11 @@ final class RestPostNodeDialog extends RestNodeDialog<RestPostSettings> {
         m_constantRequestBody.setText(getSettings().getConstantRequestBody());
         if (specs.length > 0 && specs[0] != null) {
             m_useRequestBodyColumn.setEnabled(true);
+            m_requestBodyColumn.setEnabled(m_useRequestBodyColumn.isSelected());
             m_requestBodyColumn.update(specs[0], getSettings().getRequestBodyColumn());
         } else {
             m_useRequestBodyColumn.setEnabled(false);
+            m_requestBodyColumn.setEnabled(false);
         }
     }
 
