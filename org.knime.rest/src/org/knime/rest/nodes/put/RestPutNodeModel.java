@@ -46,27 +46,23 @@
  * History
  *   23. Jan. 2016. (Gabor Bakos): created
  */
-package org.knime.rest.nodes.get;
+package org.knime.rest.nodes.put;
 
+import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.Invocation;
 import javax.ws.rs.client.Invocation.Builder;
 
-import org.knime.core.data.DataRow;
-import org.knime.core.data.DataTableSpec;
-import org.knime.rest.nodes.common.RestNodeModel;
+import org.knime.rest.nodes.common.RestWithBodyNodeModel;
 
 /**
  *
  * @author Gabor Bakos
  */
-class RestGetNodeModel extends RestNodeModel<RestGetSettings> {
-
-    //    private BinaryObjectCellFactory m_binaryObjectCellFactory;
-
+class RestPutNodeModel extends RestWithBodyNodeModel<RestPutSettings> {
     /**
      *
      */
-    public RestGetNodeModel() {
+    public RestPutNodeModel() {
         super();
     }
 
@@ -74,16 +70,17 @@ class RestGetNodeModel extends RestNodeModel<RestGetSettings> {
      * {@inheritDoc}
      */
     @Override
-    protected RestGetSettings createSettings() {
-        return new RestGetSettings();
+    protected RestPutSettings createSettings() {
+        return new RestPutSettings();
     }
 
     /**
-     * {@inheritDoc}
+     * @param request
+     * @param entity
+     * @return
      */
     @Override
-    protected Invocation invocation(final Builder request, final DataRow row, final DataTableSpec spec) {
-        //No need to add the entity, so row and spec are not used.
-        return request.buildGet();
+    protected Invocation invocationWithEntity(final Builder request, final Entity<?> entity) {
+        return request.buildPut(entity);
     }
 }

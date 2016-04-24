@@ -48,123 +48,19 @@
  */
 package org.knime.rest.nodes.post;
 
-import java.awt.GridBagConstraints;
-import java.awt.GridBagLayout;
-
-import javax.swing.ButtonGroup;
-import javax.swing.JPanel;
-import javax.swing.JRadioButton;
-import javax.swing.JScrollPane;
-import javax.swing.JTextArea;
-
-import org.knime.core.data.DataTableSpec;
-import org.knime.core.node.InvalidSettingsException;
-import org.knime.core.node.NodeSettingsRO;
-import org.knime.core.node.NodeSettingsWO;
-import org.knime.core.node.NotConfigurableException;
-import org.knime.core.node.util.ColumnSelectionPanel;
-import org.knime.rest.nodes.common.RestNodeDialog;
+import org.knime.rest.nodes.common.RestWithBodyNodeDialog;
 
 /**
  *
  * @author Gabor Bakos
  */
-final class RestPostNodeDialog extends RestNodeDialog<RestPostSettings> {
-    private final JRadioButton m_useConstantRequestBody = new JRadioButton("Use constant body"),
-            m_useRequestBodyColumn = new JRadioButton("Use column's content as body");
-    {
-        final ButtonGroup bg = new ButtonGroup();
-        bg.add(m_useConstantRequestBody);
-        bg.add(m_useRequestBodyColumn);
-    }
-
-    private final JTextArea m_constantRequestBody = new JTextArea(15, 111);
-
-    private final ColumnSelectionPanel m_requestBodyColumn = new ColumnSelectionPanel((String)null);
+final class RestPostNodeDialog extends RestWithBodyNodeDialog<RestPostSettings> {
 
     /**
      *
      */
     RestPostNodeDialog() {
         super();
-        addRequestBodyTab();
-    }
-
-    /**
-     * The request body tab configuration (only if the method requires it).
-     */
-    protected void addRequestBodyTab() {
-        addTabAt(3,"Request body", createRequestBodyPanel());
-    }
-
-    /**
-     * @return
-     */
-    private JPanel createRequestBodyPanel() {
-        final JPanel ret = new JPanel(new GridBagLayout());
-        final GridBagConstraints gbc = new GridBagConstraints();
-        gbc.anchor = GridBagConstraints.FIRST_LINE_START;
-        gbc.gridx = 0;
-        gbc.gridy = 0;
-        ret.add(m_useRequestBodyColumn, gbc);
-        gbc.gridx++;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        ret.add(m_requestBodyColumn, gbc);
-        gbc.gridx = 0;
-        gbc.gridy++;
-        ret.add(m_useConstantRequestBody, gbc);
-        gbc.gridy++;
-        gbc.gridx = 0;
-        gbc.gridwidth = 2;
-        gbc.weightx = 1;
-        gbc.weighty = 1;
-        gbc.fill = GridBagConstraints.BOTH;
-        ret.add(new JScrollPane(m_constantRequestBody), gbc);
-        gbc.gridy++;
-        m_useConstantRequestBody.addActionListener(v -> enableConstantRequestBodyColumn(true));
-        m_useRequestBodyColumn.addActionListener(v -> enableConstantRequestBodyColumn(false));
-        m_useConstantRequestBody.setSelected(true);
-        return ret;
-    }
-
-    /**
-     * @param enable
-     */
-    private void enableConstantRequestBodyColumn(final boolean enable) {
-        m_constantRequestBody.setEnabled(enable);
-        m_requestBodyColumn.setEnabled(!enable);
-    }
-
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    protected void saveSettingsTo(final NodeSettingsWO settings) throws InvalidSettingsException {
-        getSettings().setUseConstantRequestBody(m_useConstantRequestBody.isSelected());
-        getSettings().setConstantRequestBody(m_constantRequestBody.getText());
-        getSettings().setRequestBodyColumn(m_requestBodyColumn.getSelectedColumn());
-        super.saveSettingsTo(settings);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    protected void loadSettingsFrom(final NodeSettingsRO settings, final DataTableSpec[] specs)
-        throws NotConfigurableException {
-        super.loadSettingsFrom(settings, specs);
-        m_useConstantRequestBody.setSelected(getSettings().isUseConstantRequestBody());
-        m_useRequestBodyColumn.setSelected(!getSettings().isUseConstantRequestBody());
-        m_constantRequestBody.setText(getSettings().getConstantRequestBody());
-        if (specs.length > 0 && specs[0] != null) {
-            m_useRequestBodyColumn.setEnabled(true);
-            m_requestBodyColumn.setEnabled(m_useRequestBodyColumn.isSelected());
-            m_requestBodyColumn.update(specs[0], getSettings().getRequestBodyColumn());
-        } else {
-            m_useRequestBodyColumn.setEnabled(false);
-            m_requestBodyColumn.setEnabled(false);
-        }
     }
 
     /**
@@ -174,4 +70,5 @@ final class RestPostNodeDialog extends RestNodeDialog<RestPostSettings> {
     protected RestPostSettings createSettings() {
         return new RestPostSettings();
     }
+
 }

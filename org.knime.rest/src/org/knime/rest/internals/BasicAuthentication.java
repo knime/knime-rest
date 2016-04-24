@@ -72,20 +72,12 @@ public class BasicAuthentication extends UsernamePasswordAuthentication {
      * {@inheritDoc}
      */
     @Override
-    public Builder updateRequest(final Builder request, final DataRow row, final CredentialsProvider credProvider, final Map<String, FlowVariable> flowVariables) {
-        final String username =  isUseCredentials() ? credProvider.get(getCredential()).getLogin() : getUsername();
+    public Builder updateRequest(final Builder request, final DataRow row, final CredentialsProvider credProvider,
+        final Map<String, FlowVariable> flowVariables) {
+        final String username = isUseCredentials() ? credProvider.get(getCredential()).getLogin() : getUsername();
         final String password = isUseCredentials() ? credProvider.get(getCredential()).getPassword() : getPassword();
-        request.header("Authorization", "Basic "
-                + org.apache.cxf.common.util.Base64Utility.encode((username + ":" + password).getBytes()));
+        request.header("Authorization",
+            "Basic " + org.apache.cxf.common.util.Base64Utility.encode((username + ":" + password).getBytes()));
         return request;
     }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public String getName() {
-        return "Basic";
-    }
-
 }

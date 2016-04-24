@@ -76,7 +76,8 @@ public class DigestAuthentication extends UsernamePasswordAuthentication {
      * {@inheritDoc}
      */
     @Override
-    public Builder updateRequest(final Builder request, final DataRow row, final CredentialsProvider credProvider, final Map<String, FlowVariable> flowVariables) {
+    public Builder updateRequest(final Builder request, final DataRow row, final CredentialsProvider credProvider,
+        final Map<String, FlowVariable> flowVariables) {
         WebClient.getConfig(request).getHttpConduit().setAuthSupplier(new DigestAuthSupplier());
         request.property(BindingProvider.USERNAME_PROPERTY, getUsername());
         request.property(BindingProvider.PASSWORD_PROPERTY, getPassword());
@@ -90,13 +91,4 @@ public class DigestAuthentication extends UsernamePasswordAuthentication {
     public void addControls(final JPanel panel) {
         super.addControls(panel);
     }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public String getName() {
-        return "Digest";
-    }
-
 }

@@ -44,29 +44,22 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   23. Jan. 2016. (Gabor Bakos): created
+ *   2016. jan. 23. (Gabor Bakos): created
  */
-package org.knime.rest.nodes.get;
+package org.knime.rest.nodes.put;
 
-import javax.ws.rs.client.Invocation;
-import javax.ws.rs.client.Invocation.Builder;
-
-import org.knime.core.data.DataRow;
-import org.knime.core.data.DataTableSpec;
-import org.knime.rest.nodes.common.RestNodeModel;
+import org.knime.rest.nodes.common.RestWithBodyNodeDialog;
 
 /**
  *
  * @author Gabor Bakos
  */
-class RestGetNodeModel extends RestNodeModel<RestGetSettings> {
-
-    //    private BinaryObjectCellFactory m_binaryObjectCellFactory;
+final class RestPutNodeDialog extends RestWithBodyNodeDialog<RestPutSettings> {
 
     /**
      *
      */
-    public RestGetNodeModel() {
+    RestPutNodeDialog() {
         super();
     }
 
@@ -74,16 +67,8 @@ class RestGetNodeModel extends RestNodeModel<RestGetSettings> {
      * {@inheritDoc}
      */
     @Override
-    protected RestGetSettings createSettings() {
-        return new RestGetSettings();
+    protected RestPutSettings createSettings() {
+        return new RestPutSettings();
     }
 
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    protected Invocation invocation(final Builder request, final DataRow row, final DataTableSpec spec) {
-        //No need to add the entity, so row and spec are not used.
-        return request.buildGet();
-    }
 }

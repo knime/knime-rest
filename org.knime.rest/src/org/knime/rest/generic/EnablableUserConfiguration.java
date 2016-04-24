@@ -55,13 +55,18 @@ package org.knime.rest.generic;
  */
 public class EnablableUserConfiguration<Type extends UserConfiguration> {
     private final Type m_userConfiguration;
+
     private boolean m_enabled = false;
+
+    private final String m_name;
 
     /**
      * @param type The wrapped {@link UserConfiguration}.
+     * @param name The name of the configuration.
      */
-    public EnablableUserConfiguration(final Type type) {
+    public EnablableUserConfiguration(final Type type, final String name) {
         m_userConfiguration = type;
+        m_name = name;
     }
 
     /**
@@ -86,13 +91,18 @@ public class EnablableUserConfiguration<Type extends UserConfiguration> {
     }
 
     /**
+     * @return the name
+     */
+    public String getName() {
+        return m_name;
+    }
+
+    /**
      * {@inheritDoc}
      */
     @Override
     public String toString() {
-        return m_userConfiguration + " (" + m_enabled
-            + ")";
+        return m_userConfiguration + " - " + m_name + " (" + m_enabled + ")";
     }
-
 
 }

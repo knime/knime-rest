@@ -68,6 +68,13 @@
                </appInfo>
             </annotation>
          </attribute>
+         <attribute name="name" type="string" use="required">
+            <annotation>
+               <documentation>
+                  The name made visible on the dialog (should be unique).
+               </documentation>
+            </annotation>
+         </attribute>
       </complexType>
    </element>
 

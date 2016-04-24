@@ -46,44 +46,21 @@
  * History
  *   23. Jan. 2016. (Gabor Bakos): created
  */
-package org.knime.rest.nodes.get;
+package org.knime.rest.nodes.delete;
 
-import javax.ws.rs.client.Invocation;
-import javax.ws.rs.client.Invocation.Builder;
-
-import org.knime.core.data.DataRow;
-import org.knime.core.data.DataTableSpec;
-import org.knime.rest.nodes.common.RestNodeModel;
+import org.knime.rest.nodes.common.RestSettings;
 
 /**
+ * Node settings for the DELETE REST node.
  *
  * @author Gabor Bakos
  */
-class RestGetNodeModel extends RestNodeModel<RestGetSettings> {
-
-    //    private BinaryObjectCellFactory m_binaryObjectCellFactory;
+final class RestDeleteSettings extends RestSettings {
 
     /**
      *
      */
-    public RestGetNodeModel() {
+    RestDeleteSettings() {
         super();
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    protected RestGetSettings createSettings() {
-        return new RestGetSettings();
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    protected Invocation invocation(final Builder request, final DataRow row, final DataTableSpec spec) {
-        //No need to add the entity, so row and spec are not used.
-        return request.buildGet();
     }
 }

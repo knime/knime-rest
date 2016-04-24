@@ -587,22 +587,22 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
             final JPanel tabPanel = new JPanel();
             final JScrollPane scrollPane = new JScrollPane(tabPanel);
             final UserConfiguration userConfiguration = euc.getUserConfiguration();
-            tabs.add(userConfiguration.getName(), scrollPane);
-            final JRadioButton radioButton = new JRadioButton(userConfiguration.getName());
+            tabs.add(euc.getName(), scrollPane);
+            final JRadioButton radioButton = new JRadioButton(euc.getName());
             buttonGroup.add(radioButton);
             radioButtons.add(radioButton);
-            radioButton.setAction(new AbstractAction(userConfiguration.getName()) {
+            radioButton.setAction(new AbstractAction(euc.getName()) {
                 private static final long serialVersionUID = -8514095622936885670L;
 
                 @Override
                 public void actionPerformed(final ActionEvent e) {
                     final CardLayout layout = (CardLayout)tabs.getLayout();
                     if (radioButton.isSelected()) {
-                        layout.show(tabs, userConfiguration.getName());
+                        layout.show(tabs, euc.getName());
                     }
                 }
             });
-            radioButton.setName(userConfiguration.getName());
+            radioButton.setName(euc.getName());
             m_authenticationTabTitles.add(radioButton);
             userConfiguration.addControls(tabPanel);
         }
@@ -815,7 +815,7 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         ret.add(m_requestHeaderTemplate, gbc);
         gbc.gridwidth = 1;
         gbc.weightx = 0;
-        gbc.gridx+=3;
+        gbc.gridx += 3;
         ret.add(m_requestHeaderTemplateMerge, gbc);
         gbc.gridx++;
         ret.add(m_requestHeaderTemplateReset, gbc);
@@ -1083,7 +1083,7 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         for (JRadioButton radioButton : m_authenticationTabTitles) {
             for (final EnablableUserConfiguration<UserConfiguration> euc : m_settings
                 .getAuthorizationConfigurations()) {
-                if (radioButton.getName().equals(euc.getUserConfiguration().getName())) {
+                if (radioButton.getName().equals(euc.getName())) {
                     euc.setEnabled(radioButton.isSelected());
                 }
             }
@@ -1103,8 +1103,8 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         m_settings.setFailOnHttpErrors(m_failOnHttpErrors.isSelected());
         m_settings.setFollowRedirects(m_followRedirects.isSelected());
         m_settings.setTimeoutInSeconds(((Number)m_timeoutInSeconds.getValue()).intValue());
-        m_settings.getRequestHeadersMutable().clear();
-        m_settings.getRequestHeadersMutable()
+        m_settings.getRequestHeaders().clear();
+        m_settings.getRequestHeaders()
             .addAll(StreamSupport.stream(m_requestHeadersModel.spliterator(), false).collect(Collectors.toList()));
         m_settings.setExtractAllResponseFields(m_extractAllHeaders.isSelected());
         m_settings.getExtractFields().clear();
@@ -1180,7 +1180,7 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         for (final EnablableUserConfiguration<UserConfiguration> euc : m_settings.getAuthorizationConfigurations()) {
             for (final JRadioButton radioButton : m_authenticationTabTitles) {
                 euc.getUserConfiguration().updateControls();
-                if (radioButton.getName().equals(euc.getUserConfiguration().getName())) {
+                if (radioButton.getName().equals(euc.getName())) {
                     radioButton.setSelected(euc.isEnabled());
                     radioButton.getAction().actionPerformed(null);
                 }
@@ -1198,6 +1198,7 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
             //Do nothing.
         }
     }
+
     /**
      *
      */

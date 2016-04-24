@@ -75,6 +75,7 @@ public abstract class UsernamePasswordAuthentication extends EachRequestAuthenti
 
     /**
      * Constructs a UsernamePasswordAuthentication using the default settings.
+     * 
      * @param configName The config name.
      * @param defaultUsername The default user name.
      * @param defaultPassword The default password.
@@ -210,7 +211,8 @@ public abstract class UsernamePasswordAuthentication extends EachRequestAuthenti
      * @param useCredentials the useCredentials to set
      */
     public void setUseCredentials(final boolean useCredentials) {
-        m_settings.setValues(m_settings.getCredential(), useCredentials ? Type.CREDENTIALS : Type.USER_PWD, m_settings.getUsername(), m_settings.getPassword());
+        m_settings.setValues(m_settings.getCredential(), useCredentials ? Type.CREDENTIALS : Type.USER_PWD,
+            m_settings.getUsername(), m_settings.getPassword());
     }
 
     /**
@@ -218,6 +220,6 @@ public abstract class UsernamePasswordAuthentication extends EachRequestAuthenti
      */
     @Override
     public String toString() {
-        return getName() + "[" + getUsername() + "]";
+        return getClass().getName() + "[" + getUsername() + "]";
     }
 }

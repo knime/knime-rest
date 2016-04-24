@@ -69,11 +69,14 @@ public abstract class UserConfiguration {
      * @return Whether there is a user configuration.
      */
     public abstract boolean hasUserConfiguration();
+
     /**
      * Saves the user configuration to {@code userSettings}.
+     * 
      * @param userSettings A {@link ConfigBaseWO} to save the configuration.
      */
     public abstract void saveUserConfiguration(NodeSettingsWO userSettings);
+
     /**
      * Loads the configuration in the model (probably for validation).
      *
@@ -81,6 +84,7 @@ public abstract class UserConfiguration {
      * @throws InvalidSettingsException When the settings are not all valid.
      */
     public abstract void loadUserConfiguration(NodeSettingsRO userSettings) throws InvalidSettingsException;
+
     /**
      * Loads the configuration in the dialog.
      *
@@ -89,29 +93,31 @@ public abstract class UserConfiguration {
      * @param credentialNames The {@link CredentialsProvider} names.
      * @throws NotConfigurableException When there is no option to configure this extension.
      */
-    public abstract void loadUserConfigurationForDialog(NodeSettingsRO userSettings, PortObjectSpec[] specs, final CredentialsProvider credentialNames) throws NotConfigurableException;
+    public abstract void loadUserConfigurationForDialog(NodeSettingsRO userSettings, PortObjectSpec[] specs,
+        final CredentialsProvider credentialNames) throws NotConfigurableException;
+
     /**
      * Adds the dialog controls to {@code panel}.
+     * 
      * @param panel A {@link JPanel}.
      */
     public abstract void addControls(JPanel panel);
-//    /**
-//     * Enables the controls.
-//     */
-//    void enableControls();
-//    /**
-//     * Disables the controls.
-//     */
-//    void disableControls();
-    /**
-     * @return The identifier of {@link UserConfiguration}.
-     */
-    public abstract String getName();
+
+    //    /**
+    //     * Enables the controls.
+    //     */
+    //    void enableControls();
+    //    /**
+    //     * Disables the controls.
+    //     */
+    //    void disableControls();
     /**
      * Updates the control values based on the settings.
+     * 
      * @throws NotConfigurableException When cannot be configured for some reason.
      */
     public abstract void updateControls() throws NotConfigurableException;
+
     /**
      * Updates the settings based on the control values.
      */

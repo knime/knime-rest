@@ -48,106 +48,18 @@
  */
 package org.knime.rest.nodes.post;
 
-import org.knime.core.data.DataTableSpec;
-import org.knime.core.node.InvalidSettingsException;
-import org.knime.core.node.NodeSettingsRO;
-import org.knime.core.node.NodeSettingsWO;
-import org.knime.core.node.workflow.CredentialsProvider;
-import org.knime.rest.nodes.common.RestSettings;
+import org.knime.rest.nodes.common.RestWithBodySettings;
 
 /**
  * Node settings for the POST REST node.
  *
  * @author Gabor Bakos
  */
-final class RestPostSettings extends RestSettings {
-    private static final String USE_CONSTANT_REQUEST_BODY = "Use constant request body";
-
-    private static final boolean DEFAULT_USE_CONSTANT_REQUEST_BODY = true;
-
-    private static final String CONSTANT_REQUEST_BODY = "Constant request body";
-
-    private static final String DEFAULT_CONSTANT_REQUEST_BODY = "";
-
-    private static final String REQUEST_BODY_COLUMN = "Request body column";
-
-    private static final String DEFAULT_REQUEST_BODY_COLUMN = null;
-
-    private boolean m_useConstantRequestBody = DEFAULT_USE_CONSTANT_REQUEST_BODY;
-
-    private String m_constantRequestBody = DEFAULT_CONSTANT_REQUEST_BODY;
-
-    private String m_requestBodyColumn = DEFAULT_REQUEST_BODY_COLUMN;
+final class RestPostSettings extends RestWithBodySettings {
     /**
      *
      */
     RestPostSettings() {
         super();
-    }
-
-    /**
-     * @return the useConstantRequestBody
-     */
-    boolean isUseConstantRequestBody() {
-        return m_useConstantRequestBody;
-    }
-
-    /**
-     * @param useConstantRequestBody the useConstantRequestBody to set
-     */
-    void setUseConstantRequestBody(final boolean useConstantRequestBody) {
-        m_useConstantRequestBody = useConstantRequestBody;
-    }
-
-    /**
-     * @return the constantRequestBody
-     */
-    String getConstantRequestBody() {
-        return m_constantRequestBody;
-    }
-
-    /**
-     * @param constantRequestBody the constantRequestBody to set
-     */
-    void setConstantRequestBody(final String constantRequestBody) {
-        m_constantRequestBody = constantRequestBody;
-    }
-
-    /**
-     * @return the requestBodyColumn
-     */
-    String getRequestBodyColumn() {
-        return m_requestBodyColumn;
-    }
-
-    /**
-     * @param requestBodyColumn the requestBodyColumn to set
-     */
-    void setRequestBodyColumn(final String requestBodyColumn) {
-        m_requestBodyColumn = requestBodyColumn;
-    }
-    @Override
-    protected void saveSettings(final NodeSettingsWO settings) {
-        super.saveSettings(settings);
-        settings.addBoolean(USE_CONSTANT_REQUEST_BODY, m_useConstantRequestBody);
-        settings.addString(CONSTANT_REQUEST_BODY, m_constantRequestBody);
-        settings.addString(REQUEST_BODY_COLUMN, m_requestBodyColumn);
-    }
-
-    @Override
-    protected void loadSettingsFrom(final NodeSettingsRO settings) throws InvalidSettingsException {
-        super.loadSettingsFrom(settings);
-        m_useConstantRequestBody = settings.getBoolean(USE_CONSTANT_REQUEST_BODY);
-        m_constantRequestBody = settings.getString(CONSTANT_REQUEST_BODY);
-        m_requestBodyColumn = settings.getString(REQUEST_BODY_COLUMN);
-    }
-
-    @Override
-    protected void loadSettingsForDialog(final NodeSettingsRO settings, final CredentialsProvider credentialNames,
-        final DataTableSpec... specs) throws InvalidSettingsException {
-        super.loadSettingsForDialog(settings, credentialNames, specs);
-        m_useConstantRequestBody = settings.getBoolean(USE_CONSTANT_REQUEST_BODY, DEFAULT_USE_CONSTANT_REQUEST_BODY);
-        m_constantRequestBody = settings.getString(CONSTANT_REQUEST_BODY, DEFAULT_CONSTANT_REQUEST_BODY);
-        m_requestBodyColumn = settings.getString(REQUEST_BODY_COLUMN, DEFAULT_REQUEST_BODY_COLUMN);
     }
 }

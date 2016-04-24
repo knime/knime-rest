@@ -133,28 +133,38 @@ import org.knime.rest.util.DelegatingX509TrustManager;
 public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
 
     private static final NodeLogger LOGGER = NodeLogger.getLogger(RestNodeModel.class);
+
     private final S m_settings = createSettings();
+
     private DataColumnSpec[] m_newColumnsBasedOnFirstCall;
+
     private DataCell[] m_firstCallValues;
+
     private long m_consumedRows = 0L;
+
     private RowKey m_firstRow;
+
     private final ArrayList<ResponseHeaderItem> m_responseHeaderKeys = new ArrayList<>();
+
     private final ArrayList<ResponseHeaderItem> m_bodyColumns = new ArrayList<>();
+
     private boolean m_isContextSettingsFailed = false;
+
     private final List<ResponseBodyParser> m_responseBodyParsers = new ArrayList<>();
+
     private static final FromString FALLBACK = new FromString() {
 
-            @Override
-            public DataType getDataType() {
-                return StringCell.TYPE;
-            }
+        @Override
+        public DataType getDataType() {
+            return StringCell.TYPE;
+        }
 
-            @Override
-            public DataCell createCell(final String input) {
-                return new MissingCell("No cell factory was found" + input);
-            }
+        @Override
+        public DataCell createCell(final String input) {
+            return new MissingCell("No cell factory was found" + input);
+        }
 
-        };
+    };
 
     /**
      * @param nrInDataPorts
@@ -206,7 +216,8 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
      */
     @Execute
     @Override
-    protected BufferedDataTable[] execute(final BufferedDataTable[] inData, final ExecutionContext exec) throws CanceledExecutionException, InvalidSettingsException {
+    protected BufferedDataTable[] execute(final BufferedDataTable[] inData, final ExecutionContext exec)
+        throws CanceledExecutionException, InvalidSettingsException {
         final List<EachRequestAuthentication> enabledEachRequestAuthentications =
             m_settings.getAuthorizationConfigurations().parallelStream()
                 .filter(euc -> euc.isEnabled() && euc.getUserConfiguration() instanceof EachRequestAuthentication)
@@ -237,14 +248,17 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
      * @param spec
      * @param exec
      */
-    private void makeFirstCall(final DataRow row, final List<EachRequestAuthentication> enabledEachRequestAuthentications, final DataTableSpec spec, final ExecutionContext exec) throws ProcessingException {
+    private void makeFirstCall(final DataRow row,
+        final List<EachRequestAuthentication> enabledEachRequestAuthentications, final DataTableSpec spec,
+        final ExecutionContext exec) throws ProcessingException {
         m_firstRow = row == null ? null : row.getKey();
         final UniqueNameGenerator nameGenerator = new UniqueNameGenerator(spec == null ? new DataTableSpec() : spec);
         Response response;
         DataCell missing;
         try {
-            response = invoke(invocation(createRequest(spec == null ? -1 : spec.findColumnIndex(m_settings.getUriColumn()),
-                enabledEachRequestAuthentications, row, spec), row, spec));
+            response =
+                invoke(invocation(createRequest(spec == null ? -1 : spec.findColumnIndex(m_settings.getUriColumn()),
+                    enabledEachRequestAuthentications, row, spec), row, spec));
             missing = null;
         } catch (final ProcessingException procEx) {
             LOGGER.warn("First call failed: " + procEx.getMessage(), procEx);
@@ -270,7 +284,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
                     .addAll(m_settings
                         .getExtractFields().stream().map(rhi -> new ResponseHeaderItem(rhi.getHeaderKey(),
                             rhi.getType(), nameGenerator.newName(rhi.getOutputColumnName())))
-                    .collect(Collectors.toList()));
+                        .collect(Collectors.toList()));
             }
             final Response finalResponse = response;
             checkResponse(response);
@@ -313,10 +327,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
      * @param spec
      * @return
      */
-    protected abstract Invocation invocation(final Builder request, final DataRow row,
-        final DataTableSpec spec);
-
-
+    protected abstract Invocation invocation(final Builder request, final DataRow row, final DataTableSpec spec);
 
     /**
      * @param get
@@ -337,7 +348,8 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
      */
     private void createResponseBodyParsers(final ExecutionContext exec) {
         m_responseBodyParsers.clear();
-        for (MediaType mediaType : new MediaType[] {MediaType.APPLICATION_JSON_TYPE, MediaType.valueOf("application/vnd.mason+json")}) {
+        for (MediaType mediaType : new MediaType[]{MediaType.APPLICATION_JSON_TYPE,
+            MediaType.valueOf("application/vnd.mason+json")}) {
             m_responseBodyParsers.add(new Default(mediaType, JSONCell.TYPE, exec)/* {
                                                                                                        @Override
                                                                                                        public String valueDescriptor() {
@@ -436,89 +448,90 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         return new OutputPortRole[]{OutputPortRole.NONDISTRIBUTED};
     }
 
-    private ColumnRearranger createColumnRearranger(final List<EachRequestAuthentication> enabledEachRequestAuthentications, final DataTableSpec spec, final ExecutionMonitor exec, final long tableSize)
-        throws InvalidSettingsException {
-            final ColumnRearranger rearranger = new ColumnRearranger(spec);
-            final DataColumnSpec[] newColumns = createNewColumnsSpec();
-            final int uriColumn = spec.findColumnIndex(m_settings.getUriColumn());
-            final AbstractCellFactory factory = new AbstractCellFactory(newColumns) {
-                @Override
-                public DataCell[] getCells(final DataRow row) {
-                    if (row.getKey().equals(m_firstRow)) {
-                        return m_firstCallValues;
-                    }
-                    assert m_consumedRows > 0;
-                    final Builder request = createRequest(uriColumn, enabledEachRequestAuthentications, row, spec);
-                    final List<DataCell> cells;
-                    DataCell missing = null;
-                    try {
-                        Response response;
-                        try {
-                            response = invoke(invocation(request, row, spec));
-                        } catch (ProcessingException e) {
-                            LOGGER.debug("Call failed: " + e.getMessage(), e);
-                            if (m_settings.isFailOnConnectionProblems()) {
-                                throw new IllegalStateException(e);
-                            }
-                            missing = new MissingCell(e.getMessage());
-                            response = null;
-                        }
-                        try {
-                            //MultivaluedMap<String, Object> headers = response.getHeaders();
-                            //examineResponse(response);
-                            //cells = m_settings.getExtractFields().stream().map(rhi -> {
-                            final Response finalResponse = response;
-                            checkResponse(response);
-                            cells = m_responseHeaderKeys.stream().map(rhi -> {
-                                DataCellFactory cellFactory = rhi.getType().getCellFactory(null).orElseGet(() -> FALLBACK);
-                                //List<Object> values = headers.get(e.getKey());
-                                if ("Status".equals(rhi.getHeaderKey()) && rhi.getType().isCompatible(IntValue.class)) {
-                                    return finalResponse == null ? DataType.getMissingCell()
-                                        : new IntCell(finalResponse.getStatus());
-                                }
-                                if (cellFactory instanceof FromString) {
-                                    FromString fromString = (FromString)cellFactory;
-                                    String value =
-                                        finalResponse == null ? null : finalResponse.getHeaderString(rhi.getHeaderKey());
-                                    if (value == null) {
-                                        return DataType.getMissingCell();
-                                    }
-                                    return fromString.createCell(value);
-                                }
-                                return DataType.getMissingCell();
-                            }).collect(Collectors.toList());
-                            addBodyValues(cells, response, missing);
-                        } finally {
-                            if (response != null) {
-                                response.close();
-                            }
-                        }
-                        //TODO wait only when we are requesting from the same domain?
-                        if (m_settings.isUseDelay()) {
-                            for (long wait = m_settings.getDelay(); wait > 0; wait -= 100L) {
-                                exec.setMessage("Waiting till next call: " + wait / 1000d + "s");
-                                try {
-                                    Thread.sleep(Math.min(wait, 100L));
-                                } catch (InterruptedException e) {
-                                    exec.checkCanceled();
-                                }
-                            }
-                        }
-                    } catch (CanceledExecutionException e) {
-                        //Cannot check for cancelled properly, so this workaround
-                        throw new IllegalStateException(e);
-                    } finally {
-                        m_consumedRows++;
-                    }
-                    setProgress(m_consumedRows, tableSize, row.getKey(), exec);
-                    return cells.toArray(new DataCell[cells.size()]);
+    private ColumnRearranger createColumnRearranger(
+        final List<EachRequestAuthentication> enabledEachRequestAuthentications, final DataTableSpec spec,
+        final ExecutionMonitor exec, final long tableSize) throws InvalidSettingsException {
+        final ColumnRearranger rearranger = new ColumnRearranger(spec);
+        final DataColumnSpec[] newColumns = createNewColumnsSpec();
+        final int uriColumn = spec.findColumnIndex(m_settings.getUriColumn());
+        final AbstractCellFactory factory = new AbstractCellFactory(newColumns) {
+            @Override
+            public DataCell[] getCells(final DataRow row) {
+                if (row.getKey().equals(m_firstRow)) {
+                    return m_firstCallValues;
                 }
-            };
-            final int concurrency = Math.max(1, m_settings.getConcurrency());
-            factory.setParallelProcessing(true, concurrency, 4 * concurrency);
-            rearranger.append(factory);
-            return rearranger;
-        }
+                assert m_consumedRows > 0;
+                final Builder request = createRequest(uriColumn, enabledEachRequestAuthentications, row, spec);
+                final List<DataCell> cells;
+                DataCell missing = null;
+                try {
+                    Response response;
+                    try {
+                        response = invoke(invocation(request, row, spec));
+                    } catch (ProcessingException e) {
+                        LOGGER.debug("Call failed: " + e.getMessage(), e);
+                        if (m_settings.isFailOnConnectionProblems()) {
+                            throw new IllegalStateException(e);
+                        }
+                        missing = new MissingCell(e.getMessage());
+                        response = null;
+                    }
+                    try {
+                        //MultivaluedMap<String, Object> headers = response.getHeaders();
+                        //examineResponse(response);
+                        //cells = m_settings.getExtractFields().stream().map(rhi -> {
+                        final Response finalResponse = response;
+                        checkResponse(response);
+                        cells = m_responseHeaderKeys.stream().map(rhi -> {
+                            DataCellFactory cellFactory = rhi.getType().getCellFactory(null).orElseGet(() -> FALLBACK);
+                            //List<Object> values = headers.get(e.getKey());
+                            if ("Status".equals(rhi.getHeaderKey()) && rhi.getType().isCompatible(IntValue.class)) {
+                                return finalResponse == null ? DataType.getMissingCell()
+                                    : new IntCell(finalResponse.getStatus());
+                            }
+                            if (cellFactory instanceof FromString) {
+                                FromString fromString = (FromString)cellFactory;
+                                String value =
+                                    finalResponse == null ? null : finalResponse.getHeaderString(rhi.getHeaderKey());
+                                if (value == null) {
+                                    return DataType.getMissingCell();
+                                }
+                                return fromString.createCell(value);
+                            }
+                            return DataType.getMissingCell();
+                        }).collect(Collectors.toList());
+                        addBodyValues(cells, response, missing);
+                    } finally {
+                        if (response != null) {
+                            response.close();
+                        }
+                    }
+                    //TODO wait only when we are requesting from the same domain?
+                    if (m_settings.isUseDelay()) {
+                        for (long wait = m_settings.getDelay(); wait > 0; wait -= 100L) {
+                            exec.setMessage("Waiting till next call: " + wait / 1000d + "s");
+                            try {
+                                Thread.sleep(Math.min(wait, 100L));
+                            } catch (InterruptedException e) {
+                                exec.checkCanceled();
+                            }
+                        }
+                    }
+                } catch (CanceledExecutionException e) {
+                    //Cannot check for cancelled properly, so this workaround
+                    throw new IllegalStateException(e);
+                } finally {
+                    m_consumedRows++;
+                }
+                setProgress(m_consumedRows, tableSize, row.getKey(), exec);
+                return cells.toArray(new DataCell[cells.size()]);
+            }
+        };
+        final int concurrency = Math.max(1, m_settings.getConcurrency());
+        factory.setParallelProcessing(true, concurrency, 4 * concurrency);
+        rearranger.append(factory);
+        return rearranger;
+    }
 
     /**
      * @param response
@@ -526,7 +539,8 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
     private void checkResponse(final Response response) throws IllegalStateException {
         if (response != null && m_settings.isFailOnHttpErrors()) {
             if (response.getStatus() >= 400 && response.getStatus() < 600) {
-                throw new IllegalStateException("Wrong status: " + response.getStatus() + " " + response.getStatusInfo().getReasonPhrase());
+                throw new IllegalStateException(
+                    "Wrong status: " + response.getStatus() + " " + response.getStatusInfo().getReasonPhrase());
             }
         }
     }
@@ -587,7 +601,8 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
      * {@inheritDoc}
      */
     @Override
-    protected void loadInternals(final File nodeInternDir, final ExecutionMonitor exec) throws IOException, CanceledExecutionException {
+    protected void loadInternals(final File nodeInternDir, final ExecutionMonitor exec)
+        throws IOException, CanceledExecutionException {
         //No internals
     }
 
@@ -595,7 +610,8 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
      * {@inheritDoc}
      */
     @Override
-    protected void saveInternals(final File nodeInternDir, final ExecutionMonitor exec) throws IOException, CanceledExecutionException {
+    protected void saveInternals(final File nodeInternDir, final ExecutionMonitor exec)
+        throws IOException, CanceledExecutionException {
         //No internals
     }
 
@@ -632,7 +648,9 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
      * @return
      */
     @SuppressWarnings("null")
-    private Builder createRequest(final int uriColumn, final List<EachRequestAuthentication> enabledEachRequestAuthentications, final DataRow row, final DataTableSpec spec) {
+    private Builder createRequest(final int uriColumn,
+        final List<EachRequestAuthentication> enabledEachRequestAuthentications, final DataRow row,
+        final DataTableSpec spec) {
         final Client client = createClient();
         CheckUtils.checkState(m_settings.isUseConstantURI() || row != null,
             "Without the constant uri and input, it is not possible to call a REST service!");

@@ -46,44 +46,71 @@
  * History
  *   23. Jan. 2016. (Gabor Bakos): created
  */
-package org.knime.rest.nodes.get;
+package org.knime.rest.nodes.delete;
 
-import javax.ws.rs.client.Invocation;
-import javax.ws.rs.client.Invocation.Builder;
-
-import org.knime.core.data.DataRow;
-import org.knime.core.data.DataTableSpec;
-import org.knime.rest.nodes.common.RestNodeModel;
+import org.knime.core.node.NodeDialogPane;
+import org.knime.core.node.NodeFactory;
+import org.knime.core.node.NodeView;
 
 /**
  *
  * @author Gabor Bakos
  */
-class RestGetNodeModel extends RestNodeModel<RestGetSettings> {
-
-    //    private BinaryObjectCellFactory m_binaryObjectCellFactory;
+public class RestDeleteNodeFactory extends NodeFactory<RestDeleteNodeModel> {
 
     /**
      *
      */
-    public RestGetNodeModel() {
-        super();
+    public RestDeleteNodeFactory() {
+        // TODO Auto-generated constructor stub
+    }
+
+    /**
+     * @param lazyInitialization
+     */
+    public RestDeleteNodeFactory(final boolean lazyInitialization) {
+        super(lazyInitialization);
+        // TODO Auto-generated constructor stub
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    protected RestGetSettings createSettings() {
-        return new RestGetSettings();
+    public RestDeleteNodeModel createNodeModel() {
+        return new RestDeleteNodeModel();
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    protected Invocation invocation(final Builder request, final DataRow row, final DataTableSpec spec) {
-        //No need to add the entity, so row and spec are not used.
-        return request.buildGet();
+    protected int getNrNodeViews() {
+        return 0;
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public NodeView<RestDeleteNodeModel> createNodeView(final int viewIndex, final RestDeleteNodeModel nodeModel) {
+        throw new IllegalStateException("No views: " + viewIndex);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    protected boolean hasDialog() {
+        return true;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    protected NodeDialogPane createNodeDialogPane() {
+        return new RestDeleteNodeDialog();
+    }
+
 }

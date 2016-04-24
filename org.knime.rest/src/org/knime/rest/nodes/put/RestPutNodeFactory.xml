@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<knimeNode icon="./default.png" type="Manipulator" xmlns="http://knime.org/node/v2.10" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://knime.org/node/v2.10 http://knime.org/node/v2.10.xsd">
+    <name>PUT</name>
+    
+    <shortDescription>PUT REST client</shortDescription>
+    
+    <fullDescription>
+        <intro>PUT the content using the Apache CXF client.</intro>
+        
+        <tab name="Connection Settings">
+            <option name="URI">The column or the actual constant URI</option>
+            <option name="Delay (ms)">Delay between response and the next request in milliseconds</option>
+            <option name="Concurrency">Number of concurrent requests</option>
+            <option name="Ignore hostname mismatches">Trust the certificate even if it was generated for a different host.</option>
+            <option name="Trust all certificates">Trust all certificates regardless their origin or expiration date</option>
+            <option name="Fail on connection problems (e.g. timeout, certificate errors, …)">Fails on connection problems when checked, otherwise just logs the error and continues execution.</option>
+            <option name="Fail on http errors (e.g. page not found)">Fails on errors reported from the server (status codes with 4xx, 5xx) when checked, otherwise just logs the error and continues execution.</option>
+            <option name="Follow redirects">Follows redirects (on <tt>3xx</tt> status codes) when checked</option>
+            <option name="Timeout (s)">Timeout in seconds</option>
+            <option name="Body">Name of the response body column</option>
+        </tab>
+        <tab name="Authentication">
+            <option name="Type">None/Basic/Digest</option>
+            <option name="Use credentials">Uses the selected credentials instead of Username/Password</option>
+            <option name="Username">User name.</option>
+            <option name="Password">Password</option>
+        </tab>
+        <tab name="Request Headers">
+            <option name="Merge">Adds header values from the selected template</option>
+            <option name="Reset">Removes actual headers and adds the values from the template.</option>
+            <option name="Header key">constant key</option>
+            <option name="Header value">the value (or reference to flow variable, column, credential name/password)</option>
+            <option name="Header kind">value Flow variable/Constant/Column or Credential name/password</option>
+            <!-- option name="Header type">in case we need to convert the type to string, the conversion option</option-->
+        </tab>
+        <tab name="Request Body">
+        	<option name="Use column's content as body">Use the selected column's content as the body of the request.</option>
+        	<option name="Use constant body">Use the specified content below as the body of the request.</option>
+        </tab>
+        <tab name="Response Headers">
+            <option name="Extract all fields">Extracts all header fields (present in the first response)</option>
+            <option name="Header key">The name of the header value to extract</option>
+            <option name="Header type">Convert the header value to this type</option>
+        </tab>
+    </fullDescription>
+    
+    <ports>
+        <inPort index="0" name="Table">Data table containing the variable parameters of the requests.</inPort>
+        <outPort index="0" name="POST results">Data table containing additional columns from the responses.</outPort>
+    </ports>    
+    <!-- views>
+        <view index="0" name="name of first view">Description of first view...</view>
+    </views-->
+</knimeNode>

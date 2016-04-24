@@ -113,15 +113,8 @@ public class NoAuthentication extends EachRequestAuthentication {
      * {@inheritDoc}
      */
     @Override
-    public String getName() {
-        return "None";
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public Builder updateRequest(final Builder request, final DataRow row, final CredentialsProvider credProvider, final Map<String, FlowVariable> flowVariables) {
+    public Builder updateRequest(final Builder request, final DataRow row, final CredentialsProvider credProvider,
+        final Map<String, FlowVariable> flowVariables) {
         return request;
     }
 

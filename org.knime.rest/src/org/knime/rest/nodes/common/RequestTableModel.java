@@ -163,7 +163,8 @@ class RequestTableModel extends AbstractTableModel implements Iterable<RequestHe
                 if (aValue instanceof String) {
                     String newReference = (String)aValue;
                     String reference = setting.getValueReference();
-                    m_content.set(rowIndex, new RequestHeaderKeyItem(setting.getKey(), newReference, setting.getKind()));
+                    m_content.set(rowIndex,
+                        new RequestHeaderKeyItem(setting.getKey(), newReference, setting.getKind()));
                     if (!Objects.equals(newReference, reference)) {
                         fireTableCellUpdated(rowIndex, columnIndex);
                     }
@@ -182,17 +183,17 @@ class RequestTableModel extends AbstractTableModel implements Iterable<RequestHe
                 }
                 break;
             }
-//            case parameterKind: {
-//                if (aValue instanceof ParameterKind) {
-//                    ParameterKind paths = (ParameterKind)aValue;
-//                    ParameterKind returnPaths = setting.getParameterKind();
-//                    m_content.set(rowIndex, setting);
-//                    if (paths != returnPaths) {
-//                        fireTableCellUpdated(rowIndex, columnIndex);
-//                    }
-//                }
-//                break;
-//            }
+            //            case parameterKind: {
+            //                if (aValue instanceof ParameterKind) {
+            //                    ParameterKind paths = (ParameterKind)aValue;
+            //                    ParameterKind returnPaths = setting.getParameterKind();
+            //                    m_content.set(rowIndex, setting);
+            //                    if (paths != returnPaths) {
+            //                        fireTableCellUpdated(rowIndex, columnIndex);
+            //                    }
+            //                }
+            //                break;
+            //            }
             case delete: {
                 break;
             }

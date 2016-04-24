@@ -72,5 +72,6 @@ public abstract class EachRequestAuthentication extends UserConfiguration {
      * @param credProvider The {@link CredentialsProvider}.
      * @return The updated request {@link Builder}.
      */
-    public abstract Builder updateRequest(Builder request, DataRow row, CredentialsProvider credProvider, Map<String, FlowVariable> flowVariables);
+    public abstract Builder updateRequest(Builder request, DataRow row, CredentialsProvider credProvider,
+        Map<String, FlowVariable> flowVariables);
 }

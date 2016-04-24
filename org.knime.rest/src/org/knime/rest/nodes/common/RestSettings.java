@@ -459,7 +459,7 @@ public class RestSettings {
         IConfigurationElement[] configurationElements =
             Platform.getExtensionRegistry().getConfigurationElementsFor(EXTENSION_ID);
         final EnablableUserConfiguration<UserConfiguration> noAuth =
-            new EnablableUserConfiguration<UserConfiguration>(new NoAuthentication());
+            new EnablableUserConfiguration<UserConfiguration>(new NoAuthentication(), "None");
         noAuth.setEnabled(true);
         m_authorizationConfigurations.add(noAuth);
         for (final IConfigurationElement configurationElement : configurationElements) {
@@ -467,7 +467,8 @@ public class RestSettings {
                 final Object object = configurationElement.createExecutableExtension("class");
                 if (object instanceof UserConfiguration) {
                     final UserConfiguration uc = (UserConfiguration)object;
-                    m_authorizationConfigurations.add(new EnablableUserConfiguration<UserConfiguration>(uc));
+                    m_authorizationConfigurations.add(new EnablableUserConfiguration<UserConfiguration>(uc,
+                        configurationElement.getAttribute("name", configurationElement.getAttribute("name"))));
                 }
             } catch (CoreException e) {
                 LOGGER.warn("Failed to load: " + configurationElement.getName(), e);
@@ -632,14 +633,7 @@ public class RestSettings {
     /**
      * @return the requestHeaders
      */
-    public List<RequestHeaderKeyItem> getRequestHeaders() {
-        return Collections.unmodifiableList(m_requestHeaders);
-    }
-
-    /**
-     * @return the requestHeaders
-     */
-    List<RequestHeaderKeyItem> getRequestHeadersMutable() {
+    protected List<RequestHeaderKeyItem> getRequestHeaders() {
         return m_requestHeaders;
     }
 
@@ -725,9 +719,9 @@ public class RestSettings {
         settings.addString(BODY_COLUMN_NAME, m_responseBodyColumn);
         for (final EnablableUserConfiguration<UserConfiguration> euc : m_authorizationConfigurations) {
             final UserConfiguration uc = euc.getUserConfiguration();
-            final NodeSettingsWO configBase = settings.addNodeSettings(uc.getName());
+            final NodeSettingsWO configBase = settings.addNodeSettings(euc.getName());
             uc.saveUserConfiguration(configBase);
-            settings.addBoolean(uc.getName() + ENABLED_SUFFIX, euc.isEnabled());
+            settings.addBoolean(euc.getName() + ENABLED_SUFFIX, euc.isEnabled());
         }
         settings.addBoolean(FOLLOW_REDIRECTS, m_followRedirects);
         settings.addInt(TIMEOUT, m_timeoutInSeconds);
@@ -772,9 +766,9 @@ public class RestSettings {
         m_responseBodyColumn = settings.getString(BODY_COLUMN_NAME);
         for (final EnablableUserConfiguration<UserConfiguration> euc : m_authorizationConfigurations) {
             final UserConfiguration uc = euc.getUserConfiguration();
-            euc.setEnabled(settings.getBoolean(uc.getName() + ENABLED_SUFFIX, false));
+            euc.setEnabled(settings.getBoolean(euc.getName() + ENABLED_SUFFIX, false));
             try {
-                final NodeSettingsRO base = settings.getNodeSettings(uc.getName());
+                final NodeSettingsRO base = settings.getNodeSettings(euc.getName());
                 uc.loadUserConfiguration(base);
             } catch (InvalidSettingsException e) {
                 LOGGER.warn("", e);
@@ -832,10 +826,10 @@ public class RestSettings {
         m_responseBodyColumn = settings.getString(BODY_COLUMN_NAME, DEFAULT_BODY_COLUMN_NAME);
         for (final EnablableUserConfiguration<UserConfiguration> euc : m_authorizationConfigurations) {
             final UserConfiguration uc = euc.getUserConfiguration();
-            euc.setEnabled(settings.getBoolean(uc.getName() + ENABLED_SUFFIX, uc instanceof NoAuthentication));
+            euc.setEnabled(settings.getBoolean(euc.getName() + ENABLED_SUFFIX, uc instanceof NoAuthentication));
             try {
                 try {
-                    final NodeSettingsRO base = settings.getNodeSettings(uc.getName());
+                    final NodeSettingsRO base = settings.getNodeSettings(euc.getName());
                     uc.loadUserConfigurationForDialog(base, specs, credentialNames);
                 } catch (InvalidSettingsException e) {
                     uc.loadUserConfigurationForDialog(null, specs, credentialNames);
