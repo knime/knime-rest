@@ -51,14 +51,16 @@ package org.knime.rest.nodes.delete;
 import org.knime.rest.nodes.common.RestNodeDialog;
 
 /**
+ * Node dialog for the node of DELETE http method.
  *
  * @author Gabor Bakos
  */
 final class RestDeleteNodeDialog extends RestNodeDialog<RestDeleteSettings> {
     /**
-     *
+     * Constructor.
      */
     public RestDeleteNodeDialog() {
+        super();
     }
 
     /**

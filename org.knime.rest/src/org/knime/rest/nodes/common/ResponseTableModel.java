@@ -54,28 +54,34 @@ import java.util.List;
 import java.util.Objects;
 
 import javax.swing.table.AbstractTableModel;
+import javax.swing.table.TableModel;
 
 import org.knime.core.data.DataType;
 import org.knime.core.util.Pair;
 import org.knime.rest.nodes.common.RestSettings.ResponseHeaderItem;
 
 /**
+ * {@link TableModel} for the response headers table.
  *
  * @author Gabor Bakos
  */
+@SuppressWarnings("serial")
 class ResponseTableModel extends AbstractTableModel implements Iterable<ResponseHeaderItem> {
-    private static final long serialVersionUID = -7048890183554347405L;
 
-    private static enum Columns {
-            headerKey, outputColumn;
+    /** The columns of the table. */
+    enum Columns {
+            /** Key of the header in the response. */
+            headerKey,
+            /** Name of the output column. */
+            outputColumn;
     }
 
-    private final List<ResponseHeaderItem> content = new ArrayList<>();
+    private final transient List<ResponseHeaderItem> m_content = new ArrayList<>();
 
     /**
-     *
+     * Constructs the model.
      */
-    public ResponseTableModel() {
+    ResponseTableModel() {
     }
 
     /**
@@ -83,7 +89,7 @@ class ResponseTableModel extends AbstractTableModel implements Iterable<Response
      */
     @Override
     public int getRowCount() {
-        return content.size();
+        return m_content.size();
     }
 
     /**
@@ -91,7 +97,7 @@ class ResponseTableModel extends AbstractTableModel implements Iterable<Response
      */
     @Override
     public int getColumnCount() {
-        return 2;//key, output column name + type
+        return Columns.values().length;
     }
 
     /**
@@ -101,12 +107,11 @@ class ResponseTableModel extends AbstractTableModel implements Iterable<Response
      */
     @Override
     public Object getValueAt(final int rowIndex, final int columnIndex) {
-        ResponseHeaderItem setting = content.get(rowIndex);
-        Columns col = Columns.values()[columnIndex];
+        final ResponseHeaderItem setting = m_content.get(rowIndex);
+        final Columns col = Columns.values()[columnIndex];
         switch (col) {
-            case headerKey://output+
-                return //Pair.create(setting.getKey(), setting.getType());
-                setting.getHeaderKey();
+            case headerKey:
+                return setting.getHeaderKey();
             case outputColumn:
                 return Pair.create(setting.getOutputColumnName(), setting.getType());
             default:
@@ -119,17 +124,17 @@ class ResponseTableModel extends AbstractTableModel implements Iterable<Response
      */
     @Override
     public void setValueAt(final Object aValue, final int rowIndex, final int columnIndex) {
-        Columns col = Columns.values()[columnIndex];
-        if (rowIndex >= content.size()) {
+        final Columns col = Columns.values()[columnIndex];
+        if (rowIndex >= m_content.size()) {
             return;
         }
-        ResponseHeaderItem setting = content.get(rowIndex);
+        final ResponseHeaderItem setting = m_content.get(rowIndex);
         switch (col) {
             case headerKey: {
                 if (aValue instanceof String) {
-                    String headerKey = (String)aValue;
-                    String key = setting.getHeaderKey();
-                    content.set(rowIndex,
+                    final String headerKey = (String)aValue;
+                    final String key = setting.getHeaderKey();
+                    m_content.set(rowIndex,
                         new ResponseHeaderItem(headerKey, setting.getType(), setting.getOutputColumnName()));
                     if (!Objects.equals(key, headerKey)) {
                         fireTableCellUpdated(rowIndex, columnIndex);
@@ -139,23 +144,23 @@ class ResponseTableModel extends AbstractTableModel implements Iterable<Response
             }
             case outputColumn: {
                 if (aValue instanceof Pair<?, ?>) {
-                    Pair<?, ?> pair = (Pair<?, ?>)aValue;
-                    Object first = pair.getFirst();
-                    Object second = pair.getSecond();
+                    final Pair<?, ?> pair = (Pair<?, ?>)aValue;
+                    final Object first = pair.getFirst();
+                    final Object second = pair.getSecond();
                     setValueAt(first, rowIndex, columnIndex);
                     setValueAt(second, rowIndex, columnIndex);
                 } else if (aValue instanceof String) {
-                    String outputColumn = (String)aValue;
-                    String output = setting.getOutputColumnName();
-                    content.set(rowIndex,
+                    final String outputColumn = (String)aValue;
+                    final String output = setting.getOutputColumnName();
+                    m_content.set(rowIndex,
                         new ResponseHeaderItem(setting.getHeaderKey(), setting.getType(), outputColumn));
                     if (!Objects.equals(output, outputColumn)) {
                         fireTableCellUpdated(rowIndex, columnIndex);
                     }
                 } else if (aValue instanceof DataType) {
-                    DataType outputType = (DataType)aValue;
-                    DataType returnType = setting.getType();
-                    content.set(rowIndex,
+                    final DataType outputType = (DataType)aValue;
+                    final DataType returnType = setting.getType();
+                    m_content.set(rowIndex,
                         new ResponseHeaderItem(setting.getHeaderKey(), outputType, setting.getOutputColumnName()));
                     if (!Objects.equals(returnType, outputType)) {
                         fireTableCellUpdated(rowIndex, columnIndex);
@@ -163,6 +168,8 @@ class ResponseTableModel extends AbstractTableModel implements Iterable<Response
                 }
                 break;
             }
+            default:
+                throw new IllegalStateException();
         }
     }
 
@@ -171,7 +178,7 @@ class ResponseTableModel extends AbstractTableModel implements Iterable<Response
      */
     @Override
     public Iterator<ResponseHeaderItem> iterator() {
-        return content.iterator();
+        return m_content.iterator();
     }
 
     /**
@@ -182,37 +189,41 @@ class ResponseTableModel extends AbstractTableModel implements Iterable<Response
         return true;
     }
 
+    /** Adds a new item (to the end). */
     void addRow(final ResponseHeaderItem setting) {
-        content.add(setting);
-        fireTableRowsInserted(content.size() - 1, content.size() - 1);
+        m_content.add(setting);
+        fireTableRowsInserted(m_content.size() - 1, m_content.size() - 1);
     }
 
+    /** Creates a new empty row. */
     ResponseHeaderItem newRow() {
         ResponseHeaderItem ret = new ResponseHeaderItem("");
         addRow(ret);
         return ret;
     }
 
+    /** Inserts a new row with the specified content. */
     void insertRow(final int rowIndex, final ResponseHeaderItem setting) {
-        if (rowIndex >= 0 && rowIndex <= content.size()) {
-            content.add(rowIndex, setting);
+        if (rowIndex >= 0 && rowIndex <= m_content.size()) {
+            m_content.add(rowIndex, setting);
             fireTableRowsInserted(rowIndex, rowIndex);
         }
     }
 
+    /** Removes the selected row. */
     void removeRow(final int rowIndex) {
         if (rowIndex >= 0) {
-            content.remove(rowIndex);
+            m_content.remove(rowIndex);
             fireTableRowsDeleted(rowIndex, rowIndex);
         }
     }
 
     /**
-     *
+     * Clears the table (model).
      */
     void clear() {
-        int origSize = content.size();
-        content.clear();
+        int origSize = m_content.size();
+        m_content.clear();
         if (origSize > 0) {
             fireTableRowsDeleted(0, origSize - 1);
         }

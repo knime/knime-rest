@@ -51,13 +51,14 @@ package org.knime.rest.nodes.put;
 import org.knime.rest.nodes.common.RestWithBodyNodeDialog;
 
 /**
+ * Node dialog for the node of PUT http method.
  *
  * @author Gabor Bakos
  */
 final class RestPutNodeDialog extends RestWithBodyNodeDialog<RestPutSettings> {
 
     /**
-     *
+     * Constructor
      */
     RestPutNodeDialog() {
         super();
@@ -70,5 +71,4 @@ final class RestPutNodeDialog extends RestWithBodyNodeDialog<RestPutSettings> {
     protected RestPutSettings createSettings() {
         return new RestPutSettings();
     }
-
 }

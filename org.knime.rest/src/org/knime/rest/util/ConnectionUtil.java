@@ -74,6 +74,7 @@ import org.osgi.framework.Bundle;
  *
  * @author Thorsten Meinl, KNIME.com, Zurich, Switzerland
  * @author Gabor Bakos
+ * @since 3.2
  */
 public class ConnectionUtil {
 
@@ -81,7 +82,7 @@ public class ConnectionUtil {
      *
      */
     private ConnectionUtil() {
-        // TODO Auto-generated constructor stub
+        //Prevent instantiation.
     }
 
     /**
@@ -113,7 +114,7 @@ public class ConnectionUtil {
 
                     TrustManagerFactory publicTrustManager =
                         TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
-                    publicTrustManager.init(((KeyStore)null));
+                    publicTrustManager.init((KeyStore)null);
 
                     DelegatingX509TrustManager delegator =
                         new DelegatingX509TrustManager(publicTrustManager, localTrustManager);

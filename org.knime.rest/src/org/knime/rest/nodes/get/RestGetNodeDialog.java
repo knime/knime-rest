@@ -51,14 +51,16 @@ package org.knime.rest.nodes.get;
 import org.knime.rest.nodes.common.RestNodeDialog;
 
 /**
+ * Node dialog for the node of GET http method.
  *
  * @author Gabor Bakos
  */
 final class RestGetNodeDialog extends RestNodeDialog<RestGetSettings> {
     /**
-     *
+     * Constructor
      */
     public RestGetNodeDialog() {
+        super();
     }
 
     /**

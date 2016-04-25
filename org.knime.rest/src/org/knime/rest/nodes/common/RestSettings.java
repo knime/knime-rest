@@ -72,10 +72,13 @@ import org.knime.rest.generic.UserConfiguration;
 import org.knime.rest.internals.NoAuthentication;
 
 /**
+ * Common settings for the REST nodes.
  *
  * @author Gabor Bakos
  */
 public class RestSettings {
+
+    /** The logger. */
     protected static final NodeLogger LOGGER = NodeLogger.getLogger(RestSettings.class);
 
     static final String EXTENSION_ID = "org.knime.rest.authentication";
@@ -114,10 +117,12 @@ public class RestSettings {
 
     private static final String FAIL_ON_CONNECTION_PROBLEMS = "Fail on connection problems";
 
+    /** Default value for the fail on connection problems option. */
     protected static final boolean DEFAULT_FAIL_ON_CONNECTION_PROBLEMS = false;
 
     private static final String FAIL_ON_HTTP_ERRORS = "Fail on HTTP errors";
 
+    /** Default value for the fail on http errors option. */
     protected static final boolean DEFAULT_FAIL_ON_HTTP_ERRORS = false;
 
     private static final String REQUEST_HEADER_KEYS = "Request header keys";
@@ -137,9 +142,10 @@ public class RestSettings {
 
     private static final String RESPONSE_HEADER_COLUMN_NAME = "Response header column name";
 
-    private static final List<ResponseHeaderItem> DEFAULT_RESPONSE_HEADER_ITEMS =
-        Collections.unmodifiableList(Arrays.asList(new ResponseHeaderItem("Status", IntCell.TYPE),
-            new ResponseHeaderItem("Content-Type", "Content type")));
+    private static final String STATUS = "Status";
+
+    private static final List<ResponseHeaderItem> DEFAULT_RESPONSE_HEADER_ITEMS = Collections.unmodifiableList(Arrays
+        .asList(new ResponseHeaderItem(STATUS, IntCell.TYPE), new ResponseHeaderItem("Content-Type", "Content type")));
 
     private static final String BODY_COLUMN_NAME = "Body column name";
 
@@ -153,6 +159,7 @@ public class RestSettings {
 
     private static final String TIMEOUT = "timeout";
 
+    /** Default value for the timeout (in seconds) option. */
     protected static final int DEFAULT_TIMEOUT = 2;
 
     private boolean m_isUseConstantURI = DEFAULT_USE_CONSTANT_URI;
@@ -180,19 +187,29 @@ public class RestSettings {
     private int m_timeoutInSeconds = DEFAULT_TIMEOUT;
 
     //Request
-    public enum ReferenceType {
-            Constant, FlowVariable {
+    /**
+     * The enum describing the possible options to refer to values.
+     */
+    enum ReferenceType {
+            /** A constant value. */
+            Constant,
+            /** Value of a flow variable. */
+            FlowVariable {
                 @Override
                 public String toString() {
                     return "Flow variable";
                 }
             },
-            Column, CredentialName {
+            /** Value of a column in the actual row. */
+            Column,
+            /** The referred credential's user name. */
+            CredentialName {
                 @Override
                 public String toString() {
                     return "Credential name";
                 }
             },
+            /** The referred credential's password. */
             CredentialPassword {
                 @Override
                 public String toString() {
@@ -201,33 +218,33 @@ public class RestSettings {
             };
     }
 
-    public static class RequestHeaderKeyItem/*<InputType extends DataValue>*/ {
+    /**
+     * Datastructure for the key, valuereference and reference type tuple (for the request headers). <br/>
+     * It does not support custom conversion of the values.
+     */
+    static class RequestHeaderKeyItem {
         private final String m_key;
 
         private final String m_valueReference;
 
         private final ReferenceType m_kind;
 
-        //private final Function<InputType, String> m_conversionFunction;
-
         /**
-         * @param key
-         * @param valueReference
-         * @param kind
-         * @param conversionFunction
+         * Constructs the object.
+         *
+         * @param key The key to be used in the header.
+         * @param valueReference Reference to the value.
+         * @param kind The {@link ReferenceType} of the value.
          */
-        public RequestHeaderKeyItem(final String key, final String valueReference,
-            final ReferenceType kind/*,
-                                    final Function<InputType, String> conversionFunction*/) {
+        RequestHeaderKeyItem(final String key, final String valueReference, final ReferenceType kind) {
             super();
             m_key = key;
             m_valueReference = valueReference;
             m_kind = kind;
-            //            m_conversionFunction = conversionFunction;
         }
 
         /**
-         * @return the key
+         * @return the key in the header.
          */
         public final String getKey() {
             return m_key;
@@ -241,25 +258,18 @@ public class RestSettings {
         }
 
         /**
-         * @return the kind
+         * @return the kind ({@link ReferenceType} of the value)
          */
         public final ReferenceType getKind() {
             return m_kind;
         }
-        //        /**
-        //         * @return the conversionFunction
-        //         */
-        //        final Function<InputType, String> getConversionFunction() {
-        //            return m_conversionFunction;
-        //        }
 
         /**
          * {@inheritDoc}
          */
         @Override
         public String toString() {
-            return String.format("[key=%s, valueReference=%s, kind=%s]", m_key, m_valueReference,
-                m_kind/*, m_conversionFunction*/);
+            return String.format("[key=%s, valueReference=%s, kind=%s]", m_key, m_valueReference, m_kind);
         }
 
         /**
@@ -315,7 +325,11 @@ public class RestSettings {
 
     private boolean m_extractAllResponseFields;
 
-    protected static class ResponseHeaderItem {
+    /**
+     * Response header specification item. (A tuple of the header key, the data type ({@link IntCell} -only for status
+     * code- or {@link StringCell}) of the value and the output column name.)
+     */
+    static class ResponseHeaderItem {
         private final String m_headerKey;
 
         private final DataType m_type;
@@ -323,9 +337,12 @@ public class RestSettings {
         private final String m_outputColumnName;
 
         /**
-         * @param headerKey
-         * @param type
-         * @param outputColumnName
+         * Constructs the object.
+         *
+         * @param headerKey The key within the header.
+         * @param type The {@link DataType} of the output column, should be: {@link IntCell} for status code and
+         *            {@link StringCell} for everything else.
+         * @param outputColumnName The output column's name.
          */
         ResponseHeaderItem(final String headerKey, final DataType type, final String outputColumnName) {
             super();
@@ -335,37 +352,46 @@ public class RestSettings {
         }
 
         /**
-         * @param headerKey
-         * @param outputColumnName
+         * Constructs the object with {@link StringCell} data type (except for the {@code Status} header key, which case
+         * it is {@link StringCell}).
+         *
+         * @param headerKey The key within the header.
+         * @param outputColumnName The output column's name.
          */
         ResponseHeaderItem(final String headerKey, final String outputColumnName) {
-            this(headerKey, "Status".equals(headerKey) ? IntCell.TYPE : StringCell.TYPE, outputColumnName);
+            this(headerKey, STATUS.equals(headerKey) ? IntCell.TYPE : StringCell.TYPE, outputColumnName);
         }
 
         /**
-         * @param headerKey
-         * @param type
+         * Constructs the object with the same output column name as the {@code headerKey}.
+         *
+         * @param headerKey The key within the header.
+         * @param type The {@link DataType} of the output column, should be: {@link IntCell} for status code and
+         *            {@link StringCell} for everything else.
          */
         ResponseHeaderItem(final String headerKey, final DataType type) {
             this(headerKey, type, headerKey);
         }
 
         /**
-         * @param headerKey
+         * Constructs the object with the same output column name as the {@code headerKey} with {@link StringCell} data
+         * type (except for the {@code Status} header key, which case it is {@link StringCell}).
+         *
+         * @param headerKey The key within the header.
          */
         ResponseHeaderItem(final String headerKey) {
             this(headerKey, headerKey);
         }
 
         /**
-         * @return the headerKey
+         * @return the headerKey (in the response)
          */
         String getHeaderKey() {
             return m_headerKey;
         }
 
         /**
-         * @return the type
+         * @return the type (of the output column)
          */
         DataType getType() {
             return m_type;
@@ -440,26 +466,26 @@ public class RestSettings {
         }
     }
 
-    protected final List<ResponseHeaderItem> m_extractFields = new ArrayList<>();
+    private final List<ResponseHeaderItem> m_extractFields = new ArrayList<>();
 
     private String m_responseBodyColumn = DEFAULT_BODY_COLUMN_NAME;
 
-    protected List<EnablableUserConfiguration<UserConfiguration>> m_authorizationConfigurations = new ArrayList<>();
+    private List<EnablableUserConfiguration<UserConfiguration>> m_authorizationConfigurations = new ArrayList<>();
 
     {
-        m_extractFields.add(new ResponseHeaderItem("Status", IntCell.TYPE, "Status"));
+        m_extractFields.add(new ResponseHeaderItem(STATUS, IntCell.TYPE, STATUS));
         m_extractFields.add(new ResponseHeaderItem("Content-Type", StringCell.TYPE, "Content type"));
     }
 
     /**
-     *
+     * Constructs the default settings.
      */
-    public RestSettings() {
+    protected RestSettings() {
         super();
         IConfigurationElement[] configurationElements =
             Platform.getExtensionRegistry().getConfigurationElementsFor(EXTENSION_ID);
         final EnablableUserConfiguration<UserConfiguration> noAuth =
-            new EnablableUserConfiguration<UserConfiguration>(new NoAuthentication(), "None");
+            new EnablableUserConfiguration<>(new NoAuthentication(), "None");
         noAuth.setEnabled(true);
         m_authorizationConfigurations.add(noAuth);
         for (final IConfigurationElement configurationElement : configurationElements) {
@@ -533,14 +559,14 @@ public class RestSettings {
     }
 
     /**
-     * @return the delay
+     * @return the delay (in milliseconds)
      */
     protected long getDelay() {
         return m_delay;
     }
 
     /**
-     * @param delay the delay to set
+     * @param delay the delay (in milliseconds) to set
      */
     protected void setDelay(final long delay) {
         m_delay = delay;
@@ -638,7 +664,7 @@ public class RestSettings {
     }
 
     /**
-     * @return the extractFields
+     * @return the extractFields (mutable, be careful!)
      */
     protected List<ResponseHeaderItem> getExtractFields() {
         return m_extractFields;
@@ -687,12 +713,17 @@ public class RestSettings {
     }
 
     /**
-     * @return the authorizationConfigurations
+     * @return the authorizationConfigurations (not modifiable!)
      */
-    public List<EnablableUserConfiguration<UserConfiguration>> getAuthorizationConfigurations() {
+    protected List<EnablableUserConfiguration<UserConfiguration>> getAuthorizationConfigurations() {
         return Collections.unmodifiableList(m_authorizationConfigurations);
     }
 
+    /**
+     * Saves the internal state to {@code settings}.
+     *
+     * @param settings A writable {@link NodeSettingsWO}.
+     */
     protected void saveSettings(final NodeSettingsWO settings) {
         settings.addBoolean(USE_CONSTANT_URI, m_isUseConstantURI);
         settings.addString(CONSTANT_URI, m_constantURI);
@@ -713,7 +744,6 @@ public class RestSettings {
         settings.addBoolean(EXTRACT_ALL_RESPONSE_FIELDS, m_extractAllResponseFields);
         settings.addStringArray(RESPONSE_HEADER_KEYS,
             m_extractFields.stream().map(rh -> rh.getHeaderKey()).toArray(n -> new String[n]));
-        //settings.addStringArray(RESPONSE_HEADER_VALUE_TYPE, m_extractFields.stream().map(rh -> rh.getType().getName()).toArray(n -> new String[n]));
         settings.addStringArray(RESPONSE_HEADER_COLUMN_NAME,
             m_extractFields.stream().map(rh -> rh.getOutputColumnName()).toArray(n -> new String[n]));
         settings.addString(BODY_COLUMN_NAME, m_responseBodyColumn);
@@ -727,6 +757,12 @@ public class RestSettings {
         settings.addInt(TIMEOUT, m_timeoutInSeconds);
     }
 
+    /**
+     * Loads the internal state from {@code settings} for model load.
+     *
+     * @param settings The read only {@link NodeSettingsRO}.
+     * @throws InvalidSettingsException When the state is inconsistent.
+     */
     protected void loadSettingsFrom(final NodeSettingsRO settings) throws InvalidSettingsException {
         m_isUseConstantURI = settings.getBoolean(USE_CONSTANT_URI);
         m_constantURI = settings.getString(CONSTANT_URI);
@@ -778,6 +814,14 @@ public class RestSettings {
         m_timeoutInSeconds = settings.getInt(TIMEOUT);
     }
 
+    /**
+     * Loads the settings for the dialog.
+     *
+     * @param settings The read only {@link NodeSettingsRO}.
+     * @param credentialNames The credential names.
+     * @param specs The input specs.
+     * @throws InvalidSettingsException When the state is inconsistent.
+     */
     protected void loadSettingsForDialog(final NodeSettingsRO settings, final CredentialsProvider credentialNames,
         final DataTableSpec... specs) throws InvalidSettingsException {
         m_isUseConstantURI = settings.getBoolean(USE_CONSTANT_URI, DEFAULT_USE_CONSTANT_URI);
@@ -841,5 +885,4 @@ public class RestSettings {
         m_followRedirects = settings.getBoolean(FOLLOW_REDIRECTS, DEFAULT_FOLLOW_REDIRECTS);
         m_timeoutInSeconds = settings.getInt(TIMEOUT, DEFAULT_TIMEOUT);
     }
-
 }

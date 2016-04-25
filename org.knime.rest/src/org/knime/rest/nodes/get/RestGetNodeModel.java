@@ -56,15 +56,13 @@ import org.knime.core.data.DataTableSpec;
 import org.knime.rest.nodes.common.RestNodeModel;
 
 /**
- *
+ * Node model for the node of GET http method.
+ * 
  * @author Gabor Bakos
  */
 class RestGetNodeModel extends RestNodeModel<RestGetSettings> {
-
-    //    private BinaryObjectCellFactory m_binaryObjectCellFactory;
-
     /**
-     *
+     * Constructor
      */
     public RestGetNodeModel() {
         super();

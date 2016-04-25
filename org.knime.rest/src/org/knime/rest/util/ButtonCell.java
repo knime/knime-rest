@@ -139,7 +139,7 @@ public class ButtonCell implements TableCellEditor, TableCellRenderer {
      */
     @Override
     public void cancelCellEditing() {
-        //throw new UnsupportedOperationException();
+        //Do nothing
     }
 
     /**
@@ -164,11 +164,6 @@ public class ButtonCell implements TableCellEditor, TableCellRenderer {
     @Override
     public Component getTableCellRendererComponent(final JTable table, final Object value, final boolean isSelected,
         final boolean hasFocus, final int row, final int column) {
-        //        m_panel.repaint();
-        //        JPanel panel = new JPanel();
-        //        final JLabel label = new JLabel((String)m_action.getValue(Action.NAME), (Icon)m_action.getValue(Action.SMALL_ICON), SwingConstants.CENTER);
-        //        panel.add(label);
-        //        return panel;
         return m_panelRender;
     }
 

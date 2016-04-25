@@ -57,12 +57,13 @@ import org.knime.core.node.workflow.CredentialsProvider;
 import org.knime.core.node.workflow.FlowVariable;
 
 /**
+ * Basic authentication.
  *
  * @author Gabor Bakos
  */
 public class BasicAuthentication extends UsernamePasswordAuthentication {
     /**
-     *
+     * Constructs with the empty defaults. (This constructor is called for the automatic instantiation.)
      */
     public BasicAuthentication() {
         super("BASIC auth", "", "", "");

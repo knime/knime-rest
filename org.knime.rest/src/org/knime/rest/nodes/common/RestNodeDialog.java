@@ -70,7 +70,6 @@ import java.awt.event.MouseEvent;
 import java.util.AbstractMap.SimpleImmutableEntry;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map.Entry;
@@ -140,6 +139,7 @@ import org.knime.rest.util.ButtonCell;
  * @param <S> Type of the {@link RestSettings}.
  */
 public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogPane {
+    /** Extension id for the request header templates. */
     protected static final String EXTENSION_ID_FOR_REQUEST_HEADER_TEMPLATES = "org.knime.rest.header.template";
 
     private final List<String> m_credentials = new ArrayList<>();
@@ -166,7 +166,7 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
 
     private final JCheckBox m_useDelay = new JCheckBox("Delay (ms): ");
 
-    private final JSpinner m_delay = new JSpinner(new SpinnerNumberModel(Long.valueOf(0l), Long.valueOf(0L),
+    private final JSpinner m_delay = new JSpinner(new SpinnerNumberModel(Long.valueOf(0L), Long.valueOf(0L),
         Long.valueOf(30L * 60 * 1000L/*30 minutes*/), Long.valueOf(100L)));
 
     private final JSpinner m_concurrency =
@@ -216,22 +216,23 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
 
     private final JComboBox<ReferenceType> m_requestHeaderValueType = createEditableComboBox(ReferenceType.values());
 
-    private JComboBox<String> m_responseHeaderKey = createEditableComboBox();
+    private final JComboBox<String> m_responseHeaderKey = createEditableComboBox();
 
-    private JTextField m_responseColumnName = new JTextField(20);
+    private final JTextField m_responseColumnName = new JTextField(20);
 
-    private JComboBox<DataType> m_responseValueType =
-        new JComboBox<DataType>(new DataType[]{StringCell.TYPE, IntCell.TYPE});
+    private final JComboBox<DataType> m_responseValueType =
+        new JComboBox<>(new DataType[]{StringCell.TYPE, IntCell.TYPE});
 
-    private List<JRadioButton> m_authenticationTabTitles = new ArrayList<>();
+    private final List<JRadioButton> m_authenticationTabTitles = new ArrayList<>();
 
-    private JComboBox<String> m_requestHeaderTemplate = new JComboBox<>();
+    private final JComboBox<String> m_requestHeaderTemplate = new JComboBox<>();
 
-    private JButton m_requestHeaderTemplateReset = new JButton("Reset");
+    private final JButton m_requestHeaderTemplateReset = new JButton("Reset");
 
-    private JButton m_requestHeaderTemplateMerge = new JButton("Merge");
+    private final JButton m_requestHeaderTemplateMerge = new JButton("Merge");
 
-    private List<Entry<String, List<Entry<String, ? extends List<String>>>>> m_requestTemplates = new ArrayList<>();
+    private final List<Entry<String, List<Entry<String, ? extends List<String>>>>> m_requestTemplates =
+        new ArrayList<>();
 
     private List<Entry<String, ? extends List<String>>> m_requestHeaderOptions;
 
@@ -242,8 +243,36 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
     private DefaultCellEditor m_responseValueCellEditor;
 
     /**
-     * @param initialValues
-     * @return
+     * Constructs the dialog.
+     */
+    protected RestNodeDialog() {
+        super();
+        m_requestTemplates.add(new SimpleImmutableEntry<>("", new ArrayList<>()));
+        final IConfigurationElement[] elements =
+            Platform.getExtensionRegistry().getConfigurationElementsFor(EXTENSION_ID_FOR_REQUEST_HEADER_TEMPLATES);
+        for (final Entry<String, List<IConfigurationElement>> element : Stream.of(elements)
+            .collect(Collectors.groupingBy(element -> element.getDeclaringExtension().getLabel())).entrySet()) {
+            final List<IConfigurationElement> entries = element.getValue();
+            final List<Entry<String, ? extends List<String>>> entryList = new ArrayList<>();
+            for (final IConfigurationElement entry : entries) {
+                final IConfigurationElement[] values = entry.getChildren();
+                entryList.add(new SimpleImmutableEntry<>(entry.getAttribute("key"),
+                    Stream.of(values).filter(v -> v != null && v.getValue() != null).map(v -> v.getValue().trim())
+                        .collect(Collectors.toList())));
+            }
+            m_requestTemplates.add(new SimpleImmutableEntry<>(element.getKey(), entryList));
+        }
+        addTab("Connection Settings", createConnectionSettingsTab());
+        addTab("Authentication", createAuthenticationTab());
+        addTab("Request Headers", createRequestHeadersTab());
+        addTab("Response Headers", createResponseHeadersTab());
+    }
+
+    /**
+     * Creates an editable {@link JComboBox}. (With slightly smaller text.)
+     *
+     * @param initialValues The initial values.
+     * @return The created {@link JComboBox}.
      */
     @SafeVarargs
     @SuppressWarnings("serial")
@@ -270,7 +299,7 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
     }
 
     /**
-     * @return
+     * @return The new {@link RestSettings} object.
      */
     protected abstract S createSettings();
 
@@ -281,6 +310,7 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         return m_settings;
     }
 
+    /** A functional interface to handel all changes with a single method. */
     @FunctionalInterface
     private interface DocumentEditListener extends DocumentListener {
         @Override
@@ -308,7 +338,7 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
     }
 
     /**
-     * @return
+     * @return Connection tab.
      */
     protected JPanel createConnectionSettingsTab() {
         final JPanel ret = new JPanel(new GridBagLayout());
@@ -395,7 +425,9 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
     }
 
     /**
-     * @param selectedRow
+     * Edits the selected row ({@code selectedRow}) in the request header table.
+     *
+     * @param selectedRow The {@code 0}-based index of the selected row. (Do nothing in case it is negative.)
      */
     @SuppressWarnings("serial")
     protected void editRequestHeader(final int selectedRow) {
@@ -406,15 +438,18 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         final Frame frame = windowAncestor instanceof Frame ? (Frame)windowAncestor : null;
         final JDialog dialog = new JDialog(frame, "Edit", true);
         dialog.setPreferredSize(new Dimension(550, 200));
-        Container cp = dialog.getContentPane();
-        JPanel outer = new JPanel(new BorderLayout());
-        JPanel panel = new JPanel(new GridBagLayout());
+        final Container cp = dialog.getContentPane();
+        final JPanel outer = new JPanel(new BorderLayout());
+        final JPanel panel = new JPanel(new GridBagLayout());
         addRequestSettingControls(panel);
-        m_requestHeaderKey.setSelectedItem(m_requestHeadersModel.getValueAt(selectedRow, 0));
-        m_requestHeaderValue.setSelectedItem(m_requestHeadersModel.getValueAt(selectedRow, 1));
-        m_requestHeaderValueType.setSelectedItem(m_requestHeadersModel.getValueAt(selectedRow, 2));
+        m_requestHeaderKey.setSelectedItem(
+            m_requestHeadersModel.getValueAt(selectedRow, RequestTableModel.Columns.headerKey.ordinal()));
+        m_requestHeaderValue
+            .setSelectedItem(m_requestHeadersModel.getValueAt(selectedRow, RequestTableModel.Columns.value.ordinal()));
+        m_requestHeaderValueType
+            .setSelectedItem(m_requestHeadersModel.getValueAt(selectedRow, RequestTableModel.Columns.kind.ordinal()));
         outer.add(panel, BorderLayout.CENTER);
-        JPanel controls = new JPanel();
+        final JPanel controls = new JPanel();
         outer.add(controls, BorderLayout.SOUTH);
         cp.add(outer);
         controls.setLayout(new BoxLayout(controls, BoxLayout.LINE_AXIS));
@@ -422,10 +457,12 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         controls.add(new JButton(new AbstractAction("OK") {
             @Override
             public void actionPerformed(final ActionEvent e) {
-                m_requestHeadersModel.setValueAt(m_requestHeaderKey.getSelectedItem(), selectedRow, 0);
-                m_requestHeadersModel.setValueAt(m_requestHeaderValue.getSelectedItem(), selectedRow, 1);
-                m_requestHeadersModel.setValueAt(m_requestHeaderValueType.getSelectedItem(), selectedRow, 2);
-                //m_requestHeadersModel.setValueAt(m_requestHeaderKeyType.getSelectedItem(), selectedRow, 3);
+                m_requestHeadersModel.setValueAt(m_requestHeaderKey.getSelectedItem(), selectedRow,
+                    RequestTableModel.Columns.headerKey.ordinal());
+                m_requestHeadersModel.setValueAt(m_requestHeaderValue.getSelectedItem(), selectedRow,
+                    RequestTableModel.Columns.value.ordinal());
+                m_requestHeadersModel.setValueAt(m_requestHeaderValueType.getSelectedItem(), selectedRow,
+                    RequestTableModel.Columns.kind.ordinal());
                 dialog.dispose();
             }
         }));
@@ -444,7 +481,9 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
     }
 
     /**
-     * @param selectedRow
+     * Edits the selected row ({@code selectedRow}) in the response header table.
+     *
+     * @param selectedRow The {@code 0}-based index of the selected row. (Do nothing in case it is negative.)
      */
     @SuppressWarnings("serial")
     protected void editResponseHeader(final int selectedRow) {
@@ -455,18 +494,19 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         final Frame frame = windowAncestor instanceof Frame ? (Frame)windowAncestor : null;
         final JDialog dialog = new JDialog(frame, "Edit", true);
         dialog.setPreferredSize(new Dimension(550, 200));
-        Container cp = dialog.getContentPane();
-        JPanel outer = new JPanel(new BorderLayout());
-        JPanel panel = new JPanel(new GridBagLayout());
+        final Container cp = dialog.getContentPane();
+        final JPanel outer = new JPanel(new BorderLayout());
+        final JPanel panel = new JPanel(new GridBagLayout());
         addResponseSettingControls(panel);
-        m_responseHeaderKey.setSelectedItem(m_responseHeadersModel.getValueAt(selectedRow, 0));
-        m_responseColumnName
-            .setText((String)((Pair<?, ?>)m_responseHeadersModel.getValueAt(selectedRow, 1)).getFirst());
+        m_responseHeaderKey.setSelectedItem(
+            m_responseHeadersModel.getValueAt(selectedRow, ResponseTableModel.Columns.headerKey.ordinal()));
+        m_responseColumnName.setText((String)((Pair<?, ?>)m_responseHeadersModel.getValueAt(selectedRow,
+            ResponseTableModel.Columns.outputColumn.ordinal())).getFirst());
         updateResponseValueTypes();
-        m_responseValueType
-            .setSelectedItem(((Pair<?, ?>)m_responseHeadersModel.getValueAt(selectedRow, 1)).getSecond());
+        m_responseValueType.setSelectedItem(((Pair<?, ?>)m_responseHeadersModel.getValueAt(selectedRow,
+            ResponseTableModel.Columns.outputColumn.ordinal())).getSecond());
         outer.add(panel, BorderLayout.CENTER);
-        JPanel controls = new JPanel();
+        final JPanel controls = new JPanel();
         outer.add(controls, BorderLayout.SOUTH);
         cp.add(outer);
         controls.setLayout(new BoxLayout(controls, BoxLayout.LINE_AXIS));
@@ -495,10 +535,9 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
     }
 
     /**
-     * @param panel
+     * @param panel The panel to be used to add the request settings.
      */
     protected void addRequestSettingControls(final JPanel panel) {
-        //panel.setPreferredSize(new Dimension(800, 300));
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(4, 4, 4, 4);
         gbc.gridy = 0;
@@ -506,18 +545,9 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         gbc.weightx = 0;
         panel.add(new JLabel("Header key"), gbc);
         gbc.gridx = 1;
-        //m_requestHeaderKey = GUIFactory.createTextField("", 22);
         gbc.weightx = 1;
         panel.add(m_requestHeaderKey, gbc);
         gbc.gridy++;
-
-        //m_requestHeaderValue = GUIFactory.createTextField("", 22);
-        //        ((JTextComponent)m_requestHeaderValue.getEditor().getEditorComponent()).getDocument()
-        //            .addDocumentListener((DocumentEditListener)(e) -> {
-        //                /*TODO completion*/});
-        //        ((JTextComponent)m_requestHeaderKey.getEditor().getEditorComponent()).getDocument()
-        //            .addDocumentListener((DocumentEditListener)(e) -> {
-        //                /*TODO completion*/});
 
         gbc.gridx = 0;
         gbc.weightx = 0;
@@ -534,10 +564,9 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
     }
 
     /**
-     * @param panel
+     * @param panel The panel to be used for response settings.
      */
     protected void addResponseSettingControls(final JPanel panel) {
-        //panel.setPreferredSize(new Dimension(800, 300));
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(4, 4, 4, 4);
         gbc.gridy = 0;
@@ -545,17 +574,15 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         gbc.weightx = 0;
         panel.add(new JLabel("Header key"), gbc);
         gbc.gridx = 1;
-        //m_responseHeaderKey = GUIFactory.createTextField("", 22);
         gbc.weightx = 1;
         panel.add(m_responseHeaderKey, gbc);
         gbc.gridy++;
-
-        //m_responseColumnName = GUIFactory.createTextField("", 22);
-        m_responseColumnName.getDocument().addDocumentListener((DocumentEditListener)(e) -> {
-            /*TODO completion*/});
-        ((JTextComponent)m_responseHeaderKey.getEditor().getEditorComponent()).getDocument()
-            .addDocumentListener((DocumentEditListener)(e) -> {
-                /*TODO completion*/});
+        //
+        //        m_responseColumnName.getDocument().addDocumentListener((DocumentEditListener)(e) -> {
+        //            /*TODO completion*/});
+        //        ((JTextComponent)m_responseHeaderKey.getEditor().getEditorComponent()).getDocument()
+        //            .addDocumentListener((DocumentEditListener)e -> {
+        //                /*TODO completion*/});
 
         gbc.gridx = 0;
         gbc.weightx = 0;
@@ -570,11 +597,10 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         gbc.gridx = 1;
         panel.add(m_responseValueType, gbc);
         gbc.gridy++;
-
     }
 
     /**
-     * @return
+     * @return The authentication tab.
      */
     protected JPanel createAuthenticationTab() {
         final JPanel ret = new JPanel();
@@ -606,39 +632,12 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
             m_authenticationTabTitles.add(radioButton);
             userConfiguration.addControls(tabPanel);
         }
-
-        //        final JTabbedPane tabs = new JTabbedPane(SwingConstants.TOP, JTabbedPane.WRAP_TAB_LAYOUT);
-        //        for (final EnablableUserConfiguration<UserConfiguration> euc : m_settings.getAuthorizationConfigurations()) {
-        //            final JPanel tabPanel = new JPanel(), tabTitlePanel = new JPanel(new FlowLayout(FlowLayout.LEADING));
-        //            final JScrollPane scrollPane = new JScrollPane(tabPanel);
-        //            tabs.addTab("", scrollPane);
-        //            final JCheckBox checkBox = new JCheckBox();
-        //            final UserConfiguration userConfiguration = euc.getUserConfiguration();
-        //            checkBox.setAction(new AbstractAction() {
-        //                private static final long serialVersionUID = -8514095622936885670L;
-        //
-        //                @Override
-        //                public void actionPerformed(final ActionEvent e) {
-        //                    if (checkBox.isSelected()) {
-        //                        userConfiguration.enableControls();
-        //                    } else {
-        //                        userConfiguration.disableControls();
-        //                    }
-        //                }
-        //            });
-        //            checkBox.setName(userConfiguration.id());
-        //            m_authenticationTabTitles.add(checkBox);
-        //            tabTitlePanel.add(checkBox);
-        //            tabTitlePanel.add(new JLabel(userConfiguration.id()));
-        //            tabs.setTabComponentAt(tabs.getTabCount() - 1, tabTitlePanel);
-        //            userConfiguration.addControls(tabPanel);
-        //        }
         ret.add(tabs);
         return ret;
     }
 
     /**
-     * @return
+     * @return The request headers tab.
      */
     protected JPanel createRequestHeadersTab() {
         m_requestHeaderValueType.setEditable(false);
@@ -656,21 +655,6 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
             new DefaultCellEditor(m_requestHeaderValue)));
         m_requestHeaders.getColumnModel().addColumn(new TableColumn(RequestTableModel.Columns.kind.ordinal(), 40, null,
             new DefaultCellEditor(m_requestHeaderValueType)));
-        //        final String cancelEditing = "cancelEditing";
-        //        //Workaround for http://bugs.java.com/bugdatabase/view_bug.do?bug_id=6788481
-        //        m_requestHeaderValue.getInputMap().put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), cancelEditing);
-        //        m_requestHeaderValue.getActionMap().put(cancelEditing, new AbstractAction() {
-        //            @Override
-        //            public void actionPerformed(final ActionEvent e) {
-        //                m_requestHeaders.getColumnModel().getColumn(Columns.value.ordinal()).getCellEditor().cancelCellEditing();
-        //            }
-        //        });
-        //        m_requestHeaderKey.getInputMap().put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), cancelEditing);
-        //        m_requestHeaderKey.getActionMap().put(cancelEditing, new AbstractAction() {
-        //            @Override
-        //            public void actionPerformed(final ActionEvent e) {
-        //                m_requestHeaders.getColumnModel().getColumn(Columns.headerKey.ordinal()).getCellEditor().cancelCellEditing();
-        //            }});
         final ActionListener updateRequestValueAlternatives = al -> {
             if (m_requestHeaders.getSelectedRowCount() == 0) {
                 enableRequestHeaderChangeControls(false);
@@ -681,33 +665,37 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
             m_requestHeaderValue.removeAllItems();
             switch ((ReferenceType)m_requestHeaderValueType.getSelectedItem()) {
                 case FlowVariable:
-                    for (String flowVar : m_flowVariables) {
+                    for (final String flowVar : m_flowVariables) {
                         m_requestHeaderValue.addItem(flowVar);
                     }
                     break;
                 case Column:
-                    for (String column : m_columns) {
+                    for (final String column : m_columns) {
                         m_requestHeaderValue.addItem(column);
                     }
                     break;
                 case Constant:
                     if (m_requestHeaders.getSelectedRowCount() > 0) {
-                        String key = (String)m_requestHeadersModel.getValueAt(m_requestHeaders.getSelectedRow(), 0);
+                        final String key =
+                            (String)m_requestHeadersModel.getValueAt(m_requestHeaders.getSelectedRow(), 0);
                         m_requestTemplates.stream()
                             .filter(entry -> Objects.equals(m_requestHeaderTemplate.getSelectedItem(), entry.getKey()))
                             .findFirst()
                             .ifPresent(entry -> entry.getValue().stream()
                                 .filter(listEntry -> Objects.equals(key, listEntry.getKey())).findFirst()
                                 .map(listEntry -> listEntry.getValue())
-                                .ifPresent(values -> values.forEach(i -> m_requestHeaderValue.addItem(i))));
+                                .ifPresent(values -> values.forEach(m_requestHeaderValue::addItem)));
                     }
                     break;
                 case CredentialName://Intentional fall through
                 case CredentialPassword:
-                    for (String credential : m_credentials) {
+                    for (final String credential : m_credentials) {
                         m_requestHeaderValue.addItem(credential);
                     }
                     break;
+                default:
+                    throw new IllegalStateException(
+                        "Unknown reference type: " + m_requestHeaderValueType.getSelectedItem());
             }
             m_requestHeadersModel.setValueAt(origValue, m_requestHeaders.getSelectedRow(), 1);
             m_requestHeaderValue.setSelectedItem(origValue);
@@ -721,8 +709,6 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
             public void actionPerformed(final ActionEvent e) {
                 if (deleteRequestRow.getRow() >= 0) {
                     m_requestHeadersModel.removeRow(deleteRequestRow.getRow());
-                    //                    deleteRequestRow.repaint();
-                    //                    deleteRequestRow.setRow(-1);
                 }
             }
         });
@@ -742,21 +728,6 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
             if (hasValidSelection) {
                 updateRequestValueAlternatives.actionPerformed(null);
             }
-            //                        if (hasValidSelection) {
-            //                            if (ReferenceType.Constant.equals(m_requestHeaderValueType.getSelectedItem())) {
-            //                                Object origValue = m_requestHeadersModel.getValueAt(m_requestHeaders.getSelectedRow(), 1);
-            //                                m_requestHeaderValue.removeAllItems();
-            //                                String key = (String)m_requestHeadersModel.getValueAt(m_requestHeaders.getSelectedRow(), 0);
-            //                                Object template = m_requestHeaderTemplate.getSelectedItem();
-            //                                m_requestTemplates.stream().filter(entry -> Objects.equals(template, entry.getKey())).findFirst()
-            //                                    .ifPresent(entry -> entry.getValue().stream()
-            //                                        .filter(listEntry -> Objects.equals(key, listEntry.getKey())).findFirst()
-            //                                        .map(listEntry -> listEntry.getValue())
-            //                                        .ifPresent(values -> values.forEach(i -> m_requestHeaderValue.addItem(i))));
-            //                                m_requestHeaderValue.setSelectedItem(origValue);
-            //                                m_requestHeadersModel.setValueAt(origValue, m_requestHeaders.getSelectedRow(), 1);
-            //                            }
-            //                        }
         });
         m_requestHeaders.addMouseListener(new MouseAdapter() {
             @Override
@@ -804,7 +775,7 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         });
 
         final JPanel ret = new JPanel(new GridBagLayout());
-        GridBagConstraints gbc = new GridBagConstraints();
+        final GridBagConstraints gbc = new GridBagConstraints();
         gbc.anchor = GridBagConstraints.FIRST_LINE_START;
         gbc.insets = new Insets(2, 4, 2, 4);
         gbc.gridx = 0;
@@ -842,15 +813,18 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         gbc.gridx++;
         gbc.weightx = .5;
         ret.add(new JPanel(), gbc);
-        m_requestHeaders.getColumnModel().getColumn(0).setHeaderValue("Key");
-        m_requestHeaders.getColumnModel().getColumn(1).setHeaderValue("Value");
-        m_requestHeaders.getColumnModel().getColumn(2).setHeaderValue("Value kind");
-        //        m_requestHeaders.getColumnModel().getColumn(3).setHeaderValue("Key kind");
+        m_requestHeaders.getColumnModel().getColumn(RequestTableModel.Columns.headerKey.ordinal())
+            .setHeaderValue("Key");
+        m_requestHeaders.getColumnModel().getColumn(RequestTableModel.Columns.value.ordinal()).setHeaderValue("Value");
+        m_requestHeaders.getColumnModel().getColumn(RequestTableModel.Columns.kind.ordinal())
+            .setHeaderValue("Value kind");
         return ret;
     }
 
     /**
-     * @param enable
+     * Enable or disable the request header controls.
+     *
+     * @param enable New value of enabledness.
      */
     protected void enableRequestHeaderChangeControls(final boolean enable) {
         m_requestDeleteRow.setEnabled(enable);
@@ -859,9 +833,9 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
 
     @SuppressWarnings("serial")
     private void deleteAndInsertRowRequestHeaderActions() {
-        ActionMap actionMap = m_requestHeaders.getActionMap();
+        final ActionMap actionMap = m_requestHeaders.getActionMap();
         final String delete = "deleteRow", insert = "insertRow";
-        InputMap inputMap = m_requestHeaders.getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT);
+        final InputMap inputMap = m_requestHeaders.getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT);
         inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, 0), delete);
         inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_INSERT, 0), insert);
         inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "escape");
@@ -887,9 +861,9 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
             public void actionPerformed(final ActionEvent e) {
                 if (m_requestHeaders.getSelectionModel().getLeadSelectionIndex() >= 0) {
                     //We have to go in reverse order, because the ascending order they would point to wrong or non-existing rows
-                    final IntStream selectedRows = Arrays.stream(m_requestHeaders.getSelectedRows()).sorted()
-                        .mapToObj(Integer::valueOf).sorted(Collections.reverseOrder()).mapToInt(i -> i.intValue());
-                    selectedRows.forEach(i -> m_requestHeadersModel.removeRow(i));
+                    final IntStream selectedRows =
+                        Arrays.stream(m_requestHeaders.getSelectedRows()).map(i -> -i).sorted().map(i -> -i);
+                    selectedRows.forEach(m_requestHeadersModel::removeRow);
                 }
                 final boolean hasValidSelection = !m_requestHeaders.getSelectionModel().isSelectionEmpty();
                 m_requestEditRow.setEnabled(hasValidSelection);
@@ -899,8 +873,9 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
     }
 
     /**
-     * @return
+     * @return The respone headers tab.
      */
+    @SuppressWarnings("serial")
     protected JPanel createResponseHeadersTab() {
         m_responseHeaders.setAutoCreateColumnsFromModel(false);
         while (m_responseHeaders.getColumnModel().getColumns().hasMoreElements()) {
@@ -913,8 +888,6 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         keyCol.setHeaderValue("Key");
         m_responseHeaders.getColumnModel().addColumn(keyCol);
         m_responseHeaderValueCellRenderer = new DefaultTableCellRenderer() {
-            private static final long serialVersionUID = 8685506970523457593L;
-
             /**
              * {@inheritDoc}
              */
@@ -924,13 +897,13 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
                 final Component orig =
                     super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
                 if (value instanceof Pair<?, ?>) {
-                    Pair<?, ?> rawPair = (Pair<?, ?>)value;
-                    Object firstObject = rawPair.getFirst(), secondObject = rawPair.getSecond();
+                    final Pair<?, ?> rawPair = (Pair<?, ?>)value;
+                    final Object firstObject = rawPair.getFirst(), secondObject = rawPair.getSecond();
                     if (firstObject instanceof String) {
-                        String colName = (String)firstObject;
+                        final String colName = (String)firstObject;
                         setText(colName);
                         if (secondObject instanceof DataType) {
-                            DataType type = (DataType)secondObject;
+                            final DataType type = (DataType)secondObject;
                             setIcon(type.getIcon());
                         }
                     }
@@ -939,8 +912,6 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
             }
         };
         m_responseValueCellEditor = new DefaultCellEditor(m_responseColumnName) {
-            private static final long serialVersionUID = 6989656745155391971L;
-
             /**
              * {@inheritDoc}
              */
@@ -950,9 +921,9 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
                 if (orig instanceof Pair<?, ?>) {
                     final Pair<?, ?> pairRaw = (Pair<?, ?>)orig;
                     if (pairRaw.getFirst() instanceof String) {
-                        final String first = (String)pairRaw.getFirst();
-                        return first;
+                        return pairRaw.getFirst();
                     }
+                    assert false : pairRaw.getFirst();
                 }
                 return orig;
             }
@@ -972,24 +943,20 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         };
         m_responseHeaders.getColumnModel()
             .addColumn(new TableColumn(1, 67, m_responseHeaderValueCellRenderer, m_responseValueCellEditor));
-        m_responseHeaders.getSelectionModel().addListSelectionListener(e -> {
-            updateResponseHeaderControls();
-        });
+        m_responseHeaders.getSelectionModel().addListSelectionListener(e -> updateResponseHeaderControls());
         m_responseAddRow.addActionListener(e -> m_responseHeadersModel.newRow());
         m_responseDeleteRow
             .addActionListener(e -> m_responseHeadersModel.removeRow(m_responseHeaders.getSelectedRow()));
         m_responseEditRow.addActionListener(e -> editResponseHeader(m_responseHeaders.getSelectedRow()));
 
         final JPanel ret = new JPanel(new GridBagLayout());
-        GridBagConstraints gbc = new GridBagConstraints();
+        final GridBagConstraints gbc = new GridBagConstraints();
         gbc.gridx = 0;
         gbc.gridy = 0;
         gbc.gridwidth = 5;
         gbc.fill = GridBagConstraints.HORIZONTAL;
         ret.add(m_extractAllHeaders, gbc);
-        m_extractAllHeaders.addActionListener(e -> {
-            updateResponseHeaderControls();
-        });
+        m_extractAllHeaders.addActionListener(e -> updateResponseHeaderControls());
         gbc.fill = GridBagConstraints.BOTH;
         gbc.weighty = 1;
         gbc.weightx = 1;
@@ -1021,14 +988,8 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
             }
         });
 
-        ((JTextComponent)m_responseHeaderKey.getEditor().getEditorComponent()).getDocument()
-            .addDocumentListener((DocumentEditListener)e -> {
-                //            updateResponseValueTypes();
-            });
         ((JTextComponent)m_responseHeaderKey.getEditor().getEditorComponent())
-            .addFocusListener((FocusLostListener)e -> {
-                updateResponseValueTypes();
-            });
+            .addFocusListener((FocusLostListener)e -> updateResponseValueTypes());
         return ret;
     }
 
@@ -1036,7 +997,7 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
      *
      */
     private void updateResponseValueTypes() {
-        if ("Status".equals(m_responseHeaderKey.getSelectedItem())) {
+        if (RestNodeModel.STATUS.equals(m_responseHeaderKey.getSelectedItem())) {
             if (m_responseValueType.getItemCount() < 2) {
                 m_responseValueType.addItem(IntCell.TYPE);
             }
@@ -1048,7 +1009,7 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
     }
 
     /**
-     *
+     * Udates the enabledness of response header controls.
      */
     private void updateResponseHeaderControls() {
         if (m_extractAllHeaders.isSelected()) {
@@ -1079,8 +1040,7 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
      */
     @Override
     protected void saveSettingsTo(final NodeSettingsWO settings) throws InvalidSettingsException {
-        //TODO update settings based on the UI.
-        for (JRadioButton radioButton : m_authenticationTabTitles) {
+        for (final JRadioButton radioButton : m_authenticationTabTitles) {
             for (final EnablableUserConfiguration<UserConfiguration> euc : m_settings
                 .getAuthorizationConfigurations()) {
                 if (radioButton.getName().equals(euc.getName())) {
@@ -1138,17 +1098,15 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         m_flowVariables.addAll(getAvailableFlowVariables().keySet());
         m_credentials.clear();
         m_credentials.addAll(getCredentialsNames());
-        // TODO Update UI based on settings
         m_constantUriOption.setSelected(m_settings.isUseConstantURI());
         m_constantUri.updateHistory();
         m_constantUri.setSelectedString(m_settings.getConstantURI());
-        //m_uriColumn.setSelectedColumn(m_settings.getUriColumn());
         if (specs[0] != null) {
             m_uriColumnOption.setEnabled(true);
             m_uriColumn.setEnabled(m_uriColumnOption.isSelected());
             try {
                 m_uriColumn.update(specs[0], m_settings.getUriColumn(), false, true);
-            } catch (NotConfigurableException e) {
+            } catch (final NotConfigurableException e) {
                 m_uriColumn.setEnabled(false);
                 m_uriColumnOption.setEnabled(false);
             }
@@ -1176,7 +1134,6 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
             m_responseHeadersModel.addRow(m_settings.getExtractFields().get(i));
         }
         m_bodyColumnName.setSelectedString(m_settings.getResponseBodyColumn());
-        //        m_settings.setResponseBodyColumn(m_bodyColumnName.getSelectedString());
         for (final EnablableUserConfiguration<UserConfiguration> euc : m_settings.getAuthorizationConfigurations()) {
             for (final JRadioButton radioButton : m_authenticationTabTitles) {
                 euc.getUserConfiguration().updateControls();
@@ -1189,7 +1146,11 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         updateResponseHeaderControls();
     }
 
-    protected interface FocusLostListener extends FocusListener {
+    /**
+     * {@link FocusListener} with no focus gained action.
+     */
+    @FunctionalInterface
+    interface FocusLostListener extends FocusListener {
         /**
          * {@inheritDoc}
          */
@@ -1200,32 +1161,6 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
     }
 
     /**
-     *
-     */
-    public RestNodeDialog() {
-        super();
-        m_requestTemplates.add(new SimpleImmutableEntry<>("", new ArrayList<>()));
-        final IConfigurationElement[] elements =
-            Platform.getExtensionRegistry().getConfigurationElementsFor(EXTENSION_ID_FOR_REQUEST_HEADER_TEMPLATES);
-        for (Entry<String, List<IConfigurationElement>> element : Stream.of(elements)
-            .collect(Collectors.groupingBy(element -> element.getDeclaringExtension().getLabel())).entrySet()) {
-            final List<IConfigurationElement> entries = element.getValue();
-            final List<Entry<String, ? extends List<String>>> entryList = new ArrayList<>();
-            for (final IConfigurationElement entry : entries) {
-                final IConfigurationElement[] values = entry.getChildren();
-                entryList.add(new SimpleImmutableEntry<>(entry.getAttribute("key"),
-                    Stream.of(values).filter(v -> v != null && v.getValue() != null).map(v -> v.getValue().trim())
-                        .collect(Collectors.toList())));
-            }
-            m_requestTemplates.add(new SimpleImmutableEntry<>(element.getKey(), entryList));
-        }
-        addTab("Connection Settings", createConnectionSettingsTab());
-        addTab("Authentication", createAuthenticationTab());
-        addTab("Request Headers", createRequestHeadersTab());
-        addTab("Response Headers", createResponseHeadersTab());
-    }
-
-    /**
      * {@inheritDoc}
      */
     @Override
@@ -1233,5 +1168,4 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         final Component focusOwner = KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner();
         return !(focusOwner instanceof JComboBox<?> || focusOwner instanceof JTextComponent);
     }
-
 }

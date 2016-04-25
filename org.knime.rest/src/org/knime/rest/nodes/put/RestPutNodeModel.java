@@ -55,12 +55,13 @@ import javax.ws.rs.client.Invocation.Builder;
 import org.knime.rest.nodes.common.RestWithBodyNodeModel;
 
 /**
+ * Node model for the node of PUT http method.
  *
  * @author Gabor Bakos
  */
 class RestPutNodeModel extends RestWithBodyNodeModel<RestPutSettings> {
     /**
-     *
+     * Constructor
      */
     public RestPutNodeModel() {
         super();
@@ -75,9 +76,7 @@ class RestPutNodeModel extends RestWithBodyNodeModel<RestPutSettings> {
     }
 
     /**
-     * @param request
-     * @param entity
-     * @return
+     * {@inheritDoc}
      */
     @Override
     protected Invocation invocationWithEntity(final Builder request, final Entity<?> entity) {

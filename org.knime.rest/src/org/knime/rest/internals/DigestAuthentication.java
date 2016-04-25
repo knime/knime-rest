@@ -50,7 +50,6 @@ package org.knime.rest.internals;
 
 import java.util.Map;
 
-import javax.swing.JPanel;
 import javax.ws.rs.client.Invocation.Builder;
 import javax.xml.ws.BindingProvider;
 
@@ -61,12 +60,13 @@ import org.knime.core.node.workflow.CredentialsProvider;
 import org.knime.core.node.workflow.FlowVariable;
 
 /**
+ * Digest authentication.
  *
  * @author Gabor Bakos
  */
 public class DigestAuthentication extends UsernamePasswordAuthentication {
     /**
-     *
+     * Constructs with the empty defaults. (This constructor is called for the automatic instantiation.)
      */
     public DigestAuthentication() {
         super("Digest auth", "", "", "");
@@ -82,13 +82,5 @@ public class DigestAuthentication extends UsernamePasswordAuthentication {
         request.property(BindingProvider.USERNAME_PROPERTY, getUsername());
         request.property(BindingProvider.PASSWORD_PROPERTY, getPassword());
         return request;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public void addControls(final JPanel panel) {
-        super.addControls(panel);
     }
 }

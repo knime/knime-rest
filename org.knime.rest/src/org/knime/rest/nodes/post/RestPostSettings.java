@@ -57,7 +57,7 @@ import org.knime.rest.nodes.common.RestWithBodySettings;
  */
 final class RestPostSettings extends RestWithBodySettings {
     /**
-     *
+     * Constructor
      */
     RestPostSettings() {
         super();

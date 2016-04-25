@@ -54,31 +54,37 @@ import java.util.List;
 import java.util.Objects;
 
 import javax.swing.table.AbstractTableModel;
+import javax.swing.table.TableModel;
 
 import org.knime.rest.nodes.common.RestSettings.ReferenceType;
 import org.knime.rest.nodes.common.RestSettings.RequestHeaderKeyItem;
 
 /**
+ * Table model for request headers table.
  *
  * @author Gabor Bakos
  */
+@SuppressWarnings("serial")
 class RequestTableModel extends AbstractTableModel implements Iterable<RequestHeaderKeyItem> {
-    static enum Columns {
-            headerKey, value, kind/*, parameterKind*/, delete;
+    /** Column constants. */
+    enum Columns {
+            /** Header keys in the request. */
+            headerKey,
+            /** Value reference for the request header value. */
+            value,
+            /** Value {@link ReferenceType} for the request header value. */
+            kind,
+            /** Delete row buttons. */
+            delete;
     }
 
-    private final List<RequestHeaderKeyItem> m_content = new ArrayList<>();
+    private final transient List<RequestHeaderKeyItem> m_content = new ArrayList<>();
 
     /**
-     *
+     * Constructs the model.
      */
-    private static final long serialVersionUID = 4397800184937700474L;
-
-    /**
-     *
-     */
-    public RequestTableModel() {
-        // TODO Auto-generated constructor stub
+    RequestTableModel() {
+        super();
     }
 
     /**
@@ -94,7 +100,7 @@ class RequestTableModel extends AbstractTableModel implements Iterable<RequestHe
      */
     @Override
     public int getColumnCount() {
-        return 3;//header key, value, value kind (, key kind for non-get)
+        return Columns.values().length - 1/*delete is not important, not a real column.*/;
     }
 
     /**
@@ -104,18 +110,15 @@ class RequestTableModel extends AbstractTableModel implements Iterable<RequestHe
      */
     @Override
     public Object getValueAt(final int rowIndex, final int columnIndex) {
-        RequestHeaderKeyItem setting = m_content.get(rowIndex);
-        Columns col = Columns.values()[columnIndex];
+        final RequestHeaderKeyItem setting = m_content.get(rowIndex);
+        final Columns col = Columns.values()[columnIndex];
         switch (col) {
-            case headerKey://output+
-                return //Pair.create(setting.getKey(), setting.getType());
-                setting.getKey();
+            case headerKey:
+                return setting.getKey();
             case value:
                 return setting.getValueReference();
             case kind:
                 return setting.getKind();
-            /*case parameterKind:
-                return setting.getParameterKind();*/
             case delete:
                 return null;
             default:
@@ -128,41 +131,28 @@ class RequestTableModel extends AbstractTableModel implements Iterable<RequestHe
      */
     @Override
     public void setValueAt(final Object aValue, final int rowIndex, final int columnIndex) {
-        Columns col = Columns.values()[columnIndex];
+        final Columns col = Columns.values()[columnIndex];
         if (rowIndex >= m_content.size()) {
             return;
         }
-        RequestHeaderKeyItem setting = m_content.get(rowIndex);
+        final RequestHeaderKeyItem setting = m_content.get(rowIndex);
         switch (col) {
             case headerKey: {
-                /*if (aValue instanceof Pair<?, ?>) {
-                    Pair<?, ?> pair = (Pair<?, ?>)aValue;
-                    Object first = pair.getFirst();
-                    Object second = pair.getSecond();
-                    setValueAt(first, rowIndex, columnIndex);
-                    setValueAt(second, rowIndex, columnIndex);
-                } else*/ if (aValue instanceof String) {
-                    String headerKey = (String)aValue;
-                    String key = setting.getKey();
+                if (aValue instanceof String) {
+                    final String headerKey = (String)aValue;
+                    final String key = setting.getKey();
                     m_content.set(rowIndex,
                         new RequestHeaderKeyItem(headerKey, setting.getValueReference(), setting.getKind()));
                     if (!Objects.equals(key, headerKey)) {
                         fireTableCellUpdated(rowIndex, columnIndex);
                     }
-                } /*else if (aValue instanceof OutputType) {
-                    OutputType outputType = (OutputType)aValue;
-                    OutputType returnType = setting.getReturnType();
-                    setting.setReturnType(outputType);
-                    if (!Objects.equals(returnType, outputType)) {
-                        fireTableCellUpdated(rowIndex, columnIndex);
-                    }
-                  }*/
+                }
                 break;
             }
             case value: {
                 if (aValue instanceof String) {
-                    String newReference = (String)aValue;
-                    String reference = setting.getValueReference();
+                    final String newReference = (String)aValue;
+                    final String reference = setting.getValueReference();
                     m_content.set(rowIndex,
                         new RequestHeaderKeyItem(setting.getKey(), newReference, setting.getKind()));
                     if (!Objects.equals(newReference, reference)) {
@@ -173,8 +163,8 @@ class RequestTableModel extends AbstractTableModel implements Iterable<RequestHe
             }
             case kind: {
                 if (aValue instanceof ReferenceType) {
-                    ReferenceType newKind = (ReferenceType)aValue;
-                    ReferenceType kind = setting.getKind();
+                    final ReferenceType newKind = (ReferenceType)aValue;
+                    final ReferenceType kind = setting.getKind();
                     m_content.set(rowIndex,
                         new RequestHeaderKeyItem(setting.getKey(), setting.getValueReference(), newKind));
                     if (newKind != kind) {
@@ -183,17 +173,6 @@ class RequestTableModel extends AbstractTableModel implements Iterable<RequestHe
                 }
                 break;
             }
-            //            case parameterKind: {
-            //                if (aValue instanceof ParameterKind) {
-            //                    ParameterKind paths = (ParameterKind)aValue;
-            //                    ParameterKind returnPaths = setting.getParameterKind();
-            //                    m_content.set(rowIndex, setting);
-            //                    if (paths != returnPaths) {
-            //                        fireTableCellUpdated(rowIndex, columnIndex);
-            //                    }
-            //                }
-            //                break;
-            //            }
             case delete: {
                 break;
             }
@@ -218,25 +197,33 @@ class RequestTableModel extends AbstractTableModel implements Iterable<RequestHe
         return true;
     }
 
+    /**
+     * Inserts a new item to the end.
+     * 
+     * @param setting The new item.
+     */
     void addRow(final RequestHeaderKeyItem setting) {
         m_content.add(setting);
         fireTableRowsInserted(m_content.size() - 1, m_content.size() - 1);
     }
 
+    /** Inserts a new constant item. */
     RequestHeaderKeyItem newRow() {
         final RequestHeaderKeyItem ret = new RequestHeaderKeyItem("", "", ReferenceType.Constant);
         addRow(ret);
         return ret;
     }
 
-    void insertRow(final int rowIndex, final RequestHeaderKeyItem setting) {
+    /** Inserts an item to the specified position. */
+    void insertRow(final int rowIndex, final RequestHeaderKeyItem setting) throws IndexOutOfBoundsException {
         if (rowIndex >= 0 && rowIndex <= m_content.size()) {
             m_content.add(rowIndex, setting);
             fireTableRowsInserted(rowIndex, rowIndex);
         }
     }
 
-    void removeRow(final int rowIndex) {
+    /** Removes the selected row. */
+    void removeRow(final int rowIndex) throws IndexOutOfBoundsException {
         if (rowIndex >= 0) {
             m_content.remove(rowIndex);
             fireTableRowsDeleted(rowIndex, rowIndex);
@@ -244,7 +231,7 @@ class RequestTableModel extends AbstractTableModel implements Iterable<RequestHe
     }
 
     /**
-     *
+     * Clears the {@link TableModel}.
      */
     void clear() {
         int origSize = m_content.size();

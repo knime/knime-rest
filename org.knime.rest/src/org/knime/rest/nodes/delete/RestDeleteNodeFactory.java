@@ -53,24 +53,27 @@ import org.knime.core.node.NodeFactory;
 import org.knime.core.node.NodeView;
 
 /**
+ * Node factory for the node of DELETE http method.
  *
  * @author Gabor Bakos
  */
 public class RestDeleteNodeFactory extends NodeFactory<RestDeleteNodeModel> {
 
     /**
-     *
+     * Constructor
      */
     public RestDeleteNodeFactory() {
-        // TODO Auto-generated constructor stub
+        super();
     }
 
     /**
-     * @param lazyInitialization
+     * Constructor
+     *
+     * @param lazyInitialization if set to {@code true} the full initialization is postponed until the {@link #init()}
+     *            method is called.
      */
     public RestDeleteNodeFactory(final boolean lazyInitialization) {
         super(lazyInitialization);
-        // TODO Auto-generated constructor stub
     }
 
     /**
@@ -112,5 +115,4 @@ public class RestDeleteNodeFactory extends NodeFactory<RestDeleteNodeModel> {
     protected NodeDialogPane createNodeDialogPane() {
         return new RestDeleteNodeDialog();
     }
-
 }

@@ -54,7 +54,9 @@ import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -112,6 +114,7 @@ import org.knime.core.node.NodeLogger;
 import org.knime.core.node.NodeModel;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
+import org.knime.core.node.port.PortObject;
 import org.knime.core.node.port.PortType;
 import org.knime.core.node.streamable.InputPortRole;
 import org.knime.core.node.streamable.OutputPortRole;
@@ -126,11 +129,17 @@ import org.knime.rest.nodes.common.RestSettings.ResponseHeaderItem;
 import org.knime.rest.util.DelegatingX509TrustManager;
 
 /**
+ * Common {@link NodeModel} for the REST nodes.
  *
  * @author Gabor Bakos
  * @param <S> The actual type of the {@link RestSettings}.
  */
 public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
+
+    /**
+     *
+     */
+    private static final int MAX_RETRANSITS = 2;
 
     private static final NodeLogger LOGGER = NodeLogger.getLogger(RestNodeModel.class);
 
@@ -152,6 +161,9 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
 
     private final List<ResponseBodyParser> m_responseBodyParsers = new ArrayList<>();
 
+    static final String STATUS = "Status";
+
+    /** Fallback for the {@link FromString} creating missing cells. */
     private static final FromString FALLBACK = new FromString() {
 
         @Override
@@ -167,15 +179,36 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
     };
 
     /**
-     * @param nrInDataPorts
-     * @param nrOutDataPorts
+     * Constructor with {@link BufferedDataTable}s in input/output ports.
+     *
+     * @param nrInDataPorts Number of input data ports.
+     * @param nrOutDataPorts Number of output data ports.
      */
-    public RestNodeModel(final int nrInDataPorts, final int nrOutDataPorts) {
+    protected RestNodeModel(final int nrInDataPorts, final int nrOutDataPorts) {
         super(nrInDataPorts, nrOutDataPorts);
+        init();
     }
 
     /**
-     * @return
+     * Constructor with {@link PortObject}s in input/output ports.
+     *
+     * @param inPortTypes The input port types.
+     * @param outPortTypes The output port types.
+     */
+    protected RestNodeModel(final PortType[] inPortTypes, final PortType[] outPortTypes) {
+        super(inPortTypes, outPortTypes);
+        init();
+    }
+
+    /**
+     * Common constructor for descendent classes with the default optional input table and a single output table.
+     */
+    protected RestNodeModel() {
+        this(new PortType[]{BufferedDataTable.TYPE_OPTIONAL}, new PortType[]{BufferedDataTable.TYPE});
+    }
+
+    /**
+     * @return The newly created {@link RestSettings} (derived class {@code <S>}) instance.
      */
     protected abstract S createSettings();
 
@@ -187,17 +220,11 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
     }
 
     /**
-     * @param inPortTypes
-     * @param outPortTypes
+     * Inits JAX-RS to use CXF, only called in constructors.
      */
-    public RestNodeModel(final PortType[] inPortTypes, final PortType[] outPortTypes) {
-        super(inPortTypes, outPortTypes);
+    protected void init() {
         System.setProperty(ClientBuilder.JAXRS_DEFAULT_CLIENT_BUILDER_PROPERTY, ClientBuilderImpl.class.getName());
         System.setProperty(RuntimeDelegate.JAXRS_RUNTIME_DELEGATE_PROPERTY, RuntimeDelegateImpl.class.getName());
-    }
-
-    protected RestNodeModel() {
-        this(new PortType[]{BufferedDataTable.TYPE_OPTIONAL}, new PortType[]{BufferedDataTable.TYPE});
     }
 
     /**
@@ -243,12 +270,15 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
     }
 
     /**
-     * @param row
-     * @param enabledEachRequestAuthentications
-     * @param spec
-     * @param exec
+     * Makes the first call to the servers, this will create the structure of the output table.
+     *
+     * @param row The input row.
+     * @param enabledEachRequestAuthentications The single enabled authentication.
+     * @param spec The {@link DataTableSpec}.
+     * @param exec An {@link ExecutionContext}.
+     * @throws ProcessingException When something went wrong client-side.
      */
-    private void makeFirstCall(final DataRow row,
+    protected void makeFirstCall(final DataRow row,
         final List<EachRequestAuthentication> enabledEachRequestAuthentications, final DataTableSpec spec,
         final ExecutionContext exec) throws ProcessingException {
         m_firstRow = row == null ? null : row.getKey();
@@ -272,13 +302,12 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
             final List<DataCell> cells;
             final List<DataColumnSpec> specs = new ArrayList<>();
             if (m_settings.isExtractAllResponseFields()) {
-                Stream.concat(Stream.of(Pair.create("Status", IntCell.TYPE)),
-                    (response == null ? Collections.<String> emptyList() : response.getStringHeaders().keySet())
-                        .stream().map(header -> Pair.create(header, StringCell.TYPE)))
-                    .forEachOrdered(pair -> {
-                        m_responseHeaderKeys.add(new ResponseHeaderItem(pair.getFirst(), pair.getSecond(),
-                            nameGenerator.newColumn(pair.getFirst(), pair.getSecond()).getName()));
-                    });
+                Stream
+                    .concat(Stream.of(Pair.create(STATUS, IntCell.TYPE)),
+                        (response == null ? Collections.<String> emptyList() : response.getStringHeaders().keySet())
+                            .stream().map(header -> Pair.create(header, StringCell.TYPE)))
+                    .forEachOrdered(pair -> m_responseHeaderKeys.add(new ResponseHeaderItem(pair.getFirst(),
+                        pair.getSecond(), nameGenerator.newColumn(pair.getFirst(), pair.getSecond()).getName())));
             } else {
                 m_responseHeaderKeys
                     .addAll(m_settings
@@ -289,17 +318,15 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
             final Response finalResponse = response;
             checkResponse(response);
             cells = m_responseHeaderKeys.stream().map(rhi -> {
-                specs
-                    .add(/*nameGenerator.newColumn(*/new DataColumnSpecCreator(rhi.getOutputColumnName(), rhi.getType())
-                        .createSpec()/*)*/);
-                DataCellFactory cellFactory = rhi.getType().getCellFactory(null).orElseGet(() -> FALLBACK);
-                //List<Object> values = headers.get(e.getKey());
-                if ("Status".equals(rhi.getHeaderKey()) && rhi.getType().isCompatible(IntValue.class)) {
+                specs.add(nameGenerator.newColumn(rhi.getOutputColumnName(), rhi.getType()));
+                final DataCellFactory cellFactory = rhi.getType().getCellFactory(null).orElseGet(() -> FALLBACK);
+                if (STATUS.equals(rhi.getHeaderKey()) && rhi.getType().isCompatible(IntValue.class)) {
                     return finalResponse == null ? DataType.getMissingCell() : new IntCell(finalResponse.getStatus());
                 }
                 if (cellFactory instanceof FromString) {
-                    FromString fromString = (FromString)cellFactory;
-                    String value = finalResponse == null ? null : finalResponse.getHeaderString(rhi.getHeaderKey());
+                    final FromString fromString = (FromString)cellFactory;
+                    final String value =
+                        finalResponse == null ? null : finalResponse.getHeaderString(rhi.getHeaderKey());
                     if (value == null) {
                         return DataType.getMissingCell();
                     }
@@ -308,8 +335,15 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
                 return DataType.getMissingCell();
             }).collect(Collectors.toList());
             examineResponse(response);
-            for (ResponseHeaderItem bodyCol : m_bodyColumns) {
-                specs.add(nameGenerator.newColumn(bodyCol.getOutputColumnName(), bodyCol.getType()));
+            final Map<ResponseHeaderItem, String> bodyColNames = new HashMap<>();
+            for (final ResponseHeaderItem bodyCol : m_bodyColumns) {
+                final DataColumnSpec newCol = nameGenerator.newColumn(bodyCol.getOutputColumnName(), bodyCol.getType());
+                specs.add(newCol);
+                bodyColNames.put(bodyCol, newCol.getName());
+            }
+            for (int i = 0; i < m_bodyColumns.size(); ++i) {
+                m_bodyColumns.set(i, new ResponseHeaderItem(m_bodyColumns.get(i).getHeaderKey(),
+                    m_bodyColumns.get(i).getType(), bodyColNames.get(m_bodyColumns.get(i))));
             }
             addBodyValues(cells, response, missing);
             m_firstCallValues = cells.toArray(new DataCell[cells.size()]);
@@ -322,20 +356,24 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
     }
 
     /**
-     * @param request
-     * @param row
-     * @param spec
-     * @return
+     * Creates an {@link Invocation} from the {@code request}.
+     *
+     * @param request A {@link Builder}.
+     * @param row A {@link DataRow} (which might contain the body value).
+     * @param spec The input {@link DataTableSpec} (to find the body column in the {@code row}).
+     * @return The created {@link Invocation}.
      */
     protected abstract Invocation invocation(final Builder request, final DataRow row, final DataTableSpec spec);
 
     /**
-     * @param get
+     * Invokes the {@code invocation}.
+     *
+     * @param invocation An {@link Invocation}.
      * @return The response.
-     * @throws ProcessingException
+     * @throws ProcessingException Some problem client-side.
      */
-    protected Response invoke(final Invocation get) throws ProcessingException {
-        final Future<Response> responseFuture = get.submit();
+    protected Response invoke(final Invocation invocation) throws ProcessingException {
+        final Future<Response> responseFuture = invocation.submit();
         try {
             return responseFuture.get(m_settings.getTimeoutInSeconds(), TimeUnit.SECONDS);
         } catch (InterruptedException | ExecutionException | TimeoutException e) {
@@ -344,70 +382,38 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
     }
 
     /**
-     * @param exec
+     * Creates the response body parsers.
+     *
+     * @param exec An {@link ExecutionContext}.
      */
     private void createResponseBodyParsers(final ExecutionContext exec) {
         m_responseBodyParsers.clear();
-        for (MediaType mediaType : new MediaType[]{MediaType.APPLICATION_JSON_TYPE,
+        for (final MediaType mediaType : new MediaType[]{MediaType.APPLICATION_JSON_TYPE,
             MediaType.valueOf("application/vnd.mason+json")}) {
-            m_responseBodyParsers.add(new Default(mediaType, JSONCell.TYPE, exec)/* {
-                                                                                                       @Override
-                                                                                                       public String valueDescriptor() {
-                                                                                                       return "JSON";
-                                                                                                       }
-                                                                                                       }*/);
+            m_responseBodyParsers.add(new Default(mediaType, JSONCell.TYPE, exec));
         }
-        m_responseBodyParsers.add(new Default(MediaType.valueOf("image/png"), PNGImageContent.TYPE, exec)/* {
-                                                                                                         @Override
-                                                                                                         public String valueDescriptor() {
-                                                                                                         return "PNG";
-                                                                                                         }
-                                                                                                         }*/);
-        m_responseBodyParsers.add(new Default(MediaType.APPLICATION_SVG_XML_TYPE, SvgCell.TYPE, exec)/* {
-                                                                                                     @Override
-                                                                                                     public String valueDescriptor() {
-                                                                                                     return "XML/SVG";
-                                                                                                     }
-                                                                                                     }*/);
-        for (MediaType mediaType : new MediaType[]{MediaType.APPLICATION_ATOM_XML_TYPE,
+        m_responseBodyParsers.add(new Default(MediaType.valueOf("image/png"), PNGImageContent.TYPE, exec));
+        m_responseBodyParsers.add(new Default(MediaType.APPLICATION_SVG_XML_TYPE, SvgCell.TYPE, exec));
+        for (final MediaType mediaType : new MediaType[]{MediaType.APPLICATION_ATOM_XML_TYPE,
             MediaType.APPLICATION_XHTML_XML_TYPE, MediaType.APPLICATION_XML_TYPE, MediaType.TEXT_XML_TYPE}) {
-            m_responseBodyParsers.add(new Default(mediaType, XMLCell.TYPE, exec)/* {
-                                                                                @Override
-                                                                                public String valueDescriptor() {
-                                                                                return "XML";
-                                                                                }
-                                                                                }*/);
+            m_responseBodyParsers.add(new Default(mediaType, XMLCell.TYPE, exec));
         }
-        for (MediaType mediaType : new MediaType[]{MediaType.TEXT_HTML_TYPE, MediaType.TEXT_PLAIN_TYPE}) {
-            m_responseBodyParsers.add(new Default(mediaType, StringCell.TYPE, exec)/* {
-                                                                                   @Override
-                                                                                   public String valueDescriptor() {
-                                                                                   return "text";
-                                                                                   }
-                                                                                   }*/);
+        for (final MediaType mediaType : new MediaType[]{MediaType.TEXT_HTML_TYPE, MediaType.TEXT_PLAIN_TYPE}) {
+            m_responseBodyParsers.add(new Default(mediaType, StringCell.TYPE, exec));
         }
-        for (MediaType mediaType : new MediaType[]{MediaType.APPLICATION_OCTET_STREAM_TYPE,
+        for (final MediaType mediaType : new MediaType[]{MediaType.APPLICATION_OCTET_STREAM_TYPE,
             MediaType.APPLICATION_FORM_URLENCODED_TYPE, MediaType.MULTIPART_FORM_DATA_TYPE/*TODO ??*/}) {
-            m_responseBodyParsers.add(new Default(mediaType, BinaryObjectDataCell.TYPE, exec)/* {
-                                                                                             @Override
-                                                                                             public String valueDescriptor() {
-                                                                                             return "file";
-                                                                                             }
-                                                                                             }*/);
+            m_responseBodyParsers.add(new Default(mediaType, BinaryObjectDataCell.TYPE, exec));
         }
         //everything else is a file
-        m_responseBodyParsers.add(new Default(MediaType.WILDCARD_TYPE, BinaryObjectDataCell.TYPE, exec)/* {
-                                                                                                       @Override
-                                                                                                       public String valueDescriptor() {
-                                                                                                       return "file";
-                                                                                                       }
-                                                                                                       }*/);
-
+        m_responseBodyParsers.add(new Default(MediaType.WILDCARD_TYPE, BinaryObjectDataCell.TYPE, exec));
     }
 
     /**
-     * @param exec
-     * @return
+     * Creates the data table only based on the first call.
+     *
+     * @param exec An {@link ExecutionContext}.
+     * @return The array of a single {@link BufferedDataTable}.
      */
     private BufferedDataTable[] createTableFromFirstCallData(final ExecutionContext exec) {
         final DataTableSpec spec = new DataTableSpec(m_newColumnsBasedOnFirstCall);
@@ -448,6 +454,16 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         return new OutputPortRole[]{OutputPortRole.NONDISTRIBUTED};
     }
 
+    /**
+     * Creates the {@link ColumnRearranger}.
+     *
+     * @param enabledEachRequestAuthentications The selected authentication.
+     * @param spec The input {@link DataTableSpec}.
+     * @param exec {@link ExecutionMonitor}.
+     * @param tableSize The size of the table.
+     * @return The {@link ColumnRearranger}.
+     * @throws InvalidSettingsException Invalid internal state.
+     */
     private ColumnRearranger createColumnRearranger(
         final List<EachRequestAuthentication> enabledEachRequestAuthentications, final DataTableSpec spec,
         final ExecutionMonitor exec, final long tableSize) throws InvalidSettingsException {
@@ -477,15 +493,11 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
                         response = null;
                     }
                     try {
-                        //MultivaluedMap<String, Object> headers = response.getHeaders();
-                        //examineResponse(response);
-                        //cells = m_settings.getExtractFields().stream().map(rhi -> {
                         final Response finalResponse = response;
                         checkResponse(response);
                         cells = m_responseHeaderKeys.stream().map(rhi -> {
                             DataCellFactory cellFactory = rhi.getType().getCellFactory(null).orElseGet(() -> FALLBACK);
-                            //List<Object> values = headers.get(e.getKey());
-                            if ("Status".equals(rhi.getHeaderKey()) && rhi.getType().isCompatible(IntValue.class)) {
+                            if (STATUS.equals(rhi.getHeaderKey()) && rhi.getType().isCompatible(IntValue.class)) {
                                 return finalResponse == null ? DataType.getMissingCell()
                                     : new IntCell(finalResponse.getStatus());
                             }
@@ -534,7 +546,10 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
     }
 
     /**
-     * @param response
+     * Checks the response code.
+     *
+     * @param response A {@link Response}.
+     * @throws IllegalStateExcetion When the http status code is {@code 4xx} or {@code 5xx} and we have to check it.
      */
     private void checkResponse(final Response response) throws IllegalStateException {
         if (response != null && m_settings.isFailOnHttpErrors()) {
@@ -546,7 +561,9 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
     }
 
     /**
-     * @param response
+     * Checks the {@code response} object and adds the body columns.
+     *
+     * @param response A {@link Response} object.
      */
     private void examineResponse(final Response response) {
         if (response == null) {
@@ -565,7 +582,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
     }
 
     /**
-     * @return
+     * @return The new column specs.
      */
     private DataColumnSpec[] createNewColumnsSpec() {
         return Stream.concat(m_responseHeaderKeys.stream(), m_bodyColumns.stream())
@@ -619,7 +636,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
      * @return The client to be used for the request.
      */
     protected Client createClient() {
-        ClientBuilder clientBuilder = ClientBuilder.newBuilder();
+        final ClientBuilder clientBuilder = ClientBuilder.newBuilder();
         if (m_settings.isSslTrustAll()) {
             final SSLContext context;
             try {
@@ -637,14 +654,16 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         if (m_settings.isSslIgnoreHostNameErrors()) {
             clientBuilder.hostnameVerifier((hostName, session) -> true);
         }
-        final Client client = clientBuilder.build();
-        return client;
+        return clientBuilder.build();
     }
 
     /**
-     * @param uriColumn
-     * @param enabledEachRequestAuthentications
-     * @param row
+     * Creates the request {@link Builder} based on input parameters.
+     *
+     * @param uriColumn The index of URI column.
+     * @param enabledEachRequestAuthentications The authentications.
+     * @param row The input {@link DataRow}.
+     * @param spec The input table spec.
      * @return
      */
     @SuppressWarnings("null")
@@ -661,7 +680,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
 
         final Builder request = target.request();
         WebClient.getConfig(request).getHttpConduit().getClient().setAutoRedirect(m_settings.isFollowRedirects());
-        WebClient.getConfig(request).getHttpConduit().getClient().setMaxRetransmits(2);
+        WebClient.getConfig(request).getHttpConduit().getClient().setMaxRetransmits(MAX_RETRANSITS);
 
         for (final EachRequestAuthentication era : enabledEachRequestAuthentications) {
             era.updateRequest(request, row, getCredentialsProvider(), getAvailableFlowVariables());
@@ -693,9 +712,11 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
     }
 
     /**
-     * @param cells
-     * @param response
-     * @param missing
+     * Adds the body values.
+     *
+     * @param cells The input {@link DataCell}s.
+     * @param response The {@link Response} object.
+     * @param missing The missing cell with the error message.
      */
     protected void addBodyValues(final List<DataCell> cells, final Response response, final DataCell missing) {
         m_bodyColumns.stream().forEachOrdered(rhi -> {
@@ -726,4 +747,35 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         });
     }
 
+    /**
+     * Computes the header value.
+     *
+     * @param row Input {@link DataRow}.
+     * @param spec Input {@link DataTableSpec}.
+     * @param headerItem {@link RequestHeaderKeyItem} for the specification of how to select the value.
+     * @return The transformed value.
+     */
+    Object computeHeaderValue(final DataRow row, final DataTableSpec spec, final RequestHeaderKeyItem headerItem) {
+        Object value;
+        switch (headerItem.getKind()) {
+            case Constant:
+                value = headerItem.getValueReference();
+                break;
+            case Column:
+                value = row.getCell(spec.findColumnIndex(headerItem.getValueReference())).toString();
+                break;
+            case FlowVariable:
+                value = getAvailableInputFlowVariables().get(headerItem.getKey()).getValueAsString();
+                break;
+            case CredentialName:
+                value = getCredentialsProvider().get(headerItem.getKey()).getLogin();
+                break;
+            case CredentialPassword:
+                value = getCredentialsProvider().get(headerItem.getKey()).getPassword();
+                break;
+            default:
+                throw new UnsupportedOperationException("Unknown: " + headerItem.getKind() + " in: " + headerItem);
+        }
+        return value;
+    }
 }

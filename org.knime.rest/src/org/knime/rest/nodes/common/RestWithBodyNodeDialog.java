@@ -65,8 +65,10 @@ import org.knime.core.node.NotConfigurableException;
 import org.knime.core.node.util.ColumnSelectionPanel;
 
 /**
+ * A REST node dialog for the methods that require a body for the invocations.
  *
  * @author Gabor Bakos
+ * @param <S> The type of the settings.
  */
 public abstract class RestWithBodyNodeDialog<S extends RestWithBodySettings> extends RestNodeDialog<S> {
 
@@ -84,7 +86,7 @@ public abstract class RestWithBodyNodeDialog<S extends RestWithBodySettings> ext
     private final ColumnSelectionPanel m_requestBodyColumn = new ColumnSelectionPanel((String)null);
 
     /**
-     *
+     * Constructs the dialog with the request body tab.
      */
     public RestWithBodyNodeDialog() {
         super();
@@ -99,7 +101,7 @@ public abstract class RestWithBodyNodeDialog<S extends RestWithBodySettings> ext
     }
 
     /**
-     * @return
+     * @return The request body panel.
      */
     private JPanel createRequestBodyPanel() {
         final JPanel ret = new JPanel(new GridBagLayout());
@@ -129,7 +131,8 @@ public abstract class RestWithBodyNodeDialog<S extends RestWithBodySettings> ext
     }
 
     /**
-     * @param enable
+     * @param enable The new enabledness of the body specifications. {@code true} means the constant body is enabled,
+     *            column selection is disabled.
      */
     private void enableConstantRequestBodyColumn(final boolean enable) {
         m_constantRequestBody.setEnabled(enable);
@@ -166,5 +169,4 @@ public abstract class RestWithBodyNodeDialog<S extends RestWithBodySettings> ext
             m_requestBodyColumn.setEnabled(false);
         }
     }
-
 }

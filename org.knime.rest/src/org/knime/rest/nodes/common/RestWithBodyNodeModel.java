@@ -49,6 +49,7 @@
 package org.knime.rest.nodes.common;
 
 import java.io.IOException;
+import java.util.Date;
 
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.Invocation;
@@ -57,83 +58,67 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Variant;
 
 import org.knime.base.data.xml.SvgValue;
+import org.knime.core.data.BooleanValue;
 import org.knime.core.data.DataCell;
 import org.knime.core.data.DataRow;
 import org.knime.core.data.DataTableSpec;
+import org.knime.core.data.DoubleValue;
+import org.knime.core.data.IntValue;
+import org.knime.core.data.LongValue;
 import org.knime.core.data.StringValue;
 import org.knime.core.data.blob.BinaryObjectDataValue;
+import org.knime.core.data.date.DateAndTimeValue;
 import org.knime.core.data.image.png.PNGImageValue;
 import org.knime.core.data.json.JSONValue;
 import org.knime.core.data.vector.bitvector.BitVectorValue;
 import org.knime.core.data.vector.bytevector.ByteVectorValue;
 import org.knime.core.data.xml.XMLValue;
+import org.knime.core.node.BufferedDataTable;
+import org.knime.core.node.port.PortObject;
 import org.knime.core.node.port.PortType;
 import org.knime.rest.nodes.common.RestSettings.ReferenceType;
 import org.knime.rest.nodes.common.RestSettings.RequestHeaderKeyItem;
 
 /**
+ * Base class for the REST nodes which require body content in their call.
  *
  * @author Gabor Bakos
+ * @param <S> Type for the settings.
  */
 public abstract class RestWithBodyNodeModel<S extends RestWithBodySettings> extends RestNodeModel<S> {
 
     /**
-     * @param nrInDataPorts
-     * @param nrOutDataPorts
+     * Constructor with {@link BufferedDataTable}s in input/output ports.
+     *
+     * @param nrInDataPorts Number of input data ports.
+     * @param nrOutDataPorts Number of output data ports.
      */
     public RestWithBodyNodeModel(final int nrInDataPorts, final int nrOutDataPorts) {
         super(nrInDataPorts, nrOutDataPorts);
     }
 
     /**
-     * @param inPortTypes
-     * @param outPortTypes
+     * Constructor with {@link PortObject}s in input/output ports.
+     *
+     * @param inPortTypes The input port types.
+     * @param outPortTypes The output port types.
      */
     public RestWithBodyNodeModel(final PortType[] inPortTypes, final PortType[] outPortTypes) {
         super(inPortTypes, outPortTypes);
     }
 
     /**
-     *
+     * Constructs the node model with optional {@link BufferedDataTable} and a {@link BufferedDataTable} output.
      */
     public RestWithBodyNodeModel() {
         super();
     }
 
     /**
-     * @param row
-     * @param spec
-     * @param headerItem
-     * @return
-     */
-    protected Object computeHeaderValue(final DataRow row, final DataTableSpec spec,
-        final RequestHeaderKeyItem headerItem) {
-        Object value;
-        switch (headerItem.getKind()) {
-            case Constant:
-                value = headerItem.getValueReference();
-                break;
-            case Column:
-                value = row.getCell(spec.findColumnIndex(headerItem.getValueReference())).toString();
-                break;
-            case FlowVariable:
-                value = getAvailableInputFlowVariables().get(headerItem.getKey()).getValueAsString();
-                break;
-            case CredentialName:
-                value = getCredentialsProvider().get(headerItem.getKey()).getLogin();
-                break;
-            case CredentialPassword:
-                value = getCredentialsProvider().get(headerItem.getKey()).getPassword();
-                break;
-            default:
-                throw new UnsupportedOperationException("Unknown: " + headerItem.getKind() + " in: " + headerItem);
-        }
-        return value;
-    }
-
-    /**
-     * @param cell
-     * @return
+     * Converts a {@link DataCell} to an object consumable by the {@link Entity} constructor.
+     *
+     * @param cell A non-missing {@link DataCell}.
+     * @return The converted object.
      */
     protected Object createObjectFromCell(final DataCell cell) {
         if (cell instanceof JSONValue) {
@@ -154,7 +139,27 @@ public abstract class RestWithBodyNodeModel<S extends RestWithBodySettings> exte
         }
         if (cell instanceof StringValue) {
             StringValue sv = (StringValue)cell;
-            return sv;
+            return sv.getStringValue();
+        }
+        if (cell instanceof BooleanValue) {
+            BooleanValue bv = (BooleanValue)cell;
+            return bv.getBooleanValue();
+        }
+        if (cell instanceof IntValue) {
+            IntValue iv = (IntValue)cell;
+            return iv.getIntValue();
+        }
+        if (cell instanceof LongValue) {
+            LongValue lv = (LongValue)cell;
+            return lv.getLongValue();
+        }
+        if (cell instanceof DoubleValue) {
+            DoubleValue dv = (DoubleValue)cell;
+            return dv.getDoubleValue();
+        }
+        if (cell instanceof DateAndTimeValue) {
+            DateAndTimeValue datv = (DateAndTimeValue)cell;
+            return new Date(datv.getUTCTimeInMillis()).toInstant().toString();
         }
         if (cell instanceof BinaryObjectDataValue) {
             BinaryObjectDataValue bodv = (BinaryObjectDataValue)cell;
@@ -179,17 +184,17 @@ public abstract class RestWithBodyNodeModel<S extends RestWithBodySettings> exte
     }
 
     /**
-     * @param string
-     * @return
+     * Converts a {@link String} to an object consumable by the {@link Entity} constructor (no structural checks).
+     *
+     * @param string A {@link String}.
+     * @return The converted {@code string}.
      */
     protected Object createObjectFromString(final String string) {
         return string;
     }
 
     /**
-     * @param request
-     * @param row
-     * @return
+     * {@inheritDoc}
      */
     @Override
     protected Invocation invocation(final Builder request, final DataRow row, final DataTableSpec spec) {
@@ -205,9 +210,11 @@ public abstract class RestWithBodyNodeModel<S extends RestWithBodySettings> exte
     }
 
     /**
-     * @param request
-     * @param entity
-     * @return
+     * Creates {@link Invocation} with an {@link Entity}.
+     *
+     * @param request A {@link Builder}.
+     * @param entity The {@link Entity} to be used as the invocation body.
+     * @return The create {@link Invocation}.
      */
     protected abstract Invocation invocationWithEntity(final Builder request, Entity<?> entity);
 

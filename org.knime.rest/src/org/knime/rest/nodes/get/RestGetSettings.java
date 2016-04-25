@@ -58,7 +58,7 @@ import org.knime.rest.nodes.common.RestSettings;
 final class RestGetSettings extends RestSettings {
 
     /**
-     *
+     * Constructor
      */
     RestGetSettings() {
         super();

@@ -56,15 +56,14 @@ import org.knime.core.data.DataTableSpec;
 import org.knime.rest.nodes.common.RestNodeModel;
 
 /**
+ * Node model for the node of DELETE http method.
  *
  * @author Gabor Bakos
  */
 class RestDeleteNodeModel extends RestNodeModel<RestDeleteSettings> {
 
-    //    private BinaryObjectCellFactory m_binaryObjectCellFactory;
-
     /**
-     *
+     * Constructor
      */
     public RestDeleteNodeModel() {
         super();

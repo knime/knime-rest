@@ -55,12 +55,13 @@ import javax.ws.rs.client.Invocation.Builder;
 import org.knime.rest.nodes.common.RestWithBodyNodeModel;
 
 /**
+ * Node model for the node of POST http method.
  *
  * @author Gabor Bakos
  */
 class RestPostNodeModel extends RestWithBodyNodeModel<RestPostSettings> {
     /**
-     *
+     * Constructor
      */
     public RestPostNodeModel() {
         super();
@@ -75,9 +76,7 @@ class RestPostNodeModel extends RestWithBodyNodeModel<RestPostSettings> {
     }
 
     /**
-     * @param request
-     * @param entity
-     * @return
+     * {@inheritDoc}
      */
     @Override
     protected Invocation invocationWithEntity(final Builder request, final Entity<?> entity) {
