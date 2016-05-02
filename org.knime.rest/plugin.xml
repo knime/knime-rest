@@ -7,10 +7,10 @@
         <category icon="icons/rest_category.png" level-id="rest" name="REST Web Services" path="/labs/"/>
     </extension>
     <extension point="org.knime.workbench.repository.nodes">
-        <node category-path="/labs/rest" factory-class="org.knime.rest.nodes.get.RestGetNodeFactory" id="org.knime.rest.nodes.get.RestGetNodeFactory"/>
-        <node category-path="/labs/rest" factory-class="org.knime.rest.nodes.post.RestPostNodeFactory" id="org.knime.rest.nodes.post.RestPostNodeFactory"/>
-        <node category-path="/labs/rest" factory-class="org.knime.rest.nodes.delete.RestDeleteNodeFactory" id="org.knime.rest.nodes.delete.RestDeleteNodeFactory"/>
-        <node category-path="/labs/rest" factory-class="org.knime.rest.nodes.put.RestPutNodeFactory" id="org.knime.rest.nodes.put.RestPutNodeFactory"/>
+        <node category-path="/labs/rest" factory-class="org.knime.rest.nodes.get.RestGetNodeFactory" />
+        <node category-path="/labs/rest" factory-class="org.knime.rest.nodes.post.RestPostNodeFactory" />
+        <node category-path="/labs/rest" factory-class="org.knime.rest.nodes.delete.RestDeleteNodeFactory" />
+        <node category-path="/labs/rest" factory-class="org.knime.rest.nodes.put.RestPutNodeFactory" />
     </extension>
     <extension
           id="org.knime.rest.authentication.basic"
