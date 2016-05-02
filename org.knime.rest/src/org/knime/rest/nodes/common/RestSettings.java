@@ -494,7 +494,7 @@ public class RestSettings {
                 if (object instanceof UserConfiguration) {
                     final UserConfiguration uc = (UserConfiguration)object;
                     m_authorizationConfigurations.add(new EnablableUserConfiguration<UserConfiguration>(uc,
-                        configurationElement.getAttribute("name", configurationElement.getAttribute("name"))));
+                        configurationElement.getAttribute("name")));
                 }
             } catch (CoreException e) {
                 LOGGER.warn("Failed to load: " + configurationElement.getName(), e);
