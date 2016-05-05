@@ -342,7 +342,7 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
      */
     protected JPanel createConnectionSettingsTab() {
         final JPanel ret = new JPanel(new GridBagLayout());
-        GridBagConstraints gbc = new GridBagConstraints();
+        final GridBagConstraints gbc = new GridBagConstraints();
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.insets = new Insets(2, 4, 2, 4);
         gbc.gridx = 0;
@@ -418,6 +418,7 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         });
         m_constantUriOption.setSelected(true);
         m_uriColumn.setEnabled(false);
+        m_uriColumn.setRequired(false);
         m_delay.setEnabled(false);
         m_failOnConnectionProblems.setSelected(RestSettings.DEFAULT_FAIL_ON_CONNECTION_PROBLEMS);
         m_failOnHttpErrors.setSelected(RestSettings.DEFAULT_FAIL_ON_HTTP_ERRORS);
@@ -1101,11 +1102,14 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         m_constantUriOption.setSelected(m_settings.isUseConstantURI());
         m_constantUri.updateHistory();
         m_constantUri.setSelectedString(m_settings.getConstantURI());
+        m_constantUri.setEnabled(m_settings.isUseConstantURI());
         if (specs[0] != null) {
             m_uriColumnOption.setEnabled(true);
             m_uriColumn.setEnabled(m_uriColumnOption.isSelected());
             try {
-                m_uriColumn.update(specs[0], m_settings.getUriColumn(), false, false);
+                m_uriColumn.setRequired(false);
+                m_uriColumn.update(specs[0], m_settings.getUriColumn(), false, true);
+                m_uriColumn.setRequired(m_uriColumnOption.isSelected());
             } catch (final NotConfigurableException e) {
                 m_uriColumn.setEnabled(false);
                 m_uriColumnOption.setEnabled(false);

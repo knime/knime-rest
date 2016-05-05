@@ -318,7 +318,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
             final Response finalResponse = response;
             checkResponse(response);
             cells = m_responseHeaderKeys.stream().map(rhi -> {
-                specs.add(nameGenerator.newColumn(rhi.getOutputColumnName(), rhi.getType()));
+                specs.add(new DataColumnSpecCreator(rhi.getOutputColumnName(), rhi.getType()).createSpec());
                 final DataCellFactory cellFactory = rhi.getType().getCellFactory(null).orElseGet(() -> FALLBACK);
                 if (STATUS.equals(rhi.getHeaderKey()) && rhi.getType().isCompatible(IntValue.class)) {
                     return finalResponse == null ? DataType.getMissingCell() : new IntCell(finalResponse.getStatus());
