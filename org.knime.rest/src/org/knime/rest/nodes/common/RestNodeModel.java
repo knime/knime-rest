@@ -682,9 +682,6 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         WebClient.getConfig(request).getHttpConduit().getClient().setAutoRedirect(m_settings.isFollowRedirects());
         WebClient.getConfig(request).getHttpConduit().getClient().setMaxRetransmits(MAX_RETRANSITS);
 
-        for (final EachRequestAuthentication era : enabledEachRequestAuthentications) {
-            era.updateRequest(request, row, getCredentialsProvider(), getAvailableFlowVariables());
-        }
         for (final RequestHeaderKeyItem headerItem : m_settings.getRequestHeaders()) {
             Object value;
             switch (headerItem.getKind()) {
@@ -707,6 +704,9 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
                     throw new UnsupportedOperationException("Unknown: " + headerItem.getKind() + " in: " + headerItem);
             }
             request.header(headerItem.getKey(), value);
+        }
+        for (final EachRequestAuthentication era : enabledEachRequestAuthentications) {
+            era.updateRequest(request, row, getCredentialsProvider(), getAvailableFlowVariables());
         }
         return request;
     }

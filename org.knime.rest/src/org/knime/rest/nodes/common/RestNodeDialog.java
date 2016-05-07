@@ -129,9 +129,11 @@ import org.knime.core.node.util.StringHistoryPanel;
 import org.knime.core.util.Pair;
 import org.knime.rest.generic.EnablableUserConfiguration;
 import org.knime.rest.generic.UserConfiguration;
+import org.knime.rest.nodes.common.RequestTableModel.Columns;
 import org.knime.rest.nodes.common.RestSettings.ReferenceType;
 import org.knime.rest.nodes.common.RestSettings.RequestHeaderKeyItem;
 import org.knime.rest.util.ButtonCell;
+import org.knime.rest.util.FixedCellEditorForComboBoxes;
 
 /**
  *
@@ -649,11 +651,11 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
                 .removeColumn(m_requestHeaders.getColumnModel().getColumns().nextElement());
         }
         final TableColumn keyCol = new TableColumn(RequestTableModel.Columns.headerKey.ordinal(), 67,
-            new DefaultTableCellRenderer(), new DefaultCellEditor(m_requestHeaderKey));
+            new DefaultTableCellRenderer(), new FixedCellEditorForComboBoxes(m_requestHeaderKey));
         keyCol.setHeaderValue("Key");
         m_requestHeaders.getColumnModel().addColumn(keyCol);
         m_requestHeaders.getColumnModel().addColumn(new TableColumn(RequestTableModel.Columns.value.ordinal(), 67, null,
-            new DefaultCellEditor(m_requestHeaderValue)));
+            new FixedCellEditorForComboBoxes(m_requestHeaderValue)));
         m_requestHeaders.getColumnModel().addColumn(new TableColumn(RequestTableModel.Columns.kind.ordinal(), 40, null,
             new DefaultCellEditor(m_requestHeaderValueType)));
         final ActionListener updateRequestValueAlternatives = al -> {
@@ -741,20 +743,16 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         for (final Entry<String, ?> entry : m_requestTemplates) {
             m_requestHeaderTemplate.addItem(entry.getKey());
         }
-
+        m_requestHeaderTemplate.addActionListener(e -> updateRequestHeaderKeys());
         m_requestHeaderTemplateMerge
             .setToolTipText("Merge the template values with the current settings (adds rows not present)");
         m_requestHeaderTemplateMerge.addActionListener(e -> {
-            m_requestHeaderOptions = m_requestTemplates.stream()
-                .filter(entry -> Objects.equals(m_requestHeaderTemplate.getSelectedItem(), entry.getKey()))
-                .map(entry -> entry.getValue()).findFirst().orElse(new ArrayList<>());
             final Set<String> keysPresent = new HashSet<>();
             for (int i = 0; i < m_requestHeadersModel.getRowCount(); ++i) {
                 keysPresent.add((String)m_requestHeadersModel.getValueAt(i, 0));
             }
-            m_requestHeaderKey.removeAllItems();
+            updateRequestHeaderKeys();
             for (final Entry<String, ? extends List<String>> keyValues : m_requestHeaderOptions) {
-                m_requestHeaderKey.addItem(keyValues.getKey());
                 if (!keysPresent.contains(keyValues.getKey())) {
                     m_requestHeadersModel.addRow(new RequestHeaderKeyItem(keyValues.getKey(),
                         keyValues.getValue().stream().findFirst().orElse(""), ReferenceType.Constant));
@@ -763,13 +761,9 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         });
         m_requestHeaderTemplateReset.setToolTipText("Replaces the current settings with the ones from the template");
         m_requestHeaderTemplateReset.addActionListener(e -> {
-            m_requestHeaderOptions = m_requestTemplates.stream()
-                .filter(entry -> Objects.equals(m_requestHeaderTemplate.getSelectedItem(), entry.getKey()))
-                .map(entry -> entry.getValue()).findFirst().orElse(new ArrayList<>());
             m_requestHeadersModel.clear();
-            m_requestHeaderKey.removeAllItems();
+            updateRequestHeaderKeys();
             for (final Entry<String, ? extends List<String>> keyValues : m_requestHeaderOptions) {
-                m_requestHeaderKey.addItem(keyValues.getKey());
                 m_requestHeadersModel.addRow(new RequestHeaderKeyItem(keyValues.getKey(),
                     keyValues.getValue().stream().findFirst().orElse(""), ReferenceType.Constant));
             }
@@ -823,6 +817,21 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
     }
 
     /**
+     *
+     */
+    private void updateRequestHeaderKeys() {
+        m_requestHeaderOptions = m_requestTemplates.stream()
+                .filter(entry -> Objects.equals(m_requestHeaderTemplate.getSelectedItem(), entry.getKey()))
+                .map(entry -> entry.getValue()).findFirst().orElse(new ArrayList<>());
+        m_requestHeaderKey.removeAllItems();
+        if (m_requestHeaderOptions != null) {
+            for (final Entry<String, ? extends List<String>> keyValues : m_requestHeaderOptions) {
+                m_requestHeaderKey.addItem(keyValues.getKey());
+            }
+        }
+    }
+
+    /**
      * Enable or disable the request header controls.
      *
      * @param enable New value of enabledness.
@@ -843,9 +852,9 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         actionMap.put("escape", new AbstractAction() {
             @Override
             public void actionPerformed(final ActionEvent e) {
-                m_requestHeaders.getColumnModel().getColumn(0).getCellEditor().cancelCellEditing();
-                m_requestHeaders.getColumnModel().getColumn(1).getCellEditor().cancelCellEditing();
-                m_requestHeaders.getColumnModel().getColumn(2).getCellEditor().cancelCellEditing();
+                m_requestHeaders.getColumnModel().getColumn(Columns.headerKey.ordinal()).getCellEditor().cancelCellEditing();
+                m_requestHeaders.getColumnModel().getColumn(Columns.value.ordinal()).getCellEditor().cancelCellEditing();
+                m_requestHeaders.getColumnModel().getColumn(Columns.kind.ordinal()).getCellEditor().cancelCellEditing();
             }
         });
         actionMap.put(insert, new AbstractAction("Insert Row") {
@@ -885,7 +894,7 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         }
         m_responseHeaderKeyCellRenderer = new DefaultTableCellRenderer();
         final TableColumn keyCol =
-            new TableColumn(0, 67, m_responseHeaderKeyCellRenderer, new DefaultCellEditor(m_responseHeaderKey));
+            new TableColumn(0, 67, m_responseHeaderKeyCellRenderer, new FixedCellEditorForComboBoxes(m_responseHeaderKey));
         keyCol.setHeaderValue("Key");
         m_responseHeaders.getColumnModel().addColumn(keyCol);
         m_responseHeaderValueCellRenderer = new DefaultTableCellRenderer() {
