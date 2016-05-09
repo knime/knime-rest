@@ -48,7 +48,8 @@
  */
 package org.knime.rest.util;
 
-import java.util.Arrays;
+import java.awt.event.KeyEvent;
+import java.awt.event.MouseEvent;
 import java.util.EventObject;
 
 import javax.swing.DefaultCellEditor;
@@ -56,14 +57,14 @@ import javax.swing.JComboBox;
 
 /**
  * Fixing the {@link DefaultCellEditor} behaviour when the wrapped {@link JComboBox} is editable and editing is not
- * finished, but clicking on a different cell
+ * finished, but clicking on a different cell. It disables single click edit, but allows double-click and editing by F2.
  *
  * @author Gabor Bakos
  */
 @SuppressWarnings("serial")
 public class FixedCellEditorForComboBoxes extends DefaultCellEditor {
     /**
-     * @param comboBox
+     * @param comboBox {@link JComboBox} to wrap.
      */
     public FixedCellEditorForComboBoxes(final JComboBox<String> comboBox) {
         super(comboBox);
@@ -98,17 +99,28 @@ public class FixedCellEditorForComboBoxes extends DefaultCellEditor {
              */
             @Override
             public Object getCellEditorValue() {
-                StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
-                if (comboBox.isEditable() && comboBox.isEnabled()
-                    && Arrays.stream(stackTrace).anyMatch(e -> "editingStopped".equals(e.getMethodName()))) {
-//                    throw new IllegalStateException();
-                    //                    comboBox.setSelectedItem(comboBox.getEditor().getItem());
-                }
-                                return comboBox.getSelectedItem();
-//                return comboBox.isEditable() && comboBox.isEnabled() ? comboBox.getEditor().getItem()
-//                    : comboBox.getSelectedItem();
+                return comboBox.isEditable() && comboBox.isEnabled() ? comboBox.getEditor().getItem()
+                    : comboBox.getSelectedItem();
             }
         };
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean isCellEditable(final EventObject e) {
+        //Based on http://stackoverflow.com/a/29175884/1502148
+        if (super.isCellEditable(e)) {
+            if (e instanceof MouseEvent) {
+                MouseEvent me = (MouseEvent)e;
+                return me.getClickCount() >= 2;
+            }
+            if (e instanceof KeyEvent) {
+                KeyEvent ke = (KeyEvent)e;
+                return ke.getKeyCode() == KeyEvent.VK_F2;
+            }
+        }
+        return false;
+    }
 }
