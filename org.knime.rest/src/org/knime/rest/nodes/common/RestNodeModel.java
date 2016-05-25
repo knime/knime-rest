@@ -120,6 +120,8 @@ import org.knime.core.node.streamable.InputPortRole;
 import org.knime.core.node.streamable.OutputPortRole;
 import org.knime.core.node.util.CheckUtils;
 import org.knime.core.util.Pair;
+import org.knime.core.util.ThreadLocalHTTPAuthenticator;
+import org.knime.core.util.ThreadLocalHTTPAuthenticator.AuthenticationCloseable;
 import org.knime.core.util.UniqueNameGenerator;
 import org.knime.rest.generic.EachRequestAuthentication;
 import org.knime.rest.generic.ResponseBodyParser;
@@ -373,11 +375,13 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
      * @throws ProcessingException Some problem client-side.
      */
     protected Response invoke(final Invocation invocation) throws ProcessingException {
-        final Future<Response> responseFuture = invocation.submit();
-        try {
-            return responseFuture.get(m_settings.getTimeoutInSeconds(), TimeUnit.SECONDS);
-        } catch (InterruptedException | ExecutionException | TimeoutException e) {
-            throw new ProcessingException(e);
+        try (AuthenticationCloseable c = ThreadLocalHTTPAuthenticator.suppressAuthenticationPopups()) {
+            final Future<Response> responseFuture = invocation.submit();
+            try {
+                return responseFuture.get(m_settings.getTimeoutInSeconds(), TimeUnit.SECONDS);
+            } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                throw new ProcessingException(e);
+            }
         }
     }
 
