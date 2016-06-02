@@ -51,7 +51,6 @@ package org.knime.rest.internals;
 import java.util.Map;
 
 import javax.ws.rs.client.Invocation.Builder;
-import javax.xml.ws.BindingProvider;
 
 import org.apache.cxf.jaxrs.client.WebClient;
 import org.apache.cxf.transport.http.auth.DigestAuthSupplier;
@@ -79,8 +78,11 @@ public class DigestAuthentication extends UsernamePasswordAuthentication {
     public Builder updateRequest(final Builder request, final DataRow row, final CredentialsProvider credProvider,
         final Map<String, FlowVariable> flowVariables) {
         WebClient.getConfig(request).getHttpConduit().setAuthSupplier(new DigestAuthSupplier());
-        request.property(BindingProvider.USERNAME_PROPERTY, getUsername());
-        request.property(BindingProvider.PASSWORD_PROPERTY, getPassword());
+//        request.property(BindingProvider.USERNAME_PROPERTY, getUsername());
+//        request.property(BindingProvider.PASSWORD_PROPERTY, getPassword());
+        WebClient.getConfig(request).getHttpConduit().getAuthorization().setUserName(getUsername());
+        WebClient.getConfig(request).getHttpConduit().getAuthorization().setPassword(getPassword());
+        WebClient.getConfig(request).getHttpConduit().getAuthorization().setAuthorizationType("Digest");
         return request;
     }
 }

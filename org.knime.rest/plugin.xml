@@ -124,6 +124,12 @@
              key="Authorization">
        </Entry>
        <Entry
+             key="Content-Type">
+             <value>text/xml</value>
+             <value>application/json; charset=utf-8</value>
+             <value>text/plain; charset=utf-8</value>
+       </Entry>
+       <Entry
              key="Depth">
        </Entry>
        <Entry

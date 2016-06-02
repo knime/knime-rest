@@ -48,7 +48,7 @@
     
     <ports>
         <inPort index="0" name="Table">Data table containing the variable parameters of the requests.</inPort>
-        <outPort index="0" name="GET results">Data table containing additional columns from the responses.</outPort>
+        <outPort index="0" name="DELETE results">Data table containing additional columns from the responses.</outPort>
     </ports>    
     <!-- views>
         <view index="0" name="name of first view">Description of first view...</view>

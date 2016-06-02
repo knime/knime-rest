@@ -141,7 +141,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
     /**
      *
      */
-    private static final int MAX_RETRANSITS = 2;
+    private static final int MAX_RETRANSITS = 4;
 
     private static final NodeLogger LOGGER = NodeLogger.getLogger(RestNodeModel.class);
 
@@ -292,8 +292,9 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
                 invoke(invocation(createRequest(spec == null ? -1 : spec.findColumnIndex(m_settings.getUriColumn()),
                     enabledEachRequestAuthentications, row, spec), row, spec));
             missing = null;
-        } catch (final ProcessingException procEx) {
+        } catch (ProcessingException procEx) {
             LOGGER.warn("First call failed: " + procEx.getMessage(), procEx);
+            procEx = extractCause(procEx);
             if (m_settings.isFailOnConnectionProblems()) {
                 throw new IllegalStateException(procEx);
             }
@@ -358,6 +359,14 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
     }
 
     /**
+     * @param procEx
+     * @return
+     */
+    private ProcessingException extractCause(final ProcessingException procEx) {
+        return procEx.getCause() != null && procEx.getCause()instanceof ExecutionException && procEx.getCause().getCause() != null && procEx.getCause().getCause() instanceof ProcessingException ? (ProcessingException)procEx.getCause().getCause(): procEx;
+    }
+
+    /**
      * Creates an {@link Invocation} from the {@code request}.
      *
      * @param request A {@link Builder}.
@@ -376,7 +385,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
      */
     protected Response invoke(final Invocation invocation) throws ProcessingException {
         try (AuthenticationCloseable c = ThreadLocalHTTPAuthenticator.suppressAuthenticationPopups()) {
-            final Future<Response> responseFuture = invocation.submit();
+            final Future<Response> responseFuture = invocation.submit(Response.class);
             try {
                 return responseFuture.get(m_settings.getTimeoutInSeconds(), TimeUnit.SECONDS);
             } catch (InterruptedException | ExecutionException | TimeoutException e) {
@@ -490,6 +499,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
                         response = invoke(invocation(request, row, spec));
                     } catch (ProcessingException e) {
                         LOGGER.debug("Call failed: " + e.getMessage(), e);
+                        e = extractCause(e);
                         if (m_settings.isFailOnConnectionProblems()) {
                             throw new IllegalStateException(e);
                         }
@@ -658,6 +668,8 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         if (m_settings.isSslIgnoreHostNameErrors()) {
             clientBuilder.hostnameVerifier((hostName, session) -> true);
         }
+        clientBuilder.property(org.apache.cxf.message.Message.CONNECTION_TIMEOUT, m_settings.getTimeoutInSeconds() * 1000L);
+        clientBuilder.property(org.apache.cxf.message.Message.RECEIVE_TIMEOUT, m_settings.getTimeoutInSeconds() * 1000L);
         return clientBuilder.build();
     }
 
