@@ -44,7 +44,7 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   2016. ápr. 23. (Gabor Bakos): created
+ *   2016. ï¿½pr. 23. (Gabor Bakos): created
  */
 package org.knime.rest.nodes.common;
 
@@ -152,16 +152,16 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
 
     private final S m_settings = createSettings();
 
-    private final JRadioButton m_constantUriOption = new JRadioButton("URI: ");
+    private final JRadioButton m_constantUriOption = new JRadioButton("URL: ");
 
-    private final JRadioButton m_uriColumnOption = new JRadioButton("URI column: ");
+    private final JRadioButton m_uriColumnOption = new JRadioButton("URL column: ");
     {
         final ButtonGroup group = new ButtonGroup();
         group.add(m_constantUriOption);
         group.add(m_uriColumnOption);
     }
 
-    private final StringHistoryPanel m_constantUri = new StringHistoryPanel("GET uri");
+    private final StringHistoryPanel m_constantUri = new StringHistoryPanel(getClass().getName());
 
     @SuppressWarnings("unchecked")
     private final ColumnSelectionPanel m_uriColumn = new ColumnSelectionPanel(StringValue.class, URIDataValue.class);
@@ -229,7 +229,7 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
 
     private final JComboBox<String> m_requestHeaderTemplate = new JComboBox<>();
 
-    private final JButton m_requestHeaderTemplateReset = new JButton("Reset");
+    private final JButton m_requestHeaderTemplateReplace = new JButton("Replace");
 
     private final JButton m_requestHeaderTemplateMerge = new JButton("Merge");
 
@@ -652,7 +652,7 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         }
         final TableColumn keyCol = new TableColumn(RequestTableModel.Columns.headerKey.ordinal(), 67,
             new DefaultTableCellRenderer(), new FixedCellEditorForComboBoxes(m_requestHeaderKey));
-        keyCol.setHeaderValue("Key");
+        keyCol.setHeaderValue("Header Key");
         m_requestHeaders.getColumnModel().addColumn(keyCol);
         m_requestHeaders.getColumnModel().addColumn(new TableColumn(RequestTableModel.Columns.value.ordinal(), 67, null,
             new FixedCellEditorForComboBoxes(m_requestHeaderValue)));
@@ -759,8 +759,8 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
                 }
             }
         });
-        m_requestHeaderTemplateReset.setToolTipText("Replaces the current settings with the ones from the template");
-        m_requestHeaderTemplateReset.addActionListener(e -> {
+        m_requestHeaderTemplateReplace.setToolTipText("Replaces the current settings with the ones from the template");
+        m_requestHeaderTemplateReplace.addActionListener(e -> {
             m_requestHeadersModel.clear();
             updateRequestHeaderKeys();
             for (final Entry<String, ? extends List<String>> keyValues : m_requestHeaderOptions) {
@@ -784,7 +784,7 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         gbc.gridx += 3;
         ret.add(m_requestHeaderTemplateMerge, gbc);
         gbc.gridx++;
-        ret.add(m_requestHeaderTemplateReset, gbc);
+        ret.add(m_requestHeaderTemplateReplace, gbc);
         gbc.gridy++;
         gbc.weighty = 1;
         gbc.gridx = 0;
@@ -809,8 +809,8 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         gbc.weightx = .5;
         ret.add(new JPanel(), gbc);
         m_requestHeaders.getColumnModel().getColumn(RequestTableModel.Columns.headerKey.ordinal())
-            .setHeaderValue("Key");
-        m_requestHeaders.getColumnModel().getColumn(RequestTableModel.Columns.value.ordinal()).setHeaderValue("Value");
+            .setHeaderValue("Header Key");
+        m_requestHeaders.getColumnModel().getColumn(RequestTableModel.Columns.value.ordinal()).setHeaderValue("Header value");
         m_requestHeaders.getColumnModel().getColumn(RequestTableModel.Columns.kind.ordinal())
             .setHeaderValue("Value kind");
         return ret;

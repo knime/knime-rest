@@ -7,50 +7,68 @@
     </shortDescription>
     
     <fullDescription>
-        <intro>DELETE the content using the Apache CXF client.</intro>
+        <intro>
+        <p>This node can be used to issue HTTP DELETE requests. DELETE requests are used to delete resources on a server.
+        Usually you don't send any data with the request and you also don't get anything back, except for maybe a
+        status message.</p>
+        
+        <p>The node allows you to either send a request to a fixed URL (which is specified in the dialog) or to a list of
+        URLs provided by an optional input table. Every URL will result in one request which in turn will result in one
+        row in the output table. You can define custom request headers in the dialog.</p>
+        <p>By default the output table will contain a column with the received data, its content type, and the HTTP 
+        status code. The node tries to automatically convert the received data into a KNIME data type based on its
+        content type. In case no automatic conversion is possible, binary cells will be created.<br />
+        You can extract additional response headers into column by defining them in the dialog.</p>
+        <p>The node supports several authentication methods, e.g. BASIC and DIGEST. Other authentication methods may be
+        provided by additional extensions.</p>
+        </intro>
         
         <tab name="Connection Settings">
-            <option name="URI">The column or the actual constant URI</option>
-            <option name="Delay (ms)">Delay between response and the next request in milliseconds</option>
+            <option name="URL">Select a constant URL or a column from the input table that contains the URLs that you
+            want to request.</option>
+            <option name="Delay (ms)">Here you specify a delay between two consecutive requests, e.g. in order to avoid
+            overloading the web service.</option>
             <option name="Concurrency">Number of concurrent requests</option>
-            <option name="Ignore hostname mismatches">Trust the certificate even if it was generated for a different host.</option>
-            <option name="Trust all certificates">Trust all certificates regardless their origin or expiration date</option>
-            <option name="Fail on connection problems (e.g. timeout, certificate errors, …)">Fails on connection problems when checked, otherwise just logs the error and continues execution.</option>
-            <option name="Fail on http errors (e.g. page not found)">Fails on errors reported from the server (status codes with 4xx, 5xx) when checked, otherwise just logs the error and continues execution.</option>
-            <option name="Follow redirects">Follows redirects (on <tt>3xx</tt> status codes) when checked</option>
-            <option name="Timeout (s)">Timeout in seconds</option>
-            <option name="Body">Name of the response body column</option>
+            <option name="Ignore hostname mismatches">If checked, the node trusts the server's SSL certificate even if
+            it was generated for a different host.</option>
+            <option name="Trust all certificates">If checked, the node trusts all certificates regardless of their
+            origin or expiration date.</option>
+            <option name="Fail on connection problems (e.g. timeout, certificate errors, …)">By default connection problems
+            will result in a row with appropriate status code and error message and the node will continue. If this
+            option is checked the node will fail if a request fails.</option>
+            <option name="Fail on http errors (e.g. page not found)">By default failed requests (HTTP status codes <tt>4xx</tt>
+            and <tt>5xx</tt>) will result in a row with appropriate status code and error message and the node will continue. If
+            this option is checked the node will fail if a request fails.</option>
+            <option name="Follow redirects">If checked, the node will redirects (HTTP status code <tt>3xx</tt>) when checked</option>
+            <option name="Timeout (s)">Timeout for a single request in seconds</option>
+            <option name="Body">Name of the response body column in the output table</option>
         </tab>
         <tab name="Authentication">
-            <option name="Type">None/Basic/Digest</option>
-            <option name="Use credentials">Uses the selected credentials instead of Username/Password</option>
-            <option name="Username">User name.</option>
-            <option name="Password">Password</option>
-            <!-- option name="Cookie">The cookie pair for authentication.</option>
-            <option name="Custom header key">Custom header key for authentication (like "API key")</option>
-            <option name="Custom header value">Custom header value (the actual API key)</option>
-            Not sure how to handle the documentation for extension provided options-->
+            <option name="Type">The authentication type, e.g. no authentication, BASIC, or DIGEST</option>
+            <option name="Use credentials">Uses the selected credentials instead of username and password provided in the dialog.</option>
+            <option name="Username">The username used for authentication.</option>
+            <option name="Password">The corresponding password used for authentication.</option>
         </tab>
         <tab name="Request Headers">
-            <option name="Merge">Adds header values from the selected template</option>
-            <option name="Reset">Removes actual headers and adds the values from the template.</option>
-            <option name="Header key">constant key</option>
-            <option name="Header value">the value (or reference to flow variable, column, credential name/password)</option>
-            <option name="Header kind">value Flow variable/Constant/Column or Credential name/password</option>
-            <!-- option name="Header type">in case we need to convert the type to string, the conversion option</option-->
+            <option name="Merge">If you click this button the request headers from the selected template on the left are
+            merged with the already existing header definitions in the table below.</option>
+            <option name="Replace">If you click this button the request headers from the selected template on the left will
+            replace any existing header definitions in the table below.</option>
+            <option name="Header key">The HTTP header key, e.g. <tt>Accept</tt> or <tt>X-Custom-Key</tt>.</option>
+            <option name="Header value">The value for the header which can be a constant value or a reference to a flow
+            variable, a column, a credential name, or a credential password (see the kind option).</option>
+            <option name="Header kind">The kind of the value specified, which is either a constant value or a reference
+            to a flow variable, a column, a credential name, or a credential password </option>
         </tab>
         <tab name="Response Headers">
-            <option name="Extract all fields">Extracts all header fields (present in the first response)</option>
-            <option name="Header key">The name of the header value to extract</option>
-            <option name="Header type">Convert the header value to this type</option>
-        </tab>
-    </fullDescription>
+            <option name="Extract all fields">If checked, all header fields present in the first response are extracted
+            into columns.</option>
+            <option name="Header key">The name of the header to extract.</option>
+            <option name="Header type">The KNIME data type the header should be converted into.</option>
+        </tab>    </fullDescription>
     
     <ports>
-        <inPort index="0" name="Table">Data table containing the variable parameters of the requests.</inPort>
-        <outPort index="0" name="DELETE results">Data table containing additional columns from the responses.</outPort>
+        <inPort index="0" name="Table">Optional data table containing the variable parameters of the requests.</inPort>
+        <outPort index="0" name="GET results">Data table containing columns from the responses.</outPort>
     </ports>    
-    <!-- views>
-        <view index="0" name="name of first view">Description of first view...</view>
-    </views-->
 </knimeNode>
