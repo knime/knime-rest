@@ -60,7 +60,7 @@ import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.node.workflow.CredentialsProvider;
 
 /**
- * User configuration options on the dialog.
+ * User configuration (like authentication) options on the dialog.
  *
  * @author Gabor Bakos
  */

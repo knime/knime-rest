@@ -44,7 +44,7 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   2016. �pr. 24. (Gabor Bakos): created
+ *   24. Apr. 2016. (Gabor Bakos): created
  */
 package org.knime.rest.nodes.common;
 
@@ -55,6 +55,7 @@ import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.workflow.CredentialsProvider;
 
 /**
+ * {@link RestSettings} with options for invoking REST calls requiring entities in their body ({@code POST}, {@code PUT}).
  *
  * @author Gabor Bakos
  */
@@ -79,7 +80,7 @@ public class RestWithBodySettings extends RestSettings {
     private String m_requestBodyColumn = DEFAULT_REQUEST_BODY_COLUMN;
 
     /**
-     *
+     * Constructs the settings with defaults.
      */
     public RestWithBodySettings() {
         super();
@@ -127,6 +128,9 @@ public class RestWithBodySettings extends RestSettings {
         m_requestBodyColumn = requestBodyColumn;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     protected void saveSettings(final NodeSettingsWO settings) {
         super.saveSettings(settings);
@@ -135,6 +139,9 @@ public class RestWithBodySettings extends RestSettings {
         settings.addString(REQUEST_BODY_COLUMN, m_requestBodyColumn);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     protected void loadSettingsFrom(final NodeSettingsRO settings) throws InvalidSettingsException {
         super.loadSettingsFrom(settings);
@@ -143,6 +150,9 @@ public class RestWithBodySettings extends RestSettings {
         m_requestBodyColumn = settings.getString(REQUEST_BODY_COLUMN);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     protected void loadSettingsForDialog(final NodeSettingsRO settings, final CredentialsProvider credentialNames,
         final DataTableSpec... specs) throws InvalidSettingsException {

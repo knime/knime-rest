@@ -44,11 +44,12 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   2016. febr. 14. (Gabor Bakos): created
+ *   14. Febr. 2016. (Gabor Bakos): created
  */
 package org.knime.rest.generic;
 
 /**
+ * A basic {@link UserConfiguration} wrapper that allows enabling or disabling it.
  *
  * @author Gabor Bakos
  * @param <T> the specific {@link UserConfiguration} type

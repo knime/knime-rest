@@ -53,24 +53,25 @@ import org.knime.core.node.NodeFactory;
 import org.knime.core.node.NodeView;
 
 /**
+ * Node factory for the node of POST http method.
  *
  * @author Gabor Bakos
  */
 public class RestPostNodeFactory extends NodeFactory<RestPostNodeModel> {
 
     /**
-     *
+     * Constructs the factory.
      */
     public RestPostNodeFactory() {
-        // TODO Auto-generated constructor stub
     }
 
     /**
-     * @param lazyInitialization
+     * Constructs the factory.
+     *
+     * @param lazyInitialization if set {@code true}, the full initialization is postponed till the call of {@link #init()} method.
      */
     public RestPostNodeFactory(final boolean lazyInitialization) {
         super(lazyInitialization);
-        // TODO Auto-generated constructor stub
     }
 
     /**
@@ -112,5 +113,4 @@ public class RestPostNodeFactory extends NodeFactory<RestPostNodeModel> {
     protected NodeDialogPane createNodeDialogPane() {
         return new RestPostNodeDialog();
     }
-
 }

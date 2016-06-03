@@ -51,13 +51,14 @@ package org.knime.rest.nodes.post;
 import org.knime.rest.nodes.common.RestWithBodyNodeDialog;
 
 /**
+ * Node dialog for the node of POST http method.
  *
  * @author Gabor Bakos
  */
 final class RestPostNodeDialog extends RestWithBodyNodeDialog<RestPostSettings> {
 
     /**
-     *
+     * Constructs the dialog.
      */
     RestPostNodeDialog() {
         super();

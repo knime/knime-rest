@@ -44,7 +44,7 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   2016. márc. 11. (Gabor Bakos): created
+ *   11. March 2016. (Gabor Bakos): created
  */
 package org.knime.rest.internals;
 

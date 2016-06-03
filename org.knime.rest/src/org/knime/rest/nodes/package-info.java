@@ -1,4 +1,5 @@
 /**
+ * The nodes of the REST plugin.
  *
  * @author Gabor Bakos
  */

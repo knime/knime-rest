@@ -44,7 +44,7 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   2016. �pr. 23. (Gabor Bakos): created
+ *   23. Apr. 2016. (Gabor Bakos): created
  */
 package org.knime.rest.nodes.common;
 
@@ -400,6 +400,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         }
         m_responseBodyParsers.add(new Default(MediaType.valueOf("image/png"), PNGImageContent.TYPE, exec));
         m_responseBodyParsers.add(new Default(MediaType.APPLICATION_SVG_XML_TYPE, SvgCell.TYPE, exec));
+        m_responseBodyParsers.add(new Default(MediaType.valueOf("image/svg+xml"), SvgCell.TYPE, exec));
         for (final MediaType mediaType : new MediaType[]{MediaType.APPLICATION_ATOM_XML_TYPE,
             MediaType.APPLICATION_XHTML_XML_TYPE, MediaType.APPLICATION_XML_TYPE, MediaType.TEXT_XML_TYPE}) {
             m_responseBodyParsers.add(new Default(mediaType, XMLCell.TYPE, exec));

@@ -44,7 +44,7 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   2016. �pr. 23. (Gabor Bakos): created
+ *   23. Apr. 2016. (Gabor Bakos): created
  */
 package org.knime.rest.nodes.common;
 

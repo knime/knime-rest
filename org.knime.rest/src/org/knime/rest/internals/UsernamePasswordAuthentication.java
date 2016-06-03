@@ -44,7 +44,7 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   2016. febr. 14. (Gabor Bakos): created
+ *   14. Feb. 2016. (Gabor Bakos): created
  */
 package org.knime.rest.internals;
 
@@ -63,6 +63,7 @@ import org.knime.core.node.workflow.CredentialsProvider;
 import org.knime.rest.generic.EachRequestAuthentication;
 
 /**
+ * Abstract implementation that can be used to extend the authentication functionality of the REST nodes.
  *
  * @author Gabor Bakos
  */

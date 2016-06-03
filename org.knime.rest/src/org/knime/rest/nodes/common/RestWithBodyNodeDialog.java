@@ -44,7 +44,7 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   2016. �pr. 24. (Gabor Bakos): created
+ *   24. Apr. 2016. (Gabor Bakos): created
  */
 package org.knime.rest.nodes.common;
 
@@ -66,6 +66,7 @@ import org.knime.core.node.util.ColumnSelectionPanel;
 
 /**
  * A REST node dialog for the methods that require a body for the invocations.
+ * This class adds {@code Request Body} tab.
  *
  * @author Gabor Bakos
  * @param <S> The type of the settings.
@@ -97,7 +98,7 @@ public abstract class RestWithBodyNodeDialog<S extends RestWithBodySettings> ext
      * The request body tab configuration (only if the method requires it).
      */
     protected void addRequestBodyTab() {
-        addTabAt(3, "Request body", createRequestBodyPanel());
+        addTabAt(3, "Request Body", createRequestBodyPanel());
     }
 
     /**
