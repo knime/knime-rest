@@ -204,6 +204,7 @@ public interface ResponseBodyParser {
             final InputStream entity = response.readEntity(InputStream.class);
             final String contentEncoding = response.getHeaderString("Content-Encoding");
             if (contentEncoding != null) {
+                //https://en.wikipedia.org/wiki/HTTP_compression#Content-Encoding_tokens
                 switch (contentEncoding) {
                     case "gzip":
                         try {
@@ -216,6 +217,8 @@ public interface ResponseBodyParser {
                         }
                     case "deflate":
                         return new InflaterInputStream(entity);
+                    case "identity":
+                        return entity;
                     default:
                         throw new UnsupportedOperationException("Not supported content encoding: " + contentEncoding);
                 }
