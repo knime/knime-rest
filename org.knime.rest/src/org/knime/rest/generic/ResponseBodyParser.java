@@ -52,8 +52,12 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
+import java.io.UncheckedIOException;
 import java.nio.charset.Charset;
 import java.text.ParseException;
+import java.util.zip.GZIPInputStream;
+import java.util.zip.InflaterInputStream;
+import java.util.zip.ZipException;
 
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
@@ -169,14 +173,14 @@ public interface ResponseBodyParser {
                 final String charset = mediaType.getParameters().get("charset");
                 if (isKnownCharset(charset) && (dataCellFactory instanceof FromReader)) {
                     final FromReader fromReader = (FromReader)dataCellFactory;
-                    try (final Reader reader = new InputStreamReader(response.readEntity(InputStream.class), charset)) {
+                    try (final Reader reader = new InputStreamReader(responseInputStream(response), charset)) {
                         return fromReader.createCell(reader);
                     } catch (IOException | ParseException e) {
                         return new MissingCell(e.getMessage());
                     }
                 } else if (dataCellFactory instanceof FromInputStream) {
                     final FromInputStream fromInputStream = (FromInputStream)dataCellFactory;
-                    try (InputStream is = response.readEntity(InputStream.class)) {
+                    try (final InputStream is = responseInputStream(response)) {
                         return fromInputStream.createCell(is);
                     } catch (IOException e) {
                         return new MissingCell(e.getMessage());
@@ -188,6 +192,35 @@ public interface ResponseBodyParser {
                 return new MissingCell(
                     "The value in the body has " + mediaType + ", but was expecting " + valueDescriptor() + " value.");
             }
+        }
+
+        /**
+         * Creates an uncompressed input stream from the response.
+         *
+         * @param response The {@link Response} from the REST call.
+         * @return The {@link InputStream} that can handle {@code Content-Encoding}.
+         */
+        private InputStream responseInputStream(final Response response) {
+            final InputStream entity = response.readEntity(InputStream.class);
+            final String contentEncoding = response.getHeaderString("Content-Encoding");
+            if (contentEncoding != null) {
+                switch (contentEncoding) {
+                    case "gzip":
+                        try {
+                            return new GZIPInputStream(entity);
+                        } catch (ZipException e) {
+                            //Try treating as uncompressed
+                            return entity;
+                        } catch (IOException e) {
+                            throw new UncheckedIOException(e);
+                        }
+                    case "deflate":
+                        return new InflaterInputStream(entity);
+                    default:
+                        throw new UnsupportedOperationException("Not supported content encoding: " + contentEncoding);
+                }
+            }
+            return entity;
         }
 
         /**
