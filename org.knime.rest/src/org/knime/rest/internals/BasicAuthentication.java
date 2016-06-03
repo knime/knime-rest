@@ -48,11 +48,14 @@
  */
 package org.knime.rest.internals;
 
+import java.io.UnsupportedEncodingException;
 import java.util.Map;
 
 import javax.ws.rs.client.Invocation.Builder;
 
+import org.apache.cxf.common.util.Base64Utility;
 import org.knime.core.data.DataRow;
+import org.knime.core.node.NodeLogger;
 import org.knime.core.node.workflow.CredentialsProvider;
 import org.knime.core.node.workflow.FlowVariable;
 
@@ -77,8 +80,13 @@ public class BasicAuthentication extends UsernamePasswordAuthentication {
         final Map<String, FlowVariable> flowVariables) {
         final String username = isUseCredentials() ? credProvider.get(getCredential()).getLogin() : getUsername();
         final String password = isUseCredentials() ? credProvider.get(getCredential()).getPassword() : getPassword();
-        request.header("Authorization",
-            "Basic " + org.apache.cxf.common.util.Base64Utility.encode((username + ":" + password).getBytes()));
+        try {
+            request.header("Authorization",
+                "Basic " + Base64Utility.encode((username + ":" + password).getBytes("UTF-8")));
+        } catch (UnsupportedEncodingException ex) {
+            // UTF-8 is supportted for sure, but who knows...
+            NodeLogger.getLogger(getClass()).error("Unsupported charset: " + ex.getMessage(), ex);
+        }
         return request;
     }
 }

@@ -199,7 +199,7 @@ class RequestTableModel extends AbstractTableModel implements Iterable<RequestHe
 
     /**
      * Inserts a new item to the end.
-     * 
+     *
      * @param setting The new item.
      */
     void addRow(final RequestHeaderKeyItem setting) {
@@ -215,7 +215,7 @@ class RequestTableModel extends AbstractTableModel implements Iterable<RequestHe
     }
 
     /** Inserts an item to the specified position. */
-    void insertRow(final int rowIndex, final RequestHeaderKeyItem setting) throws IndexOutOfBoundsException {
+    void insertRow(final int rowIndex, final RequestHeaderKeyItem setting) {
         if (rowIndex >= 0 && rowIndex <= m_content.size()) {
             m_content.add(rowIndex, setting);
             fireTableRowsInserted(rowIndex, rowIndex);
@@ -223,7 +223,7 @@ class RequestTableModel extends AbstractTableModel implements Iterable<RequestHe
     }
 
     /** Removes the selected row. */
-    void removeRow(final int rowIndex) throws IndexOutOfBoundsException {
+    void removeRow(final int rowIndex) {
         if (rowIndex >= 0) {
             m_content.remove(rowIndex);
             fireTableRowsDeleted(rowIndex, rowIndex);

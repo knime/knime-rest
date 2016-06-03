@@ -171,8 +171,7 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
     private final JSpinner m_delay = new JSpinner(new SpinnerNumberModel(Long.valueOf(0L), Long.valueOf(0L),
         Long.valueOf(30L * 60 * 1000L/*30 minutes*/), Long.valueOf(100L)));
 
-    private final JSpinner m_concurrency =
-        new JSpinner(new SpinnerNumberModel(1, 1, 16/*TODO find proper default*/, 1));
+    private final JSpinner m_concurrency = new JSpinner(new SpinnerNumberModel(1, 1, 64, 1));
 
     private final JCheckBox m_sslIgnoreHostnameMismatches = new JCheckBox("Ignore hostname mismatches");
 
@@ -1140,7 +1139,7 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         for (int i = 0; i < m_settings.getRequestHeaders().size(); ++i) {
             m_requestHeadersModel.addRow(m_settings.getRequestHeaders().get(i));
         }
-        enableRequestHeaderChangeControls(m_settings.getRequestHeaders().size() > 0);
+        enableRequestHeaderChangeControls(!m_settings.getRequestHeaders().isEmpty());
         m_extractAllHeaders.setSelected(m_settings.isExtractAllResponseFields());
         m_responseHeadersModel.clear();
         for (int i = 0; i < m_settings.getExtractFields().size(); ++i) {

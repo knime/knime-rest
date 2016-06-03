@@ -44,7 +44,7 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   2016. ápr. 23. (Gabor Bakos): created
+ *   2016. ï¿½pr. 23. (Gabor Bakos): created
  */
 package org.knime.rest.nodes.common;
 
@@ -52,6 +52,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IConfigurationElement;
@@ -300,24 +301,8 @@ public class RestSettings {
                 return false;
             }
             RequestHeaderKeyItem other = (RequestHeaderKeyItem)obj;
-            if (m_key == null) {
-                if (other.m_key != null) {
-                    return false;
-                }
-            } else if (!m_key.equals(other.m_key)) {
-                return false;
-            }
-            if (m_kind != other.m_kind) {
-                return false;
-            }
-            if (m_valueReference == null) {
-                if (other.m_valueReference != null) {
-                    return false;
-                }
-            } else if (!m_valueReference.equals(other.m_valueReference)) {
-                return false;
-            }
-            return true;
+            return Objects.equals(m_key, other.m_key) && Objects.equals(m_kind, other.m_kind)
+                && Objects.equals(m_valueReference, other.m_valueReference);
         }
     }
 
@@ -441,28 +426,8 @@ public class RestSettings {
                 return false;
             }
             ResponseHeaderItem other = (ResponseHeaderItem)obj;
-            if (m_headerKey == null) {
-                if (other.m_headerKey != null) {
-                    return false;
-                }
-            } else if (!m_headerKey.equals(other.m_headerKey)) {
-                return false;
-            }
-            if (m_outputColumnName == null) {
-                if (other.m_outputColumnName != null) {
-                    return false;
-                }
-            } else if (!m_outputColumnName.equals(other.m_outputColumnName)) {
-                return false;
-            }
-            if (m_type == null) {
-                if (other.m_type != null) {
-                    return false;
-                }
-            } else if (!m_type.equals(other.m_type)) {
-                return false;
-            }
-            return true;
+            return Objects.equals(m_headerKey, other.m_headerKey)
+                && Objects.equals(m_outputColumnName, other.m_outputColumnName) && Objects.equals(m_type, other.m_type);
         }
     }
 

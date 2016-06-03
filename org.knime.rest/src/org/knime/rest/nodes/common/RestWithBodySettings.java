@@ -42,9 +42,9 @@
  *  may freely choose the license terms applicable to such Node, including
  *  when such Node is propagated with or for interoperation with KNIME.
  * ---------------------------------------------------------------------
- * 
+ *
  * History
- *   2016. ápr. 24. (Gabor Bakos): created
+ *   2016. ï¿½pr. 24. (Gabor Bakos): created
  */
 package org.knime.rest.nodes.common;
 
@@ -55,7 +55,7 @@ import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.workflow.CredentialsProvider;
 
 /**
- * 
+ *
  * @author Gabor Bakos
  */
 public class RestWithBodySettings extends RestSettings {
@@ -79,7 +79,7 @@ public class RestWithBodySettings extends RestSettings {
     private String m_requestBodyColumn = DEFAULT_REQUEST_BODY_COLUMN;
 
     /**
-     * 
+     *
      */
     public RestWithBodySettings() {
         super();

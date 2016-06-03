@@ -58,6 +58,7 @@ import java.text.ParseException;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
+import org.apache.commons.lang3.StringUtils;
 import org.knime.core.data.DataCell;
 import org.knime.core.data.DataCellFactory;
 import org.knime.core.data.DataCellFactory.FromInputStream;
@@ -65,7 +66,6 @@ import org.knime.core.data.DataCellFactory.FromReader;
 import org.knime.core.data.DataType;
 import org.knime.core.data.MissingCell;
 import org.knime.core.node.ExecutionContext;
-import org.knime.rest.util.JavaUtil;
 
 /**
  * Interface for parsing different response bodies.
@@ -167,27 +167,23 @@ public interface ResponseBodyParser {
             if (supportedMediaType().isCompatible(mediaType)) {
                 final DataCellFactory dataCellFactory = m_produced.getCellFactory(m_exec).get();
                 final String charset = mediaType.getParameters().get("charset");
-                if (charset == null || !JavaUtil.executeWithoutException(() -> Charset.forName(charset))
-                    || !(dataCellFactory instanceof FromReader)) {
-                    if (dataCellFactory instanceof FromInputStream) {
-                        final FromInputStream fromInputStream = (FromInputStream)dataCellFactory;
-                        final InputStream is = response.readEntity(InputStream.class);
-                        try {
-                            return fromInputStream.createCell(is);
-                        } catch (IOException e) {
-                            return new MissingCell(e.getMessage());
-                        }
-                    }
-                } else {//dataCellFactory is a FromReader
+                if (isKnownCharset(charset) && (dataCellFactory instanceof FromReader)) {
                     final FromReader fromReader = (FromReader)dataCellFactory;
-                    final InputStream is = response.readEntity(InputStream.class);
-                    try (final Reader reader = new InputStreamReader(is, charset)) {
+                    try (final Reader reader = new InputStreamReader(response.readEntity(InputStream.class), charset)) {
                         return fromReader.createCell(reader);
                     } catch (IOException | ParseException e) {
                         return new MissingCell(e.getMessage());
                     }
+                } else if (dataCellFactory instanceof FromInputStream) {
+                    final FromInputStream fromInputStream = (FromInputStream)dataCellFactory;
+                    try (InputStream is = response.readEntity(InputStream.class)) {
+                        return fromInputStream.createCell(is);
+                    } catch (IOException e) {
+                        return new MissingCell(e.getMessage());
+                    }
+                } else {
+                    return new MissingCell("Cannot produce the requested type from the read input.");
                 }
-                return new MissingCell("Cannot produce the requested type from the read input.");
             } else {
                 return new MissingCell(
                     "The value in the body has " + mediaType + ", but was expecting " + valueDescriptor() + " value.");
@@ -200,6 +196,19 @@ public interface ResponseBodyParser {
         @Override
         public String valueDescriptor() {
             return m_produced.getName();
+        }
+
+        private static boolean isKnownCharset(final String charset) {
+            if (StringUtils.isEmpty(charset)) {
+                return false;
+            }
+
+            try {
+                Charset.forName(charset);
+                return true;
+            } catch (IllegalArgumentException ex) {
+                return false;
+            }
         }
     }
 }

@@ -72,7 +72,7 @@ public abstract class UserConfiguration {
 
     /**
      * Saves the user configuration to {@code userSettings}.
-     * 
+     *
      * @param userSettings A {@link ConfigBaseWO} to save the configuration.
      */
     public abstract void saveUserConfiguration(NodeSettingsWO userSettings);
@@ -98,22 +98,14 @@ public abstract class UserConfiguration {
 
     /**
      * Adds the dialog controls to {@code panel}.
-     * 
+     *
      * @param panel A {@link JPanel}.
      */
     public abstract void addControls(JPanel panel);
 
-    //    /**
-    //     * Enables the controls.
-    //     */
-    //    void enableControls();
-    //    /**
-    //     * Disables the controls.
-    //     */
-    //    void disableControls();
     /**
      * Updates the control values based on the settings.
-     * 
+     *
      * @throws NotConfigurableException When cannot be configured for some reason.
      */
     public abstract void updateControls() throws NotConfigurableException;

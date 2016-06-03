@@ -44,7 +44,7 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   2016. ápr. 23. (Gabor Bakos): created
+ *   2016. ï¿½pr. 23. (Gabor Bakos): created
  */
 package org.knime.rest.nodes.common;
 
@@ -76,6 +76,7 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.ext.RuntimeDelegate;
 
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.cxf.jaxrs.client.WebClient;
 import org.apache.cxf.jaxrs.client.spec.ClientBuilderImpl;
 import org.apache.cxf.jaxrs.impl.RuntimeDelegateImpl;
@@ -246,12 +247,11 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
     @Execute
     @Override
     protected BufferedDataTable[] execute(final BufferedDataTable[] inData, final ExecutionContext exec)
-        throws CanceledExecutionException, InvalidSettingsException {
+        throws Exception {
         final List<EachRequestAuthentication> enabledEachRequestAuthentications =
             m_settings.getAuthorizationConfigurations().parallelStream()
                 .filter(euc -> euc.isEnabled() && euc.getUserConfiguration() instanceof EachRequestAuthentication)
                 .map(euc -> (EachRequestAuthentication)euc.getUserConfiguration()).collect(Collectors.toList());
-        //        m_binaryObjectCellFactory = new BinaryObjectCellFactory(exec);
         createResponseBodyParsers(exec);
         if (inData.length > 0 && inData[0] != null) {
             if (inData[0].size() == 0) {
@@ -278,11 +278,11 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
      * @param enabledEachRequestAuthentications The single enabled authentication.
      * @param spec The {@link DataTableSpec}.
      * @param exec An {@link ExecutionContext}.
-     * @throws ProcessingException When something went wrong client-side.
+     * @throws Exception if something went wrong during the call
      */
     protected void makeFirstCall(final DataRow row,
         final List<EachRequestAuthentication> enabledEachRequestAuthentications, final DataTableSpec spec,
-        final ExecutionContext exec) throws ProcessingException {
+        final ExecutionContext exec) throws Exception {
         m_firstRow = row == null ? null : row.getKey();
         final UniqueNameGenerator nameGenerator = new UniqueNameGenerator(spec == null ? new DataTableSpec() : spec);
         Response response;
@@ -294,12 +294,13 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
             missing = null;
         } catch (ProcessingException procEx) {
             LOGGER.warn("First call failed: " + procEx.getMessage(), procEx);
-            procEx = extractCause(procEx);
+            Throwable cause = ExceptionUtils.getRootCause(procEx);
             if (m_settings.isFailOnConnectionProblems()) {
-                throw new IllegalStateException(procEx);
+                throw (cause instanceof Exception) ? (Exception) cause : new ProcessingException(cause);
+            } else {
+                missing = new MissingCell(cause.getMessage());
+                response = null;
             }
-            missing = new MissingCell(procEx.getMessage());
-            response = null;
         }
         try {
             final List<DataCell> cells;
@@ -356,14 +357,6 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
                 response.close();
             }
         }
-    }
-
-    /**
-     * @param procEx
-     * @return
-     */
-    private ProcessingException extractCause(final ProcessingException procEx) {
-        return procEx.getCause() != null && procEx.getCause()instanceof ExecutionException && procEx.getCause().getCause() != null && procEx.getCause().getCause() instanceof ProcessingException ? (ProcessingException)procEx.getCause().getCause(): procEx;
     }
 
     /**
@@ -499,12 +492,13 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
                         response = invoke(invocation(request, row, spec));
                     } catch (ProcessingException e) {
                         LOGGER.debug("Call failed: " + e.getMessage(), e);
-                        e = extractCause(e);
+                        Throwable cause = ExceptionUtils.getRootCause(e);
                         if (m_settings.isFailOnConnectionProblems()) {
-                            throw new IllegalStateException(e);
+                            throw new RuntimeException(cause);
+                        } else {
+                            missing = new MissingCell(cause.getMessage());
+                            response = null;
                         }
-                        missing = new MissingCell(e.getMessage());
-                        response = null;
                     }
                     try {
                         final Response finalResponse = response;
@@ -565,12 +559,11 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
      * @param response A {@link Response}.
      * @throws IllegalStateExcetion When the http status code is {@code 4xx} or {@code 5xx} and we have to check it.
      */
-    private void checkResponse(final Response response) throws IllegalStateException {
-        if (response != null && m_settings.isFailOnHttpErrors()) {
-            if (response.getStatus() >= 400 && response.getStatus() < 600) {
-                throw new IllegalStateException(
-                    "Wrong status: " + response.getStatus() + " " + response.getStatusInfo().getReasonPhrase());
-            }
+    private void checkResponse(final Response response) {
+        if ((response != null) && m_settings.isFailOnHttpErrors() && (response.getStatus() >= 400)
+            && (response.getStatus() < 600)) {
+            throw new IllegalStateException(
+                "Wrong status: " + response.getStatus() + " " + response.getStatusInfo().getReasonPhrase());
         }
     }
 
@@ -699,26 +692,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         WebClient.getConfig(request).getHttpConduit().getClient().setMaxRetransmits(MAX_RETRANSITS);
 
         for (final RequestHeaderKeyItem headerItem : m_settings.getRequestHeaders()) {
-            Object value;
-            switch (headerItem.getKind()) {
-                case Constant:
-                    value = headerItem.getValueReference();
-                    break;
-                case Column:
-                    value = row.getCell(spec.findColumnIndex(headerItem.getValueReference())).toString();
-                    break;
-                case FlowVariable:
-                    value = getAvailableInputFlowVariables().get(headerItem.getKey()).getValueAsString();
-                    break;
-                case CredentialName:
-                    value = getCredentialsProvider().get(headerItem.getKey()).getLogin();
-                    break;
-                case CredentialPassword:
-                    value = getCredentialsProvider().get(headerItem.getKey()).getPassword();
-                    break;
-                default:
-                    throw new UnsupportedOperationException("Unknown: " + headerItem.getKind() + " in: " + headerItem);
-            }
+            Object value = computeHeaderValue(row, spec, headerItem);
             request.header(headerItem.getKey(), value);
         }
         for (final EachRequestAuthentication era : enabledEachRequestAuthentications) {
@@ -744,12 +718,11 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
                 } else {
                     boolean wasAdded = false;
                     for (ResponseBodyParser parser : m_responseBodyParsers) {
-                        if (expectedType.isCompatible(parser.producedDataType().getPreferredValueClass())) {
-                            if (parser.supportedMediaType().isCompatible(response.getMediaType())) {
-                                wasAdded = true;
-                                cells.add(parser.create(response));
-                                break;
-                            }
+                        if (expectedType.isCompatible(parser.producedDataType().getPreferredValueClass())
+                            && parser.supportedMediaType().isCompatible(response.getMediaType())) {
+                            wasAdded = true;
+                            cells.add(parser.create(response));
+                            break;
                         }
                     }
                     if (!wasAdded) {

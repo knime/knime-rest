@@ -51,10 +51,10 @@ package org.knime.rest.generic;
 /**
  *
  * @author Gabor Bakos
- * @param <Type> The {@link UserConfiguration} type.
+ * @param <T> the specific {@link UserConfiguration} type
  */
-public class EnablableUserConfiguration<Type extends UserConfiguration> {
-    private final Type m_userConfiguration;
+public class EnablableUserConfiguration<T extends UserConfiguration> {
+    private final T m_userConfiguration;
 
     private boolean m_enabled = false;
 
@@ -64,7 +64,7 @@ public class EnablableUserConfiguration<Type extends UserConfiguration> {
      * @param type The wrapped {@link UserConfiguration}.
      * @param name The name of the configuration.
      */
-    public EnablableUserConfiguration(final Type type, final String name) {
+    public EnablableUserConfiguration(final T type, final String name) {
         m_userConfiguration = type;
         m_name = name;
     }
@@ -86,7 +86,7 @@ public class EnablableUserConfiguration<Type extends UserConfiguration> {
     /**
      * @return the userConfiguration
      */
-    public Type getUserConfiguration() {
+    public T getUserConfiguration() {
         return m_userConfiguration;
     }
 

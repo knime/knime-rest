@@ -75,7 +75,7 @@ public abstract class UsernamePasswordAuthentication extends EachRequestAuthenti
 
     /**
      * Constructs a UsernamePasswordAuthentication using the default settings.
-     * 
+     *
      * @param configName The config name.
      * @param defaultUsername The default user name.
      * @param defaultPassword The default password.
