@@ -50,6 +50,8 @@ package org.knime.rest.nodes.common;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.Charset;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
@@ -76,6 +78,7 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.ext.RuntimeDelegate;
 
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.cxf.jaxrs.client.WebClient;
 import org.apache.cxf.jaxrs.client.spec.ClientBuilderImpl;
@@ -563,6 +566,18 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
     private void checkResponse(final Response response) {
         if ((response != null) && m_settings.isFailOnHttpErrors() && (response.getStatus() >= 400)
             && (response.getStatus() < 600)) {
+            Object entity = response.getEntity();
+            if (entity instanceof InputStream) {
+                final InputStream is = (InputStream)entity;
+                try {
+                    getLogger().debug("Failed location: " + response.getLocation());
+                    getLogger().debug(IOUtils.toString(is, Charset.isSupported("UTF-8") ? Charset.forName("UTF-8"): Charset.defaultCharset()));
+                } catch (final IOException e) {
+                    getLogger().debug(e.getMessage(), e);
+                }
+            } else {
+                getLogger().debug(entity);
+            }
             throw new IllegalStateException(
                 "Wrong status: " + response.getStatus() + " " + response.getStatusInfo().getReasonPhrase());
         }

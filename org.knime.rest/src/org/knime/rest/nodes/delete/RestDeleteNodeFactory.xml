@@ -69,6 +69,6 @@
     
     <ports>
         <inPort index="0" name="Table">Optional data table containing the variable parameters of the requests.</inPort>
-        <outPort index="0" name="GET results">Data table containing columns from the responses.</outPort>
+        <outPort index="0" name="DELETE results">Data table containing columns from the responses.</outPort>
     </ports>    
 </knimeNode>
