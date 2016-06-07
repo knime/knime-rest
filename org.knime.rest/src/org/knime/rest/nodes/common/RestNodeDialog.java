@@ -162,6 +162,7 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
     private final JRadioButton m_constantUriOption = new JRadioButton("URL: ");
 
     private final JRadioButton m_uriColumnOption = new JRadioButton("URL column: ");
+
     {
         final ButtonGroup group = new ButtonGroup();
         group.add(m_constantUriOption);
@@ -218,11 +219,14 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
 
     private final StringHistoryPanel m_bodyColumnName = new StringHistoryPanel("GET body");
 
-    private final JComboBox<String> m_requestHeaderKey = createEditableComboBox();
+    private final JComboBox<String> m_requestHeaderKey = createEditableComboBox(),
+            m_requestHeaderKeyPopup = createEditableComboBox();
 
-    private final JComboBox<String> m_requestHeaderValue = createEditableComboBox();
+    private final JComboBox<String> m_requestHeaderValue = createEditableComboBox(),
+            m_requestHeaderValuePopup = createEditableComboBox();
 
-    private final JComboBox<ReferenceType> m_requestHeaderValueType = createEditableComboBox(ReferenceType.values());
+    private final JComboBox<ReferenceType> m_requestHeaderValueType = createEditableComboBox(ReferenceType.values()),
+            m_requestHeaderValueTypePopup = createEditableComboBox(ReferenceType.values());
 
     private final JTextField m_responseHeaderKey = new JTextField(20);
 
@@ -469,18 +473,19 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         dialog.setPreferredSize(dimension);
         dialog.setLocationRelativeTo(frame);
         if (frame != null) {
-            dialog.setLocation((int)(frame.getLocationOnScreen().getX() + frame.getWidth() / 2 - dimension.getWidth() / 2),
+            dialog.setLocation(
+                (int)(frame.getLocationOnScreen().getX() + frame.getWidth() / 2 - dimension.getWidth() / 2),
                 (int)(frame.getLocationOnScreen().getY() + frame.getHeight() / 2 - dimension.getHeight() / 2));
         }
         final Container cp = dialog.getContentPane();
         final JPanel outer = new JPanel(new BorderLayout());
         final JPanel panel = new JPanel(new GridBagLayout());
         addRequestSettingControls(panel);
-        m_requestHeaderKey.setSelectedItem(
+        m_requestHeaderKeyPopup.setSelectedItem(
             m_requestHeadersModel.getValueAt(selectedRow, RequestTableModel.Columns.headerKey.ordinal()));
-        m_requestHeaderValue
+        m_requestHeaderValuePopup
             .setSelectedItem(m_requestHeadersModel.getValueAt(selectedRow, RequestTableModel.Columns.value.ordinal()));
-        m_requestHeaderValueType
+        m_requestHeaderValueTypePopup
             .setSelectedItem(m_requestHeadersModel.getValueAt(selectedRow, RequestTableModel.Columns.kind.ordinal()));
         outer.add(panel, BorderLayout.CENTER);
         final JPanel controls = new JPanel();
@@ -491,11 +496,11 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         controls.add(new JButton(new AbstractAction("OK") {
             @Override
             public void actionPerformed(final ActionEvent e) {
-                m_requestHeadersModel.setValueAt(m_requestHeaderKey.getSelectedItem(), selectedRow,
+                m_requestHeadersModel.setValueAt(m_requestHeaderKeyPopup.getSelectedItem(), selectedRow,
                     RequestTableModel.Columns.headerKey.ordinal());
-                m_requestHeadersModel.setValueAt(m_requestHeaderValue.getSelectedItem(), selectedRow,
+                m_requestHeadersModel.setValueAt(m_requestHeaderValuePopup.getSelectedItem(), selectedRow,
                     RequestTableModel.Columns.value.ordinal());
-                m_requestHeadersModel.setValueAt(m_requestHeaderValueType.getSelectedItem(), selectedRow,
+                m_requestHeadersModel.setValueAt(m_requestHeaderValueTypePopup.getSelectedItem(), selectedRow,
                     RequestTableModel.Columns.kind.ordinal());
                 dialog.dispose();
             }
@@ -503,12 +508,6 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         final AbstractAction cancel = new AbstractAction("Cancel") {
             @Override
             public void actionPerformed(final ActionEvent e) {
-                m_requestHeaderKey.setSelectedItem(m_requestHeadersModel.getValueAt(selectedRow,
-                    RequestTableModel.Columns.headerKey.ordinal()));
-                m_requestHeaderValue.setSelectedItem(m_requestHeadersModel.getValueAt(selectedRow,
-                    RequestTableModel.Columns.value.ordinal()));
-                m_requestHeaderValueType.setSelectedItem(m_requestHeadersModel.getValueAt(selectedRow,
-                    RequestTableModel.Columns.kind.ordinal()));
                 dialog.dispose();
             }
         };
@@ -537,7 +536,8 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         dialog.setPreferredSize(dimension);
         dialog.setLocationRelativeTo(frame);
         if (frame != null) {
-            dialog.setLocation((int)(frame.getLocationOnScreen().getX() + frame.getWidth() / 2 - dimension.getWidth() / 2),
+            dialog.setLocation(
+                (int)(frame.getLocationOnScreen().getX() + frame.getWidth() / 2 - dimension.getWidth() / 2),
                 (int)(frame.getLocationOnScreen().getY() + frame.getHeight() / 2 - dimension.getHeight() / 2));
         }
         final Container cp = dialog.getContentPane();
@@ -593,7 +593,7 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         panel.add(new JLabel("Header key"), gbc);
         gbc.gridx = 1;
         gbc.weightx = 1;
-        panel.add(m_requestHeaderKey, gbc);
+        panel.add(m_requestHeaderKeyPopup, gbc);
         gbc.gridy++;
 
         gbc.gridx = 0;
@@ -601,14 +601,13 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         panel.add(new JLabel("Header value:"), gbc);
         gbc.gridx = 1;
         gbc.weightx = 1;
-        panel.add(m_requestHeaderValue, gbc);
+        panel.add(m_requestHeaderValuePopup, gbc);
         gbc.gridy++;
 
         gbc.gridx = 0;
         panel.add(new JLabel("Type:"), gbc);
         gbc.gridx++;
-        m_requestHeaderValueType.addActionListener(e -> updateRequestValueAlternatives());
-        panel.add(m_requestHeaderValueType, gbc);
+        panel.add(m_requestHeaderValueTypePopup, gbc);
         gbc.gridy++;
 
     }
@@ -692,7 +691,9 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
             m_requestHeaders.getColumnModel()
                 .removeColumn(m_requestHeaders.getColumnModel().getColumns().nextElement());
         }
-        m_requestHeaderKey.addActionListener(e -> updateRequestValueAlternatives());
+        final ActionListener updateRequestValueAlternatives = al -> updateRequestValueAlternatives(m_requestHeaderKey,
+            m_requestHeaderValue, m_requestHeaderValueType, false);
+        m_requestHeaderKey.addActionListener(updateRequestValueAlternatives);
         final TableColumn keyCol = new TableColumn(RequestTableModel.Columns.headerKey.ordinal(), 67,
             new DefaultTableCellRenderer(), new FixedCellEditorForComboBoxes(m_requestHeaderKey));
         keyCol.setHeaderValue("Header Key");
@@ -702,7 +703,6 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         m_requestHeaders.getColumnModel().addColumn(new TableColumn(RequestTableModel.Columns.kind.ordinal(), 40, null,
             new DefaultCellEditor(m_requestHeaderValueType)));
         m_requestHeaders.setRowHeight(20);
-        final ActionListener updateRequestValueAlternatives = al -> updateRequestValueAlternatives();
         m_requestHeaderValueType.addActionListener(updateRequestValueAlternatives);
         final ButtonCell deleteRequestRow = new ButtonCell();
         deleteRequestRow.setAction(new AbstractAction(" X ") {
@@ -724,7 +724,7 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
             int last = m_requestHeadersModel.getRowCount() - 1;
             m_requestHeaders.setRowSelectionInterval(last, last);
             editRequestHeader(last);
-            });
+        });
         m_requestDeleteRow.addActionListener(e -> m_requestHeadersModel.removeRow(m_requestHeaders.getSelectedRow()));
         m_requestEditRow.addActionListener(e -> editRequestHeader(m_requestHeaders.getSelectedRow()));
 
@@ -815,59 +815,74 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         ret.add(new JPanel(), gbc);
         m_requestHeaders.getColumnModel().getColumn(RequestTableModel.Columns.headerKey.ordinal())
             .setHeaderValue("Header Key");
-        m_requestHeaders.getColumnModel().getColumn(RequestTableModel.Columns.value.ordinal()).setHeaderValue("Header value");
+        m_requestHeaders.getColumnModel().getColumn(RequestTableModel.Columns.value.ordinal())
+            .setHeaderValue("Header value");
         m_requestHeaders.getColumnModel().getColumn(RequestTableModel.Columns.kind.ordinal())
             .setHeaderValue("Value kind");
+
+        final ActionListener popupListener = e -> updateRequestValueAlternatives(m_requestHeaderKeyPopup,
+            m_requestHeaderValuePopup, m_requestHeaderValueTypePopup, true);
+        m_requestHeaderValueTypePopup.addActionListener(popupListener);
+        m_requestHeaderKeyPopup.addActionListener(popupListener);
         return ret;
     }
 
     /**
-     *
+     * @param requestHeaderKey Request header key control.
+     * @param requestHeaderValue Request header value control.
+     * @param requestHeaderValueType Request header value type control.
+     * @param useLocalValue Use the local value instead of the table content.
      */
-    private void updateRequestValueAlternatives() {
-        if (m_requestHeaders.getSelectedRowCount() == 0) {
+    private void updateRequestValueAlternatives(final JComboBox<String> requestHeaderKey,
+        final JComboBox<String> requestHeaderValue, final JComboBox<ReferenceType> requestHeaderValueType,
+        final boolean useLocalValue) {
+        if (m_requestHeaders.getSelectedRowCount() == 0 && !useLocalValue) {
             enableRequestHeaderChangeControls(false);
             return;
         }
         enableRequestHeaderChangeControls(true);
-        final Object origValue = m_requestHeadersModel.getValueAt(m_requestHeaders.getSelectedRow(), 1);
-        m_requestHeaderValue.removeAllItems();
-        switch ((ReferenceType)m_requestHeaderValueType.getSelectedItem()) {
+        final Object origValue = useLocalValue ? requestHeaderValue.getSelectedItem()
+            : m_requestHeadersModel.getValueAt(m_requestHeaders.getSelectedRow(), Columns.value.ordinal());
+        requestHeaderValue.removeAllItems();
+        switch ((ReferenceType)requestHeaderValueType.getSelectedItem()) {
             case FlowVariable:
                 for (final String flowVar : m_flowVariables) {
-                    m_requestHeaderValue.addItem(flowVar);
+                    requestHeaderValue.addItem(flowVar);
                 }
                 break;
             case Column:
                 for (final String column : m_columns) {
-                    m_requestHeaderValue.addItem(column);
+                    requestHeaderValue.addItem(column);
                 }
                 break;
             case Constant:
                 if (m_requestHeaders.getSelectedRowCount() > 0) {
                     final String key =
-                        (String)m_requestHeadersModel.getValueAt(m_requestHeaders.getSelectedRow(), 0);
-                    m_requestTemplates.stream()
-                        .filter(entry -> Objects.equals(m_requestHeaderTemplate.getSelectedItem(), entry.getKey()))
+                        (String)(useLocalValue ? requestHeaderKey.getSelectedItem() : m_requestHeadersModel
+                            .getValueAt(m_requestHeaders.getSelectedRow(), Columns.headerKey.ordinal()));
+                    final Object templateItem = m_requestHeaderTemplate.getSelectedItem();
+                    m_requestTemplates.stream().filter(entry -> Objects.equals(templateItem, entry.getKey()))
                         .findFirst()
                         .ifPresent(entry -> entry.getValue().stream()
                             .filter(listEntry -> Objects.equals(key, listEntry.getKey())).findFirst()
                             .map(listEntry -> listEntry.getValue())
-                            .ifPresent(values -> values.forEach(m_requestHeaderValue::addItem)));
+                            .ifPresent(values -> values.forEach(requestHeaderValue::addItem)));
                 }
                 break;
             case CredentialName://Intentional fall through
             case CredentialPassword:
                 for (final String credential : m_credentials) {
-                    m_requestHeaderValue.addItem(credential);
+                    requestHeaderValue.addItem(credential);
                 }
                 break;
             default:
                 throw new IllegalStateException(
                     "Unknown reference type: " + m_requestHeaderValueType.getSelectedItem());
         }
-        m_requestHeadersModel.setValueAt(origValue, m_requestHeaders.getSelectedRow(), 1);
-        m_requestHeaderValue.setSelectedItem(origValue);
+        if (!useLocalValue) {
+            m_requestHeadersModel.setValueAt(origValue, m_requestHeaders.getSelectedRow(), 1);
+        }
+        requestHeaderValue.setSelectedItem(origValue);
     }
 
     /**
@@ -875,12 +890,15 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
      */
     private void updateRequestHeaderKeys() {
         m_requestHeaderOptions = m_requestTemplates.stream()
-                .filter(entry -> Objects.equals(m_requestHeaderTemplate.getSelectedItem(), entry.getKey()))
-                .map(entry -> entry.getValue()).findFirst().orElse(new ArrayList<>());
+            .filter(entry -> Objects.equals(m_requestHeaderTemplate.getSelectedItem(), entry.getKey()))
+            .map(entry -> entry.getValue()).findFirst().orElse(new ArrayList<>());
         m_requestHeaderKey.removeAllItems();
+        m_requestHeaderKeyPopup.removeAllItems();
         if (m_requestHeaderOptions != null) {
             for (final Entry<String, ? extends List<String>> keyValues : m_requestHeaderOptions) {
-                m_requestHeaderKey.addItem(keyValues.getKey());
+                String key = keyValues.getKey();
+                m_requestHeaderKey.addItem(key);
+                m_requestHeaderKeyPopup.addItem(key);
             }
         }
     }
@@ -906,8 +924,10 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         actionMap.put("escape", new AbstractAction() {
             @Override
             public void actionPerformed(final ActionEvent e) {
-                m_requestHeaders.getColumnModel().getColumn(Columns.headerKey.ordinal()).getCellEditor().cancelCellEditing();
-                m_requestHeaders.getColumnModel().getColumn(Columns.value.ordinal()).getCellEditor().cancelCellEditing();
+                m_requestHeaders.getColumnModel().getColumn(Columns.headerKey.ordinal()).getCellEditor()
+                    .cancelCellEditing();
+                m_requestHeaders.getColumnModel().getColumn(Columns.value.ordinal()).getCellEditor()
+                    .cancelCellEditing();
                 m_requestHeaders.getColumnModel().getColumn(Columns.kind.ordinal()).getCellEditor().cancelCellEditing();
             }
         });
@@ -1006,10 +1026,10 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
                 return super.getTableCellEditorComponent(table, value, isSelected, row, column);
             }
         };
-        final TableColumn columnColumn = new TableColumn(1, 67, m_responseHeaderValueCellRenderer, m_responseValueCellEditor);
+        final TableColumn columnColumn =
+            new TableColumn(1, 67, m_responseHeaderValueCellRenderer, m_responseValueCellEditor);
         columnColumn.setHeaderValue("Column");
-        m_responseHeaders.getColumnModel()
-            .addColumn(columnColumn);
+        m_responseHeaders.getColumnModel().addColumn(columnColumn);
         m_responseHeaders.getSelectionModel().addListSelectionListener(e -> updateResponseHeaderControls());
         m_responseAddRow.addActionListener(e -> {
             m_responseHeadersModel.newRow();
