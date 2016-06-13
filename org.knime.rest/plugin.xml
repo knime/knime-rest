@@ -121,31 +121,13 @@
              key="Accept-Encoding">
        </Entry>
        <Entry
-             key="Authorization">
-       </Entry>
-       <Entry
              key="Content-Type">
              <value>text/xml</value>
              <value>application/json; charset=utf-8</value>
              <value>text/plain; charset=utf-8</value>
        </Entry>
        <Entry
-             key="Depth">
-       </Entry>
-       <Entry
-             key="Destination">
-       </Entry>
-       <Entry
-             key="Expect">
-       </Entry>
-       <Entry
              key="From">
-       </Entry>
-       <Entry
-             key="Host">
-       </Entry>
-       <Entry
-             key="If">
        </Entry>
        <Entry
              key="User-Agent">
@@ -154,25 +136,10 @@
              key="Timeout">
        </Entry>
        <Entry
-             key="TE">
-       </Entry>
-       <Entry
              key="Referer">
        </Entry>
        <Entry
              key="Range">
-       </Entry>
-       <Entry
-             key="Proxy-Authorization">
-       </Entry>
-       <Entry
-             key="Overwrite">
-       </Entry>
-       <Entry
-             key="Max-Forwards">
-       </Entry>
-       <Entry
-             key="Lock-Token">
        </Entry>
        <Entry
              key="If-Unmodified-Since">
