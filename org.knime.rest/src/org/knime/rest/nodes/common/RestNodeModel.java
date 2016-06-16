@@ -698,10 +698,12 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         final Client client = createClient();
         CheckUtils.checkState(m_settings.isUseConstantURI() || row != null,
             "Without the constant uri and input, it is not possible to call a REST service!");
-        final WebTarget target = client.target(m_settings.isUseConstantURI() ? m_settings.getConstantURI()
+        WebTarget target = client.target(m_settings.isUseConstantURI() ? m_settings.getConstantURI()
             : row.getCell(uriColumn) instanceof URIDataValue
                 ? ((URIDataValue)row.getCell(uriColumn)).getURIContent().getURI().toString()
                 : ((StringValue)row.getCell(uriColumn)).getStringValue());
+        //Support relative redirects too, see https://tools.ietf.org/html/rfc7231#section-3.1.4.2
+        target = target.property("http.redirect.relative.uri", true);
 
         final Builder request = target.request();
         WebClient.getConfig(request).getHttpConduit().getClient().setAutoRedirect(m_settings.isFollowRedirects());
