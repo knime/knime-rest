@@ -103,6 +103,7 @@ import javax.swing.JTable;
 import javax.swing.JTextField;
 import javax.swing.KeyStroke;
 import javax.swing.SpinnerNumberModel;
+import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
 import javax.swing.border.TitledBorder;
 import javax.swing.event.DocumentEvent;
@@ -778,22 +779,29 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         final GridBagConstraints gbc = new GridBagConstraints();
         gbc.anchor = GridBagConstraints.FIRST_LINE_START;
         gbc.insets = new Insets(2, 4, 2, 4);
+        gbc.weightx = 0;
         gbc.gridx = 0;
         gbc.gridy = 0;
-        gbc.gridwidth = 3;
+        gbc.fill = GridBagConstraints.BOTH;
+        final JLabel templateLabel = new JLabel("Template:");
+        templateLabel.setHorizontalAlignment(SwingConstants.RIGHT);
+        templateLabel.setVerticalAlignment(SwingConstants.CENTER);
+        ret.add(templateLabel, gbc);
+        gbc.gridx = 1;
+        gbc.gridwidth = 4;
         gbc.weightx = 1;
         gbc.fill = GridBagConstraints.HORIZONTAL;
         ret.add(m_requestHeaderTemplate, gbc);
         gbc.gridwidth = 1;
         gbc.weightx = 0;
-        gbc.gridx += 3;
+        gbc.gridx += 4;
         ret.add(m_requestHeaderTemplateMerge, gbc);
         gbc.gridx++;
         ret.add(m_requestHeaderTemplateReplace, gbc);
         gbc.gridy++;
         gbc.weighty = 1;
         gbc.gridx = 0;
-        gbc.gridwidth = 5;
+        gbc.gridwidth = 7;
         gbc.fill = GridBagConstraints.BOTH;
         m_requestHeaders.setVisible(true);
         ret.add(new JScrollPane(m_requestHeaders), gbc);
@@ -1196,6 +1204,7 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         m_constantUri.setEnabled(m_settings.isUseConstantURI());
         if (specs[0] != null) {
             m_uriColumnOption.setEnabled(true);
+            m_uriColumnOption.setSelected(!m_settings.isUseConstantURI());
             m_uriColumn.setEnabled(m_uriColumnOption.isSelected());
             try {
                 m_uriColumn.setRequired(false);
