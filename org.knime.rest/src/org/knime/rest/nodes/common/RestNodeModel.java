@@ -119,9 +119,17 @@ import org.knime.core.node.NodeModel;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.port.PortObject;
+import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.node.port.PortType;
 import org.knime.core.node.streamable.InputPortRole;
 import org.knime.core.node.streamable.OutputPortRole;
+import org.knime.core.node.streamable.PartitionInfo;
+import org.knime.core.node.streamable.PortInput;
+import org.knime.core.node.streamable.PortOutput;
+import org.knime.core.node.streamable.RowInput;
+import org.knime.core.node.streamable.StreamableOperator;
+import org.knime.core.node.streamable.StreamableOperatorInternals;
+import org.knime.core.node.streamable.simple.SimpleStreamableOperatorInternals;
 import org.knime.core.node.util.CheckUtils;
 import org.knime.core.util.Pair;
 import org.knime.core.util.ThreadLocalHTTPAuthenticator;
@@ -141,10 +149,6 @@ import org.knime.rest.util.DelegatingX509TrustManager;
  * @param <S> The actual type of the {@link RestSettings}.
  */
 public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
-
-    /**
-     *
-     */
     private static final int MAX_RETRANSITS = 4;
 
     private static final NodeLogger LOGGER = NodeLogger.getLogger(RestNodeModel.class);
@@ -252,9 +256,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
     protected BufferedDataTable[] execute(final BufferedDataTable[] inData, final ExecutionContext exec)
         throws Exception {
         final List<EachRequestAuthentication> enabledEachRequestAuthentications =
-            m_settings.getAuthorizationConfigurations().parallelStream()
-                .filter(euc -> euc.isEnabled() && euc.getUserConfiguration() instanceof EachRequestAuthentication)
-                .map(euc -> (EachRequestAuthentication)euc.getUserConfiguration()).collect(Collectors.toList());
+            enabledAuthConfigs();
         createResponseBodyParsers(exec);
         if (inData.length > 0 && inData[0] != null) {
             if (inData[0].size() == 0) {
@@ -329,6 +331,14 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
                 final DataCellFactory cellFactory = rhi.getType().getCellFactory(null).orElseGet(() -> FALLBACK);
                 if (STATUS.equals(rhi.getHeaderKey()) && rhi.getType().isCompatible(IntValue.class)) {
                     return finalResponse == null ? DataType.getMissingCell() : new IntCell(finalResponse.getStatus());
+                }
+                if (rhi.getType().isCompatible(IntValue.class)) {
+                    try {
+                        return finalResponse == null ? DataType.getMissingCell()
+                            : new IntCell(Integer.parseInt(finalResponse.getHeaderString(rhi.getHeaderKey())));
+                    } catch (RuntimeException e) {
+                        return new MissingCell(e.getMessage());
+                    }
                 }
                 if (cellFactory instanceof FromString) {
                     final FromString fromString = (FromString)cellFactory;
@@ -547,7 +557,9 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
                 } finally {
                     m_consumedRows++;
                 }
-                setProgress(m_consumedRows, tableSize, row.getKey(), exec);
+                if (exec != null) {
+                    setProgress(m_consumedRows, tableSize, row.getKey(), exec);
+                }
                 return cells.toArray(new DataCell[cells.size()]);
             }
         };
@@ -555,6 +567,67 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         factory.setParallelProcessing(true, concurrency, 4 * concurrency);
         rearranger.append(factory);
         return rearranger;
+    }
+
+    /**
+     * <p>Unused</p>
+     * {@inheritDoc}
+     */
+    @Override
+    public StreamableOperatorInternals createInitialStreamableOperatorInternals() {
+        return new SimpleStreamableOperatorInternals();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean iterate(final StreamableOperatorInternals internals) {
+        return m_firstRow == null;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public PortObjectSpec[] computeFinalOutputSpecs(final StreamableOperatorInternals internals, final PortObjectSpec[] inSpecs)
+        throws InvalidSettingsException {
+        return new PortObjectSpec[] {createColumnRearranger(enabledAuthConfigs(), inSpecs.length >0 ? (DataTableSpec)inSpecs[0]: null, null/*exec*/, -1L).createSpec()};
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public StreamableOperator createStreamableOperator(final PartitionInfo partitionInfo,
+        final PortObjectSpec[] inSpecs) throws InvalidSettingsException {
+        return new StreamableOperator() {
+            /**
+             * {@inheritDoc}
+             */
+            @Override
+            public void runIntermediate(final PortInput[] inputs, final ExecutionContext exec) throws Exception {
+                createResponseBodyParsers(exec);
+                if (inputs.length >0 && inputs[0] != null && inputs[0] instanceof RowInput) {
+                    final RowInput input = (RowInput)inputs[0];
+                    final DataRow row = input.poll();
+                    makeFirstCall(row, enabledAuthConfigs(), input.getDataTableSpec(), exec);
+                    m_consumedRows = 1L;
+                } else {
+                    makeFirstCall(null/*row*/, enabledAuthConfigs(), null/*spec*/, exec);
+                }
+            }
+
+            /**
+             * {@inheritDoc}
+             */
+            @Override
+            public void runFinal(final PortInput[] inputs, final PortOutput[] outputs, final ExecutionContext exec) throws Exception {
+                createColumnRearranger(
+                    enabledAuthConfigs(),
+                    inSpecs.length > 0 ? (DataTableSpec)inSpecs[0] : null, exec, -1L).createStreamableFunction().runFinal(inputs, outputs, exec);
+                }
+        };
     }
 
     /**
@@ -784,5 +857,14 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
                 throw new UnsupportedOperationException("Unknown: " + headerItem.getKind() + " in: " + headerItem);
         }
         return value;
+    }
+
+    /**
+     * @return The enabled {@link EachRequestAuthentication}s.
+     */
+    private List<EachRequestAuthentication> enabledAuthConfigs() {
+        return m_settings.getAuthorizationConfigurations().parallelStream()
+            .filter(euc -> euc.isEnabled() && euc.getUserConfiguration() instanceof EachRequestAuthentication)
+            .map(euc -> (EachRequestAuthentication)euc.getUserConfiguration()).collect(Collectors.toList());
     }
 }

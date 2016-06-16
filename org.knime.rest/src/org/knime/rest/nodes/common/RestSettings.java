@@ -143,6 +143,8 @@ public class RestSettings {
 
     private static final String RESPONSE_HEADER_COLUMN_NAME = "Response header column name";
 
+    private static final String RESPONSE_HEADER_COLUMN_TYPE = "Response header column type";
+
     private static final String STATUS = "Status";
 
     private static final List<ResponseHeaderItem> DEFAULT_RESPONSE_HEADER_ITEMS = Collections.unmodifiableList(Arrays
@@ -711,6 +713,8 @@ public class RestSettings {
             m_extractFields.stream().map(rh -> rh.getHeaderKey()).toArray(n -> new String[n]));
         settings.addStringArray(RESPONSE_HEADER_COLUMN_NAME,
             m_extractFields.stream().map(rh -> rh.getOutputColumnName()).toArray(n -> new String[n]));
+        settings.addDataTypeArray(RESPONSE_HEADER_COLUMN_TYPE,
+            m_extractFields.stream().map(rh -> rh.getType()).toArray(n -> new DataType[n]));
         settings.addString(BODY_COLUMN_NAME, m_responseBodyColumn);
         for (final EnablableUserConfiguration<UserConfiguration> euc : m_authorizationConfigurations) {
             final UserConfiguration uc = euc.getUserConfiguration();
@@ -758,11 +762,15 @@ public class RestSettings {
         m_extractFields.clear();
         String[] responseKeys = settings.getStringArray(RESPONSE_HEADER_KEYS);
         String[] responseColumns = settings.getStringArray(RESPONSE_HEADER_COLUMN_NAME);
+        final DataType[] responseTypes = settings.getDataTypeArray(RESPONSE_HEADER_COLUMN_TYPE);
         CheckUtils.checkSetting(responseKeys.length == responseColumns.length,
-            "Response header keys and output columns for them have different lengths: " + responseKeys.length + " <> "
+            "Response header keys and output columns: they have different lengths: " + responseKeys.length + " <> "
                 + responseColumns.length);
+        CheckUtils.checkSetting(responseKeys.length == responseTypes.length,
+                "Response header keys and output column types: they have different lengths: " + responseKeys.length + " <> "
+                        + responseTypes.length);
         for (int i = 0; i < responseKeys.length; ++i) {
-            m_extractFields.add(new ResponseHeaderItem(responseKeys[i], responseColumns[i]));
+            m_extractFields.add(new ResponseHeaderItem(responseKeys[i], responseTypes[i], responseColumns[i]));
         }
         m_responseBodyColumn = settings.getString(BODY_COLUMN_NAME);
         for (final EnablableUserConfiguration<UserConfiguration> euc : m_authorizationConfigurations) {
@@ -826,11 +834,16 @@ public class RestSettings {
             DEFAULT_RESPONSE_HEADER_ITEMS.stream().map(ResponseHeaderItem::getHeaderKey).toArray(n -> new String[n]));
         String[] responseColumns = settings.getStringArray(RESPONSE_HEADER_COLUMN_NAME, DEFAULT_RESPONSE_HEADER_ITEMS
             .stream().map(ResponseHeaderItem::getOutputColumnName).toArray(n -> new String[n]));
+        final DataType[] responseTypes = settings.getDataTypeArray(RESPONSE_HEADER_COLUMN_TYPE,
+            DEFAULT_RESPONSE_HEADER_ITEMS.stream().map(ResponseHeaderItem::getType).toArray(n -> new DataType[n]));
         CheckUtils.checkSetting(responseKeys.length == responseColumns.length,
             "Response header keys and output columns for them have different lengths: " + responseKeys.length + " <> "
                 + responseColumns.length);
+        CheckUtils.checkSetting(responseKeys.length == responseTypes.length,
+                "Response header keys and output column types: they have different lengths: " + responseKeys.length + " <> "
+                        + responseTypes.length);
         for (int i = 0; i < responseKeys.length; ++i) {
-            m_extractFields.add(new ResponseHeaderItem(responseKeys[i], responseColumns[i]));
+            m_extractFields.add(new ResponseHeaderItem(responseKeys[i], responseTypes[i], responseColumns[i]));
         }
         m_responseBodyColumn = settings.getString(BODY_COLUMN_NAME, DEFAULT_BODY_COLUMN_NAME);
         for (final EnablableUserConfiguration<UserConfiguration> euc : m_authorizationConfigurations) {

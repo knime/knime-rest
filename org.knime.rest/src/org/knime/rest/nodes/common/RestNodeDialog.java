@@ -549,7 +549,6 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
             (String)m_responseHeadersModel.getValueAt(selectedRow, ResponseTableModel.Columns.headerKey.ordinal()));
         m_responseColumnName.setText((String)((Pair<?, ?>)m_responseHeadersModel.getValueAt(selectedRow,
             ResponseTableModel.Columns.outputColumn.ordinal())).getFirst());
-        updateResponseValueTypes();
         m_responseValueType.setSelectedItem(((Pair<?, ?>)m_responseHeadersModel.getValueAt(selectedRow,
             ResponseTableModel.Columns.outputColumn.ordinal())).getSecond());
         outer.add(panel, BorderLayout.CENTER);
@@ -1088,24 +1087,7 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
                 }
             }
         });
-
-        m_responseHeaderKey.addFocusListener((FocusLostListener)e -> updateResponseValueTypes());
         return ret;
-    }
-
-    /**
-     * Fixes response value types.
-     */
-    private void updateResponseValueTypes() {
-        if (RestNodeModel.STATUS.equals(m_responseHeaderKey.getText())) {
-            if (m_responseValueType.getItemCount() < 2) {
-                m_responseValueType.addItem(IntCell.TYPE);
-            }
-        } else {
-            if (m_responseValueType.getItemCount() == 2) {
-                m_responseValueType.removeItem(IntCell.TYPE);
-            }
-        }
     }
 
     /**
