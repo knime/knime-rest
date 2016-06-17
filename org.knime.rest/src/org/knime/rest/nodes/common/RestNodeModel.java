@@ -771,6 +771,10 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         final Client client = createClient();
         CheckUtils.checkState(m_settings.isUseConstantURI() || row != null,
             "Without the constant uri and input, it is not possible to call a REST service!");
+        if (!m_settings.isUseConstantURI()) {
+            CheckUtils.checkArgument(row != null && !row.getCell(uriColumn).isMissing(),
+                "The URI cannot be missing, but it is in row: " + row.getKey());
+        }
         WebTarget target = client.target(m_settings.isUseConstantURI() ? m_settings.getConstantURI()
             : row.getCell(uriColumn) instanceof URIDataValue
                 ? ((URIDataValue)row.getCell(uriColumn)).getURIContent().getURI().toString()
@@ -845,13 +849,13 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
                 value = row.getCell(spec.findColumnIndex(headerItem.getValueReference())).toString();
                 break;
             case FlowVariable:
-                value = getAvailableInputFlowVariables().get(headerItem.getKey()).getValueAsString();
+                value = getAvailableInputFlowVariables().get(headerItem.getValueReference()).getValueAsString();
                 break;
             case CredentialName:
-                value = getCredentialsProvider().get(headerItem.getKey()).getLogin();
+                value = getCredentialsProvider().get(headerItem.getValueReference()).getLogin();
                 break;
             case CredentialPassword:
-                value = getCredentialsProvider().get(headerItem.getKey()).getPassword();
+                value = getCredentialsProvider().get(headerItem.getValueReference()).getPassword();
                 break;
             default:
                 throw new UnsupportedOperationException("Unknown: " + headerItem.getKind() + " in: " + headerItem);

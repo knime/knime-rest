@@ -84,7 +84,7 @@ public class BasicAuthentication extends UsernamePasswordAuthentication {
             request.header("Authorization",
                 "Basic " + Base64Utility.encode((username + ":" + password).getBytes("UTF-8")));
         } catch (UnsupportedEncodingException ex) {
-            // UTF-8 is supportted for sure, but who knows...
+            // UTF-8 is supported for sure, but who knows...
             NodeLogger.getLogger(getClass()).error("Unsupported charset: " + ex.getMessage(), ex);
         }
         return request;

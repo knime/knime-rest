@@ -497,13 +497,27 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         controls.add(new JButton(new AbstractAction("OK") {
             @Override
             public void actionPerformed(final ActionEvent e) {
-                m_requestHeadersModel.setValueAt(m_requestHeaderKeyPopup.getSelectedItem(), selectedRow,
-                    RequestTableModel.Columns.headerKey.ordinal());
-                m_requestHeadersModel.setValueAt(m_requestHeaderValuePopup.getSelectedItem(), selectedRow,
-                    RequestTableModel.Columns.value.ordinal());
-                m_requestHeadersModel.setValueAt(m_requestHeaderValueTypePopup.getSelectedItem(), selectedRow,
-                    RequestTableModel.Columns.kind.ordinal());
-                dialog.dispose();
+                Object source = e.getSource();
+                if (source instanceof JComponent) {
+                    final JComponent comp = (JComponent)source;
+                    comp.grabFocus();
+                }
+                SwingUtilities.invokeLater(() -> {
+                    m_requestHeadersModel.setValueAt(m_requestHeaderKeyPopup.getSelectedItem(), selectedRow,
+                        RequestTableModel.Columns.headerKey.ordinal());
+                    m_requestHeadersModel.setValueAt(m_requestHeaderValuePopup.getSelectedItem(), selectedRow,
+                        RequestTableModel.Columns.value.ordinal());
+                    m_requestHeadersModel.setValueAt(m_requestHeaderValueTypePopup.getSelectedItem(), selectedRow,
+                        RequestTableModel.Columns.kind.ordinal());
+                    dialog.dispose();
+                });
+//                m_requestHeadersModel.setValueAt(m_requestHeaderKeyPopup.getSelectedItem(), selectedRow,
+//                    RequestTableModel.Columns.headerKey.ordinal());
+//                m_requestHeadersModel.setValueAt(m_requestHeaderValuePopup.getSelectedItem(), selectedRow,
+//                    RequestTableModel.Columns.value.ordinal());
+//                m_requestHeadersModel.setValueAt(m_requestHeaderValueTypePopup.getSelectedItem(), selectedRow,
+//                    RequestTableModel.Columns.kind.ordinal());
+//                dialog.dispose();
             }
         }));
         final AbstractAction cancel = new AbstractAction("Cancel") {

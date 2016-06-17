@@ -182,7 +182,7 @@ public interface ResponseBodyParser {
                     final FromInputStream fromInputStream = (FromInputStream)dataCellFactory;
                     try (final InputStream is = responseInputStream(response)) {
                         return fromInputStream.createCell(is);
-                    } catch (IOException e) {
+                    } catch (IOException | RuntimeException e) {
                         return new MissingCell(e.getMessage());
                     }
                 } else {
