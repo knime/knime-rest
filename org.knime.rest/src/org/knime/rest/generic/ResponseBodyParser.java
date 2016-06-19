@@ -57,7 +57,6 @@ import java.nio.charset.Charset;
 import java.text.ParseException;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.InflaterInputStream;
-import java.util.zip.ZipException;
 
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
@@ -209,10 +208,8 @@ public interface ResponseBodyParser {
                     case "gzip":
                         try {
                             return new GZIPInputStream(entity);
-                        } catch (ZipException e) {
-                            //Try treating as uncompressed
-                            return entity;
-                        } catch (IOException e) {
+                        } catch (final IOException e) {
+                            //we cannot reset the stream, so it is not worth special casing for ZipExceptions
                             throw new UncheckedIOException(e);
                         }
                     case "deflate":

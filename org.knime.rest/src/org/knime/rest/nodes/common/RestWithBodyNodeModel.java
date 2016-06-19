@@ -49,7 +49,6 @@
 package org.knime.rest.nodes.common;
 
 import java.io.IOException;
-import java.util.Date;
 
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.Invocation;
@@ -57,6 +56,8 @@ import javax.ws.rs.client.Invocation.Builder;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Variant;
 
+import org.apache.batik.transcoder.TranscoderException;
+import org.knime.base.data.xml.SvgImageContent;
 import org.knime.base.data.xml.SvgValue;
 import org.knime.core.data.BooleanValue;
 import org.knime.core.data.DataCell;
@@ -69,6 +70,7 @@ import org.knime.core.data.StringValue;
 import org.knime.core.data.blob.BinaryObjectDataValue;
 import org.knime.core.data.date.DateAndTimeValue;
 import org.knime.core.data.image.png.PNGImageValue;
+import org.knime.core.data.json.JSONCellFactory;
 import org.knime.core.data.json.JSONValue;
 import org.knime.core.data.vector.bitvector.BitVectorValue;
 import org.knime.core.data.vector.bytevector.ByteVectorValue;
@@ -123,7 +125,12 @@ public abstract class RestWithBodyNodeModel<S extends RestWithBodySettings> exte
     protected Object createObjectFromCell(final DataCell cell) {
         if (cell instanceof JSONValue) {
             JSONValue jv = (JSONValue)cell;
-            return jv.getJsonValue();
+            if (cell instanceof StringValue) {
+                StringValue sv = (StringValue)cell;
+                return sv.getStringValue();
+            }
+            //CXF does not support the javax.json implementation, so we return as String (but currently all implementations are StringValues):
+            return ((StringValue)JSONCellFactory.create(jv.getJsonValue())).getStringValue();
         }
         if (cell instanceof PNGImageValue) {
             PNGImageValue pngv = (PNGImageValue)cell;
@@ -131,7 +138,15 @@ public abstract class RestWithBodyNodeModel<S extends RestWithBodySettings> exte
         }
         if (cell instanceof SvgValue) {
             SvgValue svgv = (SvgValue)cell;
-            return svgv.getDocument();
+            if (cell instanceof StringValue) {
+                return ((StringValue)cell).getStringValue();
+            }
+            //Currently every implementation is a StringValue, but in case in the future it will not be the case:
+            try {
+                return SvgImageContent.serialize(svgv.getDocument());
+            } catch (TranscoderException e) {
+                throw new IllegalStateException(e);
+            }
         }
         if (cell instanceof XMLValue) {
             XMLValue xmlv = (XMLValue)cell;
@@ -158,8 +173,8 @@ public abstract class RestWithBodyNodeModel<S extends RestWithBodySettings> exte
             return dv.getDoubleValue();
         }
         if (cell instanceof DateAndTimeValue) {
-            DateAndTimeValue datv = (DateAndTimeValue)cell;
-            return new Date(datv.getUTCTimeInMillis()).toInstant().toString();
+            //Currently DateAndTimeValue implementations are also StringValues
+            throw new UnsupportedOperationException("Not supported datatype: date and time");
         }
         if (cell instanceof BinaryObjectDataValue) {
             BinaryObjectDataValue bodv = (BinaryObjectDataValue)cell;
@@ -169,17 +184,26 @@ public abstract class RestWithBodyNodeModel<S extends RestWithBodySettings> exte
                 throw new IllegalStateException(e);
             }
         }
-        //TODO implement conversion to InputStream/byte[].
         if (cell instanceof ByteVectorValue) {
             ByteVectorValue bvv = (ByteVectorValue)cell;
-            return bvv.toString();
-            //return JsonPathUtils.toBytes(bvv).;
+            if (bvv.length() > Integer.MAX_VALUE) {
+                throw new IllegalStateException("Too large byte-vector: " + bvv.length());
+            }
+            byte[] ret = new byte[(int)bvv.length()];
+            for (int i = ret.length; i-- > 0;) {
+                int v = bvv.get(i);
+                v &= 0xff;
+                ret[i] = (byte)v;
+            }
+            return ret;
         }
         //TODO how to represent?
         if (cell instanceof BitVectorValue) {
-            BitVectorValue bvv = (BitVectorValue)cell;
-            return bvv.toString();
+            throw new UnsupportedOperationException("Not supported datatype: bitvector");
+//            BitVectorValue bvv = (BitVectorValue)cell;
+//            return bvv.toString();
         }
+        //TODO should we fail instead?
         return cell.toString();
     }
 
