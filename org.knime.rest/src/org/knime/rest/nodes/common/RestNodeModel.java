@@ -127,6 +127,7 @@ import org.knime.core.node.streamable.PartitionInfo;
 import org.knime.core.node.streamable.PortInput;
 import org.knime.core.node.streamable.PortOutput;
 import org.knime.core.node.streamable.RowInput;
+import org.knime.core.node.streamable.RowOutput;
 import org.knime.core.node.streamable.StreamableOperator;
 import org.knime.core.node.streamable.StreamableOperatorInternals;
 import org.knime.core.node.streamable.simple.SimpleStreamableOperatorInternals;
@@ -583,7 +584,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
      */
     @Override
     public boolean iterate(final StreamableOperatorInternals internals) {
-        return m_firstRow == null;
+        return m_firstCallValues == null;
     }
 
     /**
@@ -592,7 +593,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
     @Override
     public PortObjectSpec[] computeFinalOutputSpecs(final StreamableOperatorInternals internals, final PortObjectSpec[] inSpecs)
         throws InvalidSettingsException {
-        return new PortObjectSpec[] {createColumnRearranger(enabledAuthConfigs(), inSpecs.length >0 ? (DataTableSpec)inSpecs[0]: null, null/*exec*/, -1L).createSpec()};
+        return new PortObjectSpec[] {m_firstRow == null ? new DataTableSpec(m_newColumnsBasedOnFirstCall) : createColumnRearranger(enabledAuthConfigs(), inSpecs.length >0 ? (DataTableSpec)inSpecs[0]: null, null/*exec*/, -1L).createSpec()};
     }
 
     /**
@@ -623,10 +624,15 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
              */
             @Override
             public void runFinal(final PortInput[] inputs, final PortOutput[] outputs, final ExecutionContext exec) throws Exception {
-                createColumnRearranger(
-                    enabledAuthConfigs(),
-                    inSpecs.length > 0 ? (DataTableSpec)inSpecs[0] : null, exec, -1L).createStreamableFunction().runFinal(inputs, outputs, exec);
+                if (m_firstRow == null) {
+                    RowOutput rowOutput = (RowOutput)outputs[0];
+                    rowOutput.push(new DefaultRow(RowKey.createRowKey(0L), m_firstCallValues));
+                    rowOutput.close();
+                } else {
+                    createColumnRearranger(enabledAuthConfigs(), inSpecs.length > 0 ? (DataTableSpec)inSpecs[0] : null, exec, -1L)
+                        .createStreamableFunction().runFinal(inputs, outputs, exec);
                 }
+            }
         };
     }
 
