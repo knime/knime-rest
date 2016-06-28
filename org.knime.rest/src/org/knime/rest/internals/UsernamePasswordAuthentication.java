@@ -57,7 +57,7 @@ import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.NotConfigurableException;
 import org.knime.core.node.defaultnodesettings.DialogComponentAuthentication;
 import org.knime.core.node.defaultnodesettings.SettingsModelAuthentication;
-import org.knime.core.node.defaultnodesettings.SettingsModelAuthentication.Type;
+import org.knime.core.node.defaultnodesettings.SettingsModelAuthentication.AuthenticationType;
 import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.node.workflow.CredentialsProvider;
 import org.knime.rest.generic.EachRequestAuthentication;
@@ -85,7 +85,8 @@ public abstract class UsernamePasswordAuthentication extends EachRequestAuthenti
     protected UsernamePasswordAuthentication(final String configName, final String defaultUsername,
         final String defaultPassword, final String defaultCredential) {
         super();
-        m_settings = new SettingsModelAuthentication(configName, defaultUsername, defaultPassword, defaultCredential);
+        m_settings = new SettingsModelAuthentication(configName, AuthenticationType.USER_PWD, defaultUsername,
+            defaultPassword, defaultCredential);
         m_controls = new DialogComponentAuthentication(m_settings);
     }
 
@@ -170,7 +171,7 @@ public abstract class UsernamePasswordAuthentication extends EachRequestAuthenti
      * @param username the username to set
      */
     public void setUsername(final String username) {
-        m_settings.setValues(m_settings.getCredential(), Type.USER_PWD, username, m_settings.getPassword());
+        m_settings.setValues( AuthenticationType.USER_PWD, m_settings.getCredential(), username, m_settings.getPassword());
     }
 
     /**
@@ -184,7 +185,7 @@ public abstract class UsernamePasswordAuthentication extends EachRequestAuthenti
      * @param password the password to set
      */
     public void setPassword(final String password) {
-        m_settings.setValues(m_settings.getCredential(), Type.USER_PWD, m_settings.getUsername(), password);
+        m_settings.setValues(AuthenticationType.USER_PWD, m_settings.getCredential(), m_settings.getUsername(), password);
     }
 
     /**
@@ -198,22 +199,22 @@ public abstract class UsernamePasswordAuthentication extends EachRequestAuthenti
      * @param credential the credential to set
      */
     public void setCredential(final String credential) {
-        m_settings.setValues(credential, Type.CREDENTIALS, m_settings.getUsername(), m_settings.getPassword());
+        m_settings.setValues(AuthenticationType.CREDENTIALS, credential, m_settings.getUsername(), m_settings.getPassword());
     }
 
     /**
      * @return the useCredentials
      */
     public boolean isUseCredentials() {
-        return m_settings.getSelectedType() == Type.CREDENTIALS;
+        return m_settings.getAuthenticationType() == AuthenticationType.CREDENTIALS;
     }
 
     /**
      * @param useCredentials the useCredentials to set
      */
     public void setUseCredentials(final boolean useCredentials) {
-        m_settings.setValues(m_settings.getCredential(), useCredentials ? Type.CREDENTIALS : Type.USER_PWD,
-            m_settings.getUsername(), m_settings.getPassword());
+        m_settings.setValues(useCredentials ? AuthenticationType.CREDENTIALS : AuthenticationType.USER_PWD,
+            m_settings.getCredential(), m_settings.getUsername(), m_settings.getPassword());
     }
 
     /**
