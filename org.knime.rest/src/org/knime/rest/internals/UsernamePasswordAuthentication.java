@@ -70,7 +70,7 @@ import org.knime.rest.generic.EachRequestAuthentication;
 public abstract class UsernamePasswordAuthentication extends EachRequestAuthentication {
     private final SettingsModelAuthentication m_settings;
 
-    private final DialogComponentAuthentication m_controls;
+    private DialogComponentAuthentication m_controls;
 
     private CredentialsProvider m_lastCredentialsProvider;
 
@@ -87,7 +87,6 @@ public abstract class UsernamePasswordAuthentication extends EachRequestAuthenti
         super();
         m_settings = new SettingsModelAuthentication(configName, AuthenticationType.USER_PWD, defaultUsername,
             defaultPassword, defaultCredential);
-        m_controls = new DialogComponentAuthentication(m_settings);
     }
 
     /**
@@ -134,8 +133,18 @@ public abstract class UsernamePasswordAuthentication extends EachRequestAuthenti
     @Override
     public void loadUserConfigurationForDialog(final NodeSettingsRO userSettings, final PortObjectSpec[] specs,
         final CredentialsProvider credentialNames) throws NotConfigurableException {
+        initControls();
         m_controls.loadSettingsFrom(userSettings, specs, credentialNames);
         m_lastCredentialsProvider = credentialNames;
+    }
+
+    /**
+     * Creates the controls with DialogComponentAuthentication.
+     */
+    private void initControls() {
+        if (m_controls == null) {
+            m_controls = new DialogComponentAuthentication(m_settings);
+        }
     }
 
     /**
@@ -157,6 +166,7 @@ public abstract class UsernamePasswordAuthentication extends EachRequestAuthenti
      */
     @Override
     public void addControls(final JPanel panel) {
+        initControls();
         panel.add(m_controls.getComponentPanel());
     }
 
