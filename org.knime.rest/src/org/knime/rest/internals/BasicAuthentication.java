@@ -58,6 +58,7 @@ import org.knime.core.data.DataRow;
 import org.knime.core.node.NodeLogger;
 import org.knime.core.node.workflow.CredentialsProvider;
 import org.knime.core.node.workflow.FlowVariable;
+import org.knime.rest.generic.UsernamePasswordAuthentication;
 
 /**
  * Basic authentication.

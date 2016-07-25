@@ -46,7 +46,7 @@
  * History
  *   14. Feb. 2016. (Gabor Bakos): created
  */
-package org.knime.rest.internals;
+package org.knime.rest.generic;
 
 import javax.swing.JPanel;
 
@@ -60,12 +60,12 @@ import org.knime.core.node.defaultnodesettings.SettingsModelAuthentication;
 import org.knime.core.node.defaultnodesettings.SettingsModelAuthentication.AuthenticationType;
 import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.node.workflow.CredentialsProvider;
-import org.knime.rest.generic.EachRequestAuthentication;
 
 /**
  * Abstract implementation that can be used to extend the authentication functionality of the REST nodes.
  *
  * @author Gabor Bakos
+ * @since 3.3
  */
 public abstract class UsernamePasswordAuthentication extends EachRequestAuthentication {
     private final SettingsModelAuthentication m_settings;
