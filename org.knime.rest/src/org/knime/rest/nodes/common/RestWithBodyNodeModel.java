@@ -227,9 +227,12 @@ public abstract class RestWithBodyNodeModel<S extends RestWithBodySettings> exte
         final MediaType mediaType = MediaType.valueOf((String)computeHeaderValue(row, spec,
             settings.getRequestHeaders().stream().filter(v -> "Content-Type".equals(v.getKey())).findAny()
                 .orElse(new RequestHeaderKeyItem("Content-Type", "application/json", ReferenceType.Constant))));
+
+        Variant variant = new Variant(mediaType, (String)null, null);
         Entity<?> entity = Entity.entity(settings.isUseConstantRequestBody()
             ? createObjectFromString(settings.getConstantRequestBody()) : createObjectFromCell(row.getCell(bodyColumn)),
-            new Variant(mediaType, (String)null, "UTF-8"));
+            variant);
+
         return invocationWithEntity(request, entity);
     }
 
