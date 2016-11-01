@@ -788,6 +788,9 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         //Support relative redirects too, see https://tools.ietf.org/html/rfc7231#section-3.1.4.2
         target = target.property("http.redirect.relative.uri", true);
 
+        // IMPORTANT: don't access the HttpConduit before the request has been updated by an EachRequestAuthentication!
+        // Some implementations (e.g. NTLM) must configure the conduit but they cannot after it has been accessed.
+
         final Builder request = target.request();
         WebClient.getConfig(request).getHttpConduit().getClient().setAutoRedirect(m_settings.isFollowRedirects());
         WebClient.getConfig(request).getHttpConduit().getClient().setMaxRetransmits(MAX_RETRANSITS);
@@ -796,9 +799,11 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
             Object value = computeHeaderValue(row, spec, headerItem);
             request.header(headerItem.getKey(), value);
         }
+
         for (final EachRequestAuthentication era : enabledEachRequestAuthentications) {
             era.updateRequest(request, row, getCredentialsProvider(), getAvailableFlowVariables());
         }
+
         return request;
     }
 
