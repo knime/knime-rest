@@ -780,7 +780,11 @@ public class RestSettings {
                 final NodeSettingsRO base = settings.getNodeSettings(euc.getName());
                 uc.loadUserConfiguration(base);
             } catch (InvalidSettingsException e) {
-                LOGGER.warn("", e);
+                if (euc.isEnabled()) {
+                    throw e;
+                } else {
+                    LOGGER.debug(e.getMessage(), e);
+                }
             }
         }
         m_followRedirects = settings.getBoolean(FOLLOW_REDIRECTS);

@@ -80,9 +80,12 @@ import javax.ws.rs.ext.RuntimeDelegate;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
+import org.apache.cxf.Bus;
+import org.apache.cxf.BusFactory;
 import org.apache.cxf.jaxrs.client.WebClient;
 import org.apache.cxf.jaxrs.client.spec.ClientBuilderImpl;
 import org.apache.cxf.jaxrs.impl.RuntimeDelegateImpl;
+import org.apache.cxf.transport.http.HTTPConduitFactory;
 import org.eclipse.e4.core.di.annotations.Execute;
 import org.knime.base.data.xml.SvgCell;
 import org.knime.core.data.DataCell;
@@ -792,8 +795,10 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         // Some implementations (e.g. NTLM) must configure the conduit but they cannot after it has been accessed.
 
         final Builder request = target.request();
-        WebClient.getConfig(request).getHttpConduit().getClient().setAutoRedirect(m_settings.isFollowRedirects());
-        WebClient.getConfig(request).getHttpConduit().getClient().setMaxRetransmits(MAX_RETRANSITS);
+
+        // make sure that the AsyncHTTPConduitFactory is *not* used
+        Bus bus = BusFactory.getThreadDefaultBus();
+        bus.setExtension(null, HTTPConduitFactory.class);
 
         for (final RequestHeaderKeyItem headerItem : m_settings.getRequestHeaders()) {
             Object value = computeHeaderValue(row, spec, headerItem);
@@ -804,6 +809,8 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
             era.updateRequest(request, row, getCredentialsProvider(), getAvailableFlowVariables());
         }
 
+        WebClient.getConfig(request).getHttpConduit().getClient().setAutoRedirect(m_settings.isFollowRedirects());
+        WebClient.getConfig(request).getHttpConduit().getClient().setMaxRetransmits(MAX_RETRANSITS);
         return request;
     }
 
