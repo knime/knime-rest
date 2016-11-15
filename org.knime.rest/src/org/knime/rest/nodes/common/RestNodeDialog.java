@@ -1216,6 +1216,7 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         }
         m_useDelay.setSelected(m_settings.isUseDelay());
         m_delay.setValue(m_settings.getDelay());
+        m_delay.setEnabled(m_useDelay.isSelected());
         m_concurrency.setValue(m_settings.getConcurrency());
         m_sslIgnoreHostnameMismatches.setSelected(m_settings.isSslIgnoreHostNameErrors());
         m_sslTrustAll.setSelected(m_settings.isSslTrustAll());
