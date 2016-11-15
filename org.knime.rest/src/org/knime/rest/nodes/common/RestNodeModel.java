@@ -86,6 +86,7 @@ import org.apache.cxf.jaxrs.client.WebClient;
 import org.apache.cxf.jaxrs.client.spec.ClientBuilderImpl;
 import org.apache.cxf.jaxrs.impl.RuntimeDelegateImpl;
 import org.apache.cxf.transport.http.HTTPConduitFactory;
+import org.apache.cxf.transports.http.configuration.HTTPClientPolicy;
 import org.eclipse.e4.core.di.annotations.Execute;
 import org.knime.base.data.xml.SvgCell;
 import org.knime.core.data.DataCell;
@@ -809,8 +810,14 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
             era.updateRequest(request, row, getCredentialsProvider(), getAvailableFlowVariables());
         }
 
-        WebClient.getConfig(request).getHttpConduit().getClient().setAutoRedirect(m_settings.isFollowRedirects());
-        WebClient.getConfig(request).getHttpConduit().getClient().setMaxRetransmits(MAX_RETRANSITS);
+        HTTPClientPolicy clientPolicy = WebClient.getConfig(request).getHttpConduit().getClient();
+
+        if (!clientPolicy.isSetAutoRedirect()) {
+            clientPolicy.setAutoRedirect(m_settings.isFollowRedirects());
+        }
+        if (!clientPolicy.isSetMaxRetransmits()) {
+            clientPolicy.setMaxRetransmits(MAX_RETRANSITS);
+        }
         return request;
     }
 
