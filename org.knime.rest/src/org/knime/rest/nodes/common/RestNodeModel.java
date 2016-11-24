@@ -834,7 +834,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
                 DataType expectedType = rhi.getType();
                 MediaType mediaType = response.getMediaType();
                 if (mediaType == null) {
-                    cells.add(DataType.getMissingCell());
+                    cells.add(new MissingCell("Response doesn't have a media type"));
                 } else {
                     boolean wasAdded = false;
                     for (ResponseBodyParser parser : m_responseBodyParsers) {
