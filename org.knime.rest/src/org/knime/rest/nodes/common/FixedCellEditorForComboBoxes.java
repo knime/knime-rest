@@ -46,7 +46,7 @@
  * History
  *   7 May 2016 (Gabor Bakos): created
  */
-package org.knime.rest.util;
+package org.knime.rest.nodes.common;
 
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
@@ -62,7 +62,7 @@ import javax.swing.JComboBox;
  * @author Gabor Bakos
  */
 @SuppressWarnings("serial")
-public class FixedCellEditorForComboBoxes extends DefaultCellEditor {
+class FixedCellEditorForComboBoxes extends DefaultCellEditor {
     /**
      * @param comboBox {@link JComboBox} to wrap.
      */

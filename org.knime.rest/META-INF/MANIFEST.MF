@@ -4,7 +4,8 @@ Bundle-Name: KNIME REST Client Nodes
 Bundle-SymbolicName: org.knime.rest;singleton:=true
 Bundle-Version: 3.3.0.qualifier
 Bundle-Vendor: KNIME GmbH, Konstanz, Germany
-Export-Package: org.knime.rest.generic
+Export-Package: org.knime.rest.generic,
+ org.knime.rest.util
 Require-Bundle: org.knime.base;bundle-version="[3.0.0,4.0.0)",
  org.apache.cxf.cxf-core;bundle-version="[3.0.7,4.0.0)",
  org.apache.cxf.cxf-rt-frontend-jaxrs;bundle-version="[3.0.7,4.0.0)",

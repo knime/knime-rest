@@ -133,8 +133,6 @@ import org.knime.rest.generic.UserConfiguration;
 import org.knime.rest.nodes.common.RequestTableModel.Columns;
 import org.knime.rest.nodes.common.RestSettings.ReferenceType;
 import org.knime.rest.nodes.common.RestSettings.RequestHeaderKeyItem;
-import org.knime.rest.util.ButtonCell;
-import org.knime.rest.util.FixedCellEditorForComboBoxes;
 
 /**
  * Common dialog for the REST nodes. It adds the following tabs by default:

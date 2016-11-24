@@ -46,7 +46,7 @@
  * History
  *   5. Mar. 2016. (Gabor Bakos): created
  */
-package org.knime.rest.util;
+package org.knime.rest.nodes.common;
 
 import java.awt.Component;
 import java.awt.FlowLayout;
@@ -67,7 +67,7 @@ import javax.swing.table.TableCellRenderer;
  *
  * @author Gabor Bakos
  */
-public class ButtonCell implements TableCellEditor, TableCellRenderer {
+class ButtonCell implements TableCellEditor, TableCellRenderer {
     private final JButton m_button, m_buttonRender;
 
     private final JPanel m_panel, m_panelRender;
