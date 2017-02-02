@@ -3,7 +3,6 @@
   <dependencies>
     <dependency name="org.knime.config" componentType="osgi.bundle"/>
     <dependency name="org.apache.ws.xmlschema.core" componentType="osgi.bundle"/>
-    <dependency name="org.osgi.service.blueprint" componentType="osgi.bundle"/>
     <dependency name="net.minidev.json-smart" componentType="osgi.bundle"/>
     <dependency name="net.minidev.asm" componentType="osgi.bundle"/>
     <dependency name="com.github.fge.btf" componentType="osgi.bundle"/>
