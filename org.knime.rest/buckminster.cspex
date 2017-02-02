@@ -2,5 +2,18 @@
 <cspecExtension xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bc="http://www.eclipse.org/buckminster/Common-1.0" xmlns="http://www.eclipse.org/buckminster/CSpec-1.0">
   <dependencies>
     <dependency name="org.knime.config" componentType="osgi.bundle"/>
+    <dependency name="org.apache.ws.xmlschema.core" componentType="osgi.bundle"/>
+    <dependency name="org.osgi.service.blueprint" componentType="osgi.bundle"/>
+    <dependency name="net.minidev.json-smart" componentType="osgi.bundle"/>
+    <dependency name="net.minidev.asm" componentType="osgi.bundle"/>
+    <dependency name="com.github.fge.btf" componentType="osgi.bundle"/>
+    <dependency name="com.github.fge.jackson-coreutils" componentType="osgi.bundle"/>
+    <dependency name="com.github.fge.json-schema-core" componentType="osgi.bundle"/>
+    <dependency name="com.github.fge.json-schema-validator" componentType="osgi.bundle"/>
+    <dependency name="com.github.fge.msg-simple" componentType="osgi.bundle"/>
+    <dependency name="de.undercouch.bson4jackson" componentType="osgi.bundle"/>
+    <dependency name="org.mozilla.javascript" componentType="osgi.bundle"/>
+    <dependency name="com.googlecode.libphonenumber" componentType="osgi.bundle"/>
+    <dependency name="net.sf.jopt-simple.jopt-simple" componentType="osgi.bundle"/>
   </dependencies>
 </cspecExtension>
