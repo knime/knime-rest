@@ -10,7 +10,7 @@
     <dependency name="com.github.fge.json-schema-core" componentType="osgi.bundle"/>
     <dependency name="com.github.fge.json-schema-validator" componentType="osgi.bundle"/>
     <dependency name="com.github.fge.msg-simple" componentType="osgi.bundle"/>
-    <dependency name="com.github.fge.uritemplate" componentType="osgi.bundle"/>
+    <dependency name="com.github.fge.uri-template" componentType="osgi.bundle"/>
     <dependency name="de.undercouch.bson4jackson" componentType="osgi.bundle"/>
     <dependency name="org.mozilla.javascript" componentType="osgi.bundle"/>
     <dependency name="com.googlecode.libphonenumber" componentType="osgi.bundle"/>
