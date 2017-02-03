@@ -15,5 +15,6 @@
     <dependency name="com.googlecode.libphonenumber" componentType="osgi.bundle"/>
     <dependency name="net.sf.jopt-simple.jopt-simple" componentType="osgi.bundle"/>
     <dependency name="osgi.cmpn" componentType="osgi.bundle"/>
+    <dependency name="com.google.guava" componentType="osgi.bundle" versionDesignator="[16.0.0, 17.0.0)"/>
   </dependencies>
 </cspecExtension>
