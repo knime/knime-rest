@@ -14,5 +14,6 @@
     <dependency name="org.mozilla.javascript" componentType="osgi.bundle"/>
     <dependency name="com.googlecode.libphonenumber" componentType="osgi.bundle"/>
     <dependency name="net.sf.jopt-simple.jopt-simple" componentType="osgi.bundle"/>
+    <dependency name="osgi.cmpn" componentType="osgi.bundle"/>
   </dependencies>
 </cspecExtension>
