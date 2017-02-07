@@ -61,6 +61,8 @@ import java.util.zip.InflaterInputStream;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
+import org.apache.commons.io.ByteOrderMark;
+import org.apache.commons.io.input.BOMInputStream;
 import org.apache.commons.lang3.StringUtils;
 import org.knime.core.data.DataCell;
 import org.knime.core.data.DataCellFactory;
@@ -200,7 +202,8 @@ public interface ResponseBodyParser {
          * @return The {@link InputStream} that can handle {@code Content-Encoding}.
          */
         private InputStream responseInputStream(final Response response) {
-            final InputStream entity = response.readEntity(InputStream.class);
+            final InputStream entity = new BOMInputStream(response.readEntity(InputStream.class), ByteOrderMark.UTF_8,
+                ByteOrderMark.UTF_16BE, ByteOrderMark.UTF_16LE, ByteOrderMark.UTF_32BE, ByteOrderMark.UTF_32LE);
             final String contentEncoding = response.getHeaderString("Content-Encoding");
             if (contentEncoding != null) {
                 //https://en.wikipedia.org/wiki/HTTP_compression#Content-Encoding_tokens
