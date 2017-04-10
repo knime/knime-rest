@@ -160,13 +160,15 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
 
     private final S m_settings = createSettings();
 
-    private DataColumnSpec[] m_newColumnsBasedOnFirstCall;
+    private DataColumnSpec[] m_newColumnsBasedOnFirstCalls;
 
-    private DataCell[] m_firstCallValues;
+    private final List<DataCell[]> m_firstCallValues = new ArrayList<>();
 
     private long m_consumedRows = 0L;
 
-    private RowKey m_firstRow;
+    private List<RowKey> m_firstRows;
+
+    private boolean m_readNonError = false;
 
     private final ArrayList<ResponseHeaderItem> m_responseHeaderKeys = new ArrayList<>();
 
@@ -260,8 +262,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
     @Override
     protected BufferedDataTable[] execute(final BufferedDataTable[] inData, final ExecutionContext exec)
         throws Exception {
-        final List<EachRequestAuthentication> enabledEachRequestAuthentications =
-            enabledAuthConfigs();
+        final List<EachRequestAuthentication> enabledEachRequestAuthentications = enabledAuthConfigs();
         createResponseBodyParsers(exec);
         if (inData.length > 0 && inData[0] != null) {
             if (inData[0].size() == 0) {
@@ -270,9 +271,11 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
             }
             final DataTableSpec spec = inData[0].getDataTableSpec();
             try (final CloseableRowIterator iterator = inData[0].iterator()) {
-                makeFirstCall(iterator.next(), enabledEachRequestAuthentications, spec, exec);
+                while (!m_readNonError && iterator.hasNext()) {
+                    makeFirstCall(iterator.next(), enabledEachRequestAuthentications, spec, exec);
+                    m_consumedRows++;
+                }
             }
-            m_consumedRows = 1L;
             final ColumnRearranger rearranger =
                 createColumnRearranger(enabledEachRequestAuthentications, spec, exec, inData[0].size());
             return new BufferedDataTable[]{exec.createColumnRearrangeTable(inData[0], rearranger, exec)};
@@ -293,7 +296,14 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
     protected void makeFirstCall(final DataRow row,
         final List<EachRequestAuthentication> enabledEachRequestAuthentications, final DataTableSpec spec,
         final ExecutionContext exec) throws Exception {
-        m_firstRow = row == null ? null : row.getKey();
+        if (row == null) {
+            m_firstRows = null;
+        } else {
+            if (m_firstRows == null) {
+                m_firstRows = new ArrayList<>();
+            }
+            m_firstRows.add(row.getKey());
+        }
         final UniqueNameGenerator nameGenerator = new UniqueNameGenerator(spec == null ? new DataTableSpec() : spec);
         Response response;
         DataCell missing;
@@ -303,10 +313,10 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
                     enabledEachRequestAuthentications, row, spec), row, spec));
             missing = null;
         } catch (ProcessingException procEx) {
-            LOGGER.warn("First call failed: " + procEx.getMessage(), procEx);
-            Throwable cause = ExceptionUtils.getRootCause(procEx);
+            LOGGER.warn((m_consumedRows + 1) + "th call failed: " + procEx.getMessage(), procEx);
+            final Throwable cause = ExceptionUtils.getRootCause(procEx);
             if (m_settings.isFailOnConnectionProblems()) {
-                throw (cause instanceof Exception) ? (Exception) cause : new ProcessingException(cause);
+                throw (cause instanceof Exception) ? (Exception)cause : new ProcessingException(cause);
             } else {
                 missing = new MissingCell(cause.getMessage());
                 response = null;
@@ -315,22 +325,23 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         try {
             final List<DataCell> cells;
             final List<DataColumnSpec> specs = new ArrayList<>();
-            if (m_settings.isExtractAllResponseFields()) {
-                Stream
-                    .concat(Stream.of(Pair.create(STATUS, IntCell.TYPE)),
-                        (response == null ? Collections.<String> emptyList() : response.getStringHeaders().keySet())
-                            .stream().map(header -> Pair.create(header, StringCell.TYPE)))
-                    .forEachOrdered(pair -> m_responseHeaderKeys.add(new ResponseHeaderItem(pair.getFirst(),
-                        pair.getSecond(), nameGenerator.newColumn(pair.getFirst(), pair.getSecond()).getName())));
-            } else {
-                m_responseHeaderKeys
-                    .addAll(m_settings
+            if (m_responseHeaderKeys.isEmpty()) {
+                if (m_settings.isExtractAllResponseFields()) {
+                    Stream
+                        .concat(Stream.of(Pair.create(STATUS, IntCell.TYPE)),
+                            (response == null ? Collections.<String> emptyList() : response.getStringHeaders().keySet())
+                                .stream().map(header -> Pair.create(header, StringCell.TYPE)))
+                        .forEachOrdered(pair -> m_responseHeaderKeys.add(new ResponseHeaderItem(pair.getFirst(),
+                            pair.getSecond(), nameGenerator.newColumn(pair.getFirst(), pair.getSecond()).getName())));
+                } else {
+                    m_responseHeaderKeys.addAll(m_settings
                         .getExtractFields().stream().map(rhi -> new ResponseHeaderItem(rhi.getHeaderKey(),
                             rhi.getType(), nameGenerator.newName(rhi.getOutputColumnName())))
                         .collect(Collectors.toList()));
+                }
             }
             final Response finalResponse = response;
-            checkResponse(response);
+            final boolean httpError = checkResponse(response);
             cells = m_responseHeaderKeys.stream().map(rhi -> {
                 specs.add(new DataColumnSpecCreator(rhi.getOutputColumnName(), rhi.getType()).createSpec());
                 final DataCellFactory cellFactory = rhi.getType().getCellFactory(null).orElseGet(() -> FALLBACK);
@@ -358,18 +369,32 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
             }).collect(Collectors.toList());
             examineResponse(response);
             final Map<ResponseHeaderItem, String> bodyColNames = new HashMap<>();
-            for (final ResponseHeaderItem bodyCol : m_bodyColumns) {
-                final DataColumnSpec newCol = nameGenerator.newColumn(bodyCol.getOutputColumnName(), bodyCol.getType());
-                specs.add(newCol);
-                bodyColNames.put(bodyCol, newCol.getName());
+            if (!httpError) {
+                for (final ResponseHeaderItem bodyCol : m_bodyColumns) {
+                    final DataColumnSpec newCol =
+                        nameGenerator.newColumn(bodyCol.getOutputColumnName(), bodyCol.getType());
+                    specs.add(newCol);
+                    bodyColNames.put(bodyCol, newCol.getName());
+                }
+                for (int i = 0; i < m_bodyColumns.size(); ++i) {
+                    m_bodyColumns.set(i, new ResponseHeaderItem(m_bodyColumns.get(i).getHeaderKey(),
+                        m_bodyColumns.get(i).getType(), bodyColNames.get(m_bodyColumns.get(i))));
+                }
+            } else {
+                if (response != null && response.getEntity() instanceof InputStream) {
+                    final InputStream is = (InputStream)response.getEntity();
+                    missing = new MissingCell(IOUtils.toString(is,
+                        Charset.isSupported("UTF-8") ? Charset.forName("UTF-8") : Charset.defaultCharset()));
+                    replace(m_bodyColumns, new ResponseHeaderItem(m_bodyColumns.get(0).getHeaderKey(),
+                        BinaryObjectDataCell.TYPE, m_bodyColumns.get(0).getHeaderKey()));
+                } else {
+                    missing = DataType.getMissingCell();
+                }
             }
-            for (int i = 0; i < m_bodyColumns.size(); ++i) {
-                m_bodyColumns.set(i, new ResponseHeaderItem(m_bodyColumns.get(i).getHeaderKey(),
-                    m_bodyColumns.get(i).getType(), bodyColNames.get(m_bodyColumns.get(i))));
-            }
+            m_readNonError = !httpError;
             addBodyValues(cells, response, missing);
-            m_firstCallValues = cells.toArray(new DataCell[cells.size()]);
-            m_newColumnsBasedOnFirstCall = specs.toArray(new DataColumnSpec[specs.size()]);
+            m_firstCallValues.add(cells.toArray(new DataCell[cells.size()]));
+            m_newColumnsBasedOnFirstCalls = specs.toArray(new DataColumnSpec[specs.size()]);
         } finally {
             if (response != null) {
                 response.close();
@@ -441,9 +466,11 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
      * @return The array of a single {@link BufferedDataTable}.
      */
     private BufferedDataTable[] createTableFromFirstCallData(final ExecutionContext exec) {
-        final DataTableSpec spec = new DataTableSpec(m_newColumnsBasedOnFirstCall);
+        final DataTableSpec spec = new DataTableSpec(m_newColumnsBasedOnFirstCalls);
         final BufferedDataContainer container = exec.createDataContainer(spec, false);
-        container.addRowToTable(new DefaultRow(RowKey.createRowKey(0L), m_firstCallValues));
+        for (int i = 0; i < m_firstCallValues.size(); i++) {
+            container.addRowToTable(new DefaultRow(RowKey.createRowKey((long)i), m_firstCallValues.get(i)));
+        }
         container.close();
         return new BufferedDataTable[]{container.getTable()};
     }
@@ -456,10 +483,11 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         m_responseBodyParsers.clear();
         m_bodyColumns.clear();
         m_consumedRows = 0L;
-        m_firstCallValues = null;
-        m_firstRow = null;
+        m_firstCallValues.clear();
+        m_firstRows = null;
+        m_readNonError = false;
         m_responseHeaderKeys.clear();
-        m_newColumnsBasedOnFirstCall = null;
+        m_newColumnsBasedOnFirstCalls = null;
         m_isContextSettingsFailed = false;
     }
 
@@ -498,8 +526,9 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         final AbstractCellFactory factory = new AbstractCellFactory(newColumns) {
             @Override
             public DataCell[] getCells(final DataRow row) {
-                if (row.getKey().equals(m_firstRow)) {
-                    return m_firstCallValues;
+                int firstRowIdx = m_firstRows.indexOf(row.getKey());
+                if (firstRowIdx >= 0) {
+                    return m_firstCallValues.get(firstRowIdx);
                 }
                 assert m_consumedRows > 0;
                 final Builder request = createRequest(uriColumn, enabledEachRequestAuthentications, row, spec);
@@ -529,7 +558,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
                                     : new IntCell(finalResponse.getStatus());
                             }
                             if (cellFactory instanceof FromString) {
-                                FromString fromString = (FromString)cellFactory;
+                                final FromString fromString = (FromString)cellFactory;
                                 String value =
                                     finalResponse == null ? null : finalResponse.getHeaderString(rhi.getHeaderKey());
                                 if (value == null) {
@@ -575,7 +604,9 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
     }
 
     /**
-     * <p>Unused</p>
+     * <p>
+     * Unused
+     * </p>
      * {@inheritDoc}
      */
     @Override
@@ -588,16 +619,18 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
      */
     @Override
     public boolean iterate(final StreamableOperatorInternals internals) {
-        return m_firstCallValues == null;
+        return !m_readNonError;
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public PortObjectSpec[] computeFinalOutputSpecs(final StreamableOperatorInternals internals, final PortObjectSpec[] inSpecs)
-        throws InvalidSettingsException {
-        return new PortObjectSpec[] {m_firstRow == null ? new DataTableSpec(m_newColumnsBasedOnFirstCall) : createColumnRearranger(enabledAuthConfigs(), inSpecs.length >0 ? (DataTableSpec)inSpecs[0]: null, null/*exec*/, -1L).createSpec()};
+    public PortObjectSpec[] computeFinalOutputSpecs(final StreamableOperatorInternals internals,
+        final PortObjectSpec[] inSpecs) throws InvalidSettingsException {
+        return new PortObjectSpec[]{m_firstRows == null ? new DataTableSpec(m_newColumnsBasedOnFirstCalls)
+            : createColumnRearranger(enabledAuthConfigs(), inSpecs.length > 0 ? (DataTableSpec)inSpecs[0] : null,
+                null/*exec*/, -1L).createSpec()};
     }
 
     /**
@@ -613,11 +646,14 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
             @Override
             public void runIntermediate(final PortInput[] inputs, final ExecutionContext exec) throws Exception {
                 createResponseBodyParsers(exec);
-                if (inputs.length >0 && inputs[0] != null && inputs[0] instanceof RowInput) {
+                if (inputs.length > 0 && inputs[0] != null && inputs[0] instanceof RowInput) {
                     final RowInput input = (RowInput)inputs[0];
-                    final DataRow row = input.poll();
-                    makeFirstCall(row, enabledAuthConfigs(), input.getDataTableSpec(), exec);
-                    m_consumedRows = 1L;
+                    DataRow row;
+                    while (!m_readNonError && (row = input.poll()) != null) {
+                        makeFirstCall(row, enabledAuthConfigs(), input.getDataTableSpec(), exec);
+                        m_consumedRows++;
+                    }
+                    m_readNonError = true;
                 } else {
                     makeFirstCall(null/*row*/, enabledAuthConfigs(), null/*spec*/, exec);
                 }
@@ -627,14 +663,15 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
              * {@inheritDoc}
              */
             @Override
-            public void runFinal(final PortInput[] inputs, final PortOutput[] outputs, final ExecutionContext exec) throws Exception {
-                if (m_firstRow == null) {
+            public void runFinal(final PortInput[] inputs, final PortOutput[] outputs, final ExecutionContext exec)
+                throws Exception {
+                if (m_firstRows == null) {
                     RowOutput rowOutput = (RowOutput)outputs[0];
-                    rowOutput.push(new DefaultRow(RowKey.createRowKey(0L), m_firstCallValues));
+                    rowOutput.push(new DefaultRow(RowKey.createRowKey(0L), m_firstCallValues.get(0)));
                     rowOutput.close();
                 } else {
-                    createColumnRearranger(enabledAuthConfigs(), inSpecs.length > 0 ? (DataTableSpec)inSpecs[0] : null, exec, -1L)
-                        .createStreamableFunction().runFinal(inputs, outputs, exec);
+                    createColumnRearranger(enabledAuthConfigs(), inSpecs.length > 0 ? (DataTableSpec)inSpecs[0] : null,
+                        exec, -1L).createStreamableFunction().runFinal(inputs, outputs, exec);
                 }
             }
         };
@@ -644,17 +681,19 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
      * Checks the response code.
      *
      * @param response A {@link Response}.
+     * @return http error was returned.
      * @throws IllegalStateExcetion When the http status code is {@code 4xx} or {@code 5xx} and we have to check it.
      */
-    private void checkResponse(final Response response) {
-        if ((response != null) && m_settings.isFailOnHttpErrors() && (response.getStatus() >= 400)
-            && (response.getStatus() < 600)) {
+    private boolean checkResponse(final Response response) {
+        boolean httpError = isHttpError(response);
+        if ((response != null) && m_settings.isFailOnHttpErrors() && httpError) {
             Object entity = response.getEntity();
             if (entity instanceof InputStream) {
                 final InputStream is = (InputStream)entity;
                 try {
                     getLogger().debug("Failed location: " + response.getLocation());
-                    getLogger().debug(IOUtils.toString(is, Charset.isSupported("UTF-8") ? Charset.forName("UTF-8"): Charset.defaultCharset()));
+                    getLogger().debug(IOUtils.toString(is,
+                        Charset.isSupported("UTF-8") ? Charset.forName("UTF-8") : Charset.defaultCharset()));
                 } catch (final IOException e) {
                     getLogger().debug(e.getMessage(), e);
                 }
@@ -664,6 +703,15 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
             throw new IllegalStateException(
                 "Wrong status: " + response.getStatus() + " " + response.getStatusInfo().getReasonPhrase());
         }
+        return httpError;
+    }
+
+    /**
+     * @param response
+     * @return
+     */
+    private boolean isHttpError(final Response response) {
+        return response == null || response.getStatus() >= 400 && response.getStatus() < 600;
     }
 
     /**
@@ -673,17 +721,31 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
      */
     private void examineResponse(final Response response) {
         if (response == null) {
-            m_bodyColumns.add(new ResponseHeaderItem(m_settings.getResponseBodyColumn(), BinaryObjectDataCell.TYPE));
+            replace(m_bodyColumns,
+                new ResponseHeaderItem(m_settings.getResponseBodyColumn(), BinaryObjectDataCell.TYPE));
         } else if (response.hasEntity()) {
+            boolean isHttpError = isHttpError(response);
             final MediaType mediaType = response.getMediaType();
             DataType type = BinaryObjectDataCell.TYPE;
             for (final ResponseBodyParser responseBodyParser : m_responseBodyParsers) {
-                if (responseBodyParser.supportedMediaType().isCompatible(mediaType)) {
+                if (!isHttpError && responseBodyParser.supportedMediaType().isCompatible(mediaType)) {
                     type = responseBodyParser.producedDataType();
                     break;
                 }
             }
-            m_bodyColumns.add(new ResponseHeaderItem(m_settings.getResponseBodyColumn(), type));
+            replace(m_bodyColumns, new ResponseHeaderItem(m_settings.getResponseBodyColumn(), type));
+        }
+    }
+
+    /**
+     * @param bodyColumns
+     * @param rhi
+     */
+    private static void replace(final List<ResponseHeaderItem> bodyColumns, final ResponseHeaderItem rhi) {
+        if (bodyColumns.isEmpty()) {
+            bodyColumns.add(rhi);
+        } else {
+            bodyColumns.set(0, rhi);
         }
     }
 
@@ -760,8 +822,10 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         if (m_settings.isSslIgnoreHostNameErrors()) {
             clientBuilder.hostnameVerifier((hostName, session) -> true);
         }
-        clientBuilder.property(org.apache.cxf.message.Message.CONNECTION_TIMEOUT, m_settings.getTimeoutInSeconds() * 1000L);
-        clientBuilder.property(org.apache.cxf.message.Message.RECEIVE_TIMEOUT, m_settings.getTimeoutInSeconds() * 1000L);
+        clientBuilder.property(org.apache.cxf.message.Message.CONNECTION_TIMEOUT,
+            m_settings.getTimeoutInSeconds() * 1000L);
+        clientBuilder.property(org.apache.cxf.message.Message.RECEIVE_TIMEOUT,
+            m_settings.getTimeoutInSeconds() * 1000L);
         return clientBuilder.build();
     }
 
@@ -782,6 +846,8 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         CheckUtils.checkState(m_settings.isUseConstantURI() || row != null,
             "Without the constant uri and input, it is not possible to call a REST service!");
         if (!m_settings.isUseConstantURI()) {
+            CheckUtils.checkArgument(row != null && uriColumn >= 0,
+                "The URI column is not present: " + m_settings.getUriColumn());
             CheckUtils.checkArgument(row != null && !row.getCell(uriColumn).isMissing(),
                 "The URI cannot be missing, but it is in row: " + row.getKey());
         }
@@ -830,15 +896,15 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
      */
     protected void addBodyValues(final List<DataCell> cells, final Response response, final DataCell missing) {
         m_bodyColumns.stream().forEachOrdered(rhi -> {
-            if (response != null && response.hasEntity()) {
+            if (response != null && response.hasEntity() && (m_readNonError || !isHttpError(response))) {
                 DataType expectedType = rhi.getType();
                 MediaType mediaType = response.getMediaType();
                 if (mediaType == null) {
                     cells.add(new MissingCell("Response doesn't have a media type"));
                 } else {
                     boolean wasAdded = false;
-                    for (ResponseBodyParser parser : m_responseBodyParsers) {
-                        if (expectedType.isCompatible(parser.producedDataType().getPreferredValueClass())
+                    for (final ResponseBodyParser parser : m_responseBodyParsers) {
+                        if ((!m_readNonError || parser.producedDataType().isCompatible(expectedType.getPreferredValueClass()))
                             && parser.supportedMediaType().isCompatible(response.getMediaType())) {
                             wasAdded = true;
                             cells.add(parser.create(response));
