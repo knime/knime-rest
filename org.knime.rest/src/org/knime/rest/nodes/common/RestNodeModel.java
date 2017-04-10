@@ -909,14 +909,33 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
                         }
                     }
                     if (!wasAdded) {
-                        cells.add(new MissingCell("Could not parse the body because the body was "
-                            + response.getMediaType() + ", but was expecting: " + expectedType.getName()));
+                        String content = alternativeContent(response);
+                        LOGGER.warn("Could not parse the body because the body was "
+                                + response.getMediaType() + ", but was expecting: " + expectedType.getName());
+                        cells.add(content == null ? DataType.getMissingCell() : new MissingCell(content));
                     }
                 }
             } else {
                 cells.add(missing);
             }
         });
+    }
+
+    /**
+     * @param response A {@link Response} with not expected content.
+     * @return Its string representation of its entity.
+     */
+    private String alternativeContent(final Response response) {
+        String content = null;
+        for (ResponseBodyParser parser : m_responseBodyParsers) {
+            if (content == null && parser.supportedMediaType().isCompatible(response.getMediaType())) {
+                final DataCell cell = parser.create(response);
+                if (cell instanceof StringValue) {
+                    content = ((StringValue)cell).getStringValue();
+                }
+            }
+        }
+        return content;
     }
 
     /**
