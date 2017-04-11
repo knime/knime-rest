@@ -262,7 +262,8 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
     @Override
     protected BufferedDataTable[] execute(final BufferedDataTable[] inData, final ExecutionContext exec)
         throws Exception {
-        final List<EachRequestAuthentication> enabledEachRequestAuthentications = enabledAuthConfigs();
+        final List<EachRequestAuthentication> enabledEachRequestAuthentications =
+            enabledAuthConfigs();
         createResponseBodyParsers(exec);
         if (inData.length > 0 && inData[0] != null) {
             if (inData[0].size() == 0) {
@@ -313,10 +314,10 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
                     enabledEachRequestAuthentications, row, spec), row, spec));
             missing = null;
         } catch (ProcessingException procEx) {
-            LOGGER.warn((m_consumedRows + 1) + "th call failed: " + procEx.getMessage(), procEx);
-            final Throwable cause = ExceptionUtils.getRootCause(procEx);
+            LOGGER.warn("Call #" + (m_consumedRows + 1) + " failed: " + procEx.getMessage(), procEx);
+            Throwable cause = ExceptionUtils.getRootCause(procEx);
             if (m_settings.isFailOnConnectionProblems()) {
-                throw (cause instanceof Exception) ? (Exception)cause : new ProcessingException(cause);
+                throw (cause instanceof Exception) ? (Exception) cause : new ProcessingException(cause);
             } else {
                 missing = new MissingCell(cause.getMessage());
                 response = null;
@@ -558,7 +559,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
                                     : new IntCell(finalResponse.getStatus());
                             }
                             if (cellFactory instanceof FromString) {
-                                final FromString fromString = (FromString)cellFactory;
+                                FromString fromString = (FromString)cellFactory;
                                 String value =
                                     finalResponse == null ? null : finalResponse.getHeaderString(rhi.getHeaderKey());
                                 if (value == null) {
@@ -604,9 +605,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
     }
 
     /**
-     * <p>
-     * Unused
-     * </p>
+     * <p>Unused</p>
      * {@inheritDoc}
      */
     @Override
@@ -822,10 +821,8 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         if (m_settings.isSslIgnoreHostNameErrors()) {
             clientBuilder.hostnameVerifier((hostName, session) -> true);
         }
-        clientBuilder.property(org.apache.cxf.message.Message.CONNECTION_TIMEOUT,
-            m_settings.getTimeoutInSeconds() * 1000L);
-        clientBuilder.property(org.apache.cxf.message.Message.RECEIVE_TIMEOUT,
-            m_settings.getTimeoutInSeconds() * 1000L);
+        clientBuilder.property(org.apache.cxf.message.Message.CONNECTION_TIMEOUT, m_settings.getTimeoutInSeconds() * 1000L);
+        clientBuilder.property(org.apache.cxf.message.Message.RECEIVE_TIMEOUT, m_settings.getTimeoutInSeconds() * 1000L);
         return clientBuilder.build();
     }
 
@@ -903,7 +900,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
                     cells.add(new MissingCell("Response doesn't have a media type"));
                 } else {
                     boolean wasAdded = false;
-                    for (final ResponseBodyParser parser : m_responseBodyParsers) {
+                    for (ResponseBodyParser parser : m_responseBodyParsers) {
                         if ((!m_readNonError || parser.producedDataType().isCompatible(expectedType.getPreferredValueClass()))
                             && parser.supportedMediaType().isCompatible(response.getMediaType())) {
                             wasAdded = true;
