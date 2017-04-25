@@ -143,6 +143,7 @@ import org.knime.core.util.UniqueNameGenerator;
 import org.knime.rest.generic.EachRequestAuthentication;
 import org.knime.rest.generic.ResponseBodyParser;
 import org.knime.rest.generic.ResponseBodyParser.Default;
+import org.knime.rest.generic.ResponseBodyParser.Missing;
 import org.knime.rest.nodes.common.RestSettings.RequestHeaderKeyItem;
 import org.knime.rest.nodes.common.RestSettings.ResponseHeaderItem;
 import org.knime.rest.util.DelegatingX509TrustManager;
@@ -177,6 +178,8 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
     private boolean m_isContextSettingsFailed = false;
 
     private final List<ResponseBodyParser> m_responseBodyParsers = new ArrayList<>();
+
+    private final List<ResponseBodyParser> m_errorBodyParsers = new ArrayList<>();
 
     static final String STATUS = "Status";
 
@@ -383,13 +386,8 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
                 }
             } else {
                 if (response != null && response.getEntity() instanceof InputStream) {
-                    final InputStream is = (InputStream)response.getEntity();
-                    missing = new MissingCell(IOUtils.toString(is,
-                        Charset.isSupported("UTF-8") ? Charset.forName("UTF-8") : Charset.defaultCharset()));
                     replace(m_bodyColumns, new ResponseHeaderItem(m_bodyColumns.get(0).getHeaderKey(),
                         BinaryObjectDataCell.TYPE, m_bodyColumns.get(0).getHeaderKey()));
-                } else {
-                    missing = DataType.getMissingCell();
                 }
             }
             m_readNonError = !httpError;
@@ -458,6 +456,50 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         }
         //everything else is a file
         m_responseBodyParsers.add(new Default(MediaType.WILDCARD_TYPE, BinaryObjectDataCell.TYPE, exec));
+
+        m_errorBodyParsers.addAll(m_responseBodyParsers.stream().filter(parser ->
+        (MediaType.TEXT_PLAIN_TYPE.isCompatible(parser.supportedMediaType()) &&
+                !parser.supportedMediaType().isWildcardType()) ||
+        XMLCell.TYPE.equals(parser.producedDataType()) ||
+        JSONCell.TYPE.equals(parser.producedDataType())).map(p -> new Missing(p)).collect(Collectors.toList()));
+        // Error codes for the rest of the content types
+        m_errorBodyParsers.add(new Default(MediaType.WILDCARD_TYPE, DataType.getMissingCell().getType(), exec) {
+            /**
+             * {@inheritDoc}
+             */
+            @Override
+            public DataCell create(final Response response) {
+                final int status = response.getStatus();
+                switch (status) {
+                    // From https://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html
+                    case 400: return new MissingCell("Bad Request");
+                    case 401: return new MissingCell("Unauthorized");
+                    case 402: return new MissingCell("Payment Required");
+                    case 403: return new MissingCell("Forbidden");
+                    case 404: return new MissingCell("Not Found");
+                    case 405: return new MissingCell("Method Not Allowed");
+                    case 406: return new MissingCell("Not Acceptable");
+                    case 407: return new MissingCell("Proxy Authentication Required");
+                    case 408: return new MissingCell("Request Timeout");
+                    case 409: return new MissingCell("Conflict");
+                    case 410: return new MissingCell("Gone");
+                    case 411: return new MissingCell("Length Required");
+                    case 412: return new MissingCell("Precondition Failed");
+                    case 413: return new MissingCell("Request Entity Too Large");
+                    case 414: return new MissingCell("Request URI Too Long");
+                    case 415: return new MissingCell("Unsupported Media Type");
+                    case 416: return new MissingCell("Requested Range Not Satisfiable");
+                    case 417: return new MissingCell("Expectation Failed");
+                    case 500: return new MissingCell("Internal Server Error");
+                    case 501: return new MissingCell("Not Implemented");
+                    case 502: return new MissingCell("Bad Gateway");
+                    case 503: return new MissingCell("Service Unavailable");
+                    case 504: return new MissingCell("Gateway Timeout");
+                    case 505: return new MissingCell("HTTP Version Not Supported");
+                    default: return new MissingCell(Integer.toString(status));
+                }
+            }
+        });
     }
 
     /**
@@ -893,15 +935,18 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
      */
     protected void addBodyValues(final List<DataCell> cells, final Response response, final DataCell missing) {
         m_bodyColumns.stream().forEachOrdered(rhi -> {
-            if (response != null && response.hasEntity() && (m_readNonError || !isHttpError(response))) {
+            if (response != null && response.hasEntity()) {
                 DataType expectedType = rhi.getType();
                 MediaType mediaType = response.getMediaType();
                 if (mediaType == null) {
                     cells.add(new MissingCell("Response doesn't have a media type"));
+                } else if (missing != null){
+                    cells.add(missing);
                 } else {
                     boolean wasAdded = false;
-                    for (ResponseBodyParser parser : m_responseBodyParsers) {
-                        if ((!m_readNonError || parser.producedDataType().isCompatible(expectedType.getPreferredValueClass()))
+                    for (ResponseBodyParser parser :
+                        isHttpError(response) ? m_errorBodyParsers : m_responseBodyParsers) {
+                        if (parser.producedDataType().isCompatible(expectedType.getPreferredValueClass())
                             && parser.supportedMediaType().isCompatible(response.getMediaType())) {
                             wasAdded = true;
                             cells.add(parser.create(response));
@@ -909,33 +954,14 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
                         }
                     }
                     if (!wasAdded) {
-                        String content = alternativeContent(response);
-                        LOGGER.warn("Could not parse the body because the body was "
-                                + response.getMediaType() + ", but was expecting: " + expectedType.getName());
-                        cells.add(content == null ? DataType.getMissingCell() : new MissingCell(content));
+                        cells.add(new MissingCell("Could not parse the body because the body was "
+                            + response.getMediaType() + ", but was expecting: " + expectedType.getName()));
                     }
                 }
             } else {
                 cells.add(missing);
             }
         });
-    }
-
-    /**
-     * @param response A {@link Response} with not expected content.
-     * @return Its string representation of its entity.
-     */
-    private String alternativeContent(final Response response) {
-        String content = null;
-        for (ResponseBodyParser parser : m_responseBodyParsers) {
-            if (content == null && parser.supportedMediaType().isCompatible(response.getMediaType())) {
-                final DataCell cell = parser.create(response);
-                if (cell instanceof StringValue) {
-                    content = ((StringValue)cell).getStringValue();
-                }
-            }
-        }
-        return content;
     }
 
     /**
