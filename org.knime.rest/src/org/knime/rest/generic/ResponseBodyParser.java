@@ -70,6 +70,8 @@ import org.knime.core.data.DataCellFactory.FromInputStream;
 import org.knime.core.data.DataCellFactory.FromReader;
 import org.knime.core.data.DataType;
 import org.knime.core.data.MissingCell;
+import org.knime.core.data.MissingValue;
+import org.knime.core.data.StringValue;
 import org.knime.core.node.ExecutionContext;
 
 /**
@@ -245,6 +247,46 @@ public interface ResponseBodyParser {
             } catch (IllegalArgumentException ex) {
                 return false;
             }
+        }
+    }
+
+    /**
+     * Always produces missing values.
+     */
+    public static class Missing extends Default {
+
+        private ResponseBodyParser m_wrapped;
+
+        /**
+         * @param wrapped The {@link ResponseBodyParser} to wrap.
+         */
+        public Missing(final ResponseBodyParser wrapped) {
+            super(wrapped.supportedMediaType(), wrapped.producedDataType());
+            m_wrapped = wrapped;
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public DataCell create(final Response response) {
+            final DataCell orig = m_wrapped.create(response);
+            if (orig instanceof StringValue) {
+                final StringValue sv = (StringValue)orig;
+                return new MissingCell(sv.getStringValue());
+            }
+            if (orig instanceof MissingValue) {
+                return orig;
+            }
+            return new MissingCell(Integer.toString(response.getStatus()));
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public DataType producedDataType() {
+            return DataType.getMissingCell().getType();
         }
     }
 }
