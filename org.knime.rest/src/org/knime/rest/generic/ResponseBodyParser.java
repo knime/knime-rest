@@ -274,11 +274,11 @@ public interface ResponseBodyParser {
             if (orig instanceof StringValue) {
                 final StringValue sv = (StringValue)orig;
                 return new MissingCell(sv.getStringValue());
-            }
-            if (orig instanceof MissingValue) {
+            } else if (orig instanceof MissingValue) {
                 return orig;
+            } else {
+                return new MissingCell(response.getStatusInfo().getReasonPhrase());
             }
-            return new MissingCell(Integer.toString(response.getStatus()));
         }
 
         /**
