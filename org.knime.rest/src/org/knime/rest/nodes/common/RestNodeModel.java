@@ -457,47 +457,18 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         //everything else is a file
         m_responseBodyParsers.add(new Default(MediaType.WILDCARD_TYPE, BinaryObjectDataCell.TYPE, exec));
 
-        m_errorBodyParsers.addAll(m_responseBodyParsers.stream().filter(parser ->
-        (MediaType.TEXT_PLAIN_TYPE.isCompatible(parser.supportedMediaType()) &&
+        m_errorBodyParsers.addAll(m_responseBodyParsers.stream()
+            .filter(parser -> (MediaType.TEXT_PLAIN_TYPE.isCompatible(parser.supportedMediaType()) &&
                 !parser.supportedMediaType().isWildcardType()) ||
-        XMLCell.TYPE.equals(parser.producedDataType()) ||
-        JSONCell.TYPE.equals(parser.producedDataType())).map(p -> new Missing(p)).collect(Collectors.toList()));
+                XMLCell.TYPE.equals(parser.producedDataType()) ||
+                JSONCell.TYPE.equals(parser.producedDataType()))
+            .map(p -> new Missing(p))
+            .collect(Collectors.toList()));
         // Error codes for the rest of the content types
         m_errorBodyParsers.add(new Default(MediaType.WILDCARD_TYPE, DataType.getMissingCell().getType(), exec) {
-            /**
-             * {@inheritDoc}
-             */
             @Override
             public DataCell create(final Response response) {
-                final int status = response.getStatus();
-                switch (status) {
-                    // From https://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html
-                    case 400: return new MissingCell("Bad Request");
-                    case 401: return new MissingCell("Unauthorized");
-                    case 402: return new MissingCell("Payment Required");
-                    case 403: return new MissingCell("Forbidden");
-                    case 404: return new MissingCell("Not Found");
-                    case 405: return new MissingCell("Method Not Allowed");
-                    case 406: return new MissingCell("Not Acceptable");
-                    case 407: return new MissingCell("Proxy Authentication Required");
-                    case 408: return new MissingCell("Request Timeout");
-                    case 409: return new MissingCell("Conflict");
-                    case 410: return new MissingCell("Gone");
-                    case 411: return new MissingCell("Length Required");
-                    case 412: return new MissingCell("Precondition Failed");
-                    case 413: return new MissingCell("Request Entity Too Large");
-                    case 414: return new MissingCell("Request URI Too Long");
-                    case 415: return new MissingCell("Unsupported Media Type");
-                    case 416: return new MissingCell("Requested Range Not Satisfiable");
-                    case 417: return new MissingCell("Expectation Failed");
-                    case 500: return new MissingCell("Internal Server Error");
-                    case 501: return new MissingCell("Not Implemented");
-                    case 502: return new MissingCell("Bad Gateway");
-                    case 503: return new MissingCell("Service Unavailable");
-                    case 504: return new MissingCell("Gateway Timeout");
-                    case 505: return new MissingCell("HTTP Version Not Supported");
-                    default: return new MissingCell(Integer.toString(status));
-                }
+                return new MissingCell(response.getStatusInfo().getReasonPhrase());
             }
         });
     }
