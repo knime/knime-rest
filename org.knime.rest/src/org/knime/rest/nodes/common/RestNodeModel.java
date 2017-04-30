@@ -480,6 +480,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
      * @return The array of a single {@link BufferedDataTable}.
      */
     private BufferedDataTable[] createTableFromFirstCallData(final ExecutionContext exec) {
+        updateFirstCallColumnsOnHttpError();
         final DataTableSpec spec = new DataTableSpec(m_newColumnsBasedOnFirstCalls);
         final BufferedDataContainer container = exec.createDataContainer(spec, false);
         for (int i = 0; i < m_firstCallValues.size(); i++) {
@@ -487,6 +488,15 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         }
         container.close();
         return new BufferedDataTable[]{container.getTable()};
+    }
+
+    /**
+     *
+     */
+    private void updateFirstCallColumnsOnHttpError() {
+        if (!m_firstCallValues.isEmpty() && m_firstCallValues.get(0).length > m_newColumnsBasedOnFirstCalls.length) {
+            m_newColumnsBasedOnFirstCalls = createNewColumnsSpec();
+        }
     }
 
     /**
