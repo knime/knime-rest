@@ -675,10 +675,11 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
                         makeFirstCall(row, enabledAuthConfigs(), input.getDataTableSpec(), exec);
                         m_consumedRows++;
                     }
-                    m_readNonError = true;
                 } else {
                     makeFirstCall(null/*row*/, enabledAuthConfigs(), null/*spec*/, exec);
                 }
+                //No more rows, so even if there are errors, m_readError should be true:
+                m_readNonError = true;
             }
 
             /**
