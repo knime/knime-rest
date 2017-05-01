@@ -68,7 +68,6 @@ import org.knime.core.data.IntValue;
 import org.knime.core.data.LongValue;
 import org.knime.core.data.StringValue;
 import org.knime.core.data.blob.BinaryObjectDataValue;
-import org.knime.core.data.date.DateAndTimeValue;
 import org.knime.core.data.image.png.PNGImageValue;
 import org.knime.core.data.json.JSONCellFactory;
 import org.knime.core.data.json.JSONValue;
@@ -171,10 +170,6 @@ public abstract class RestWithBodyNodeModel<S extends RestWithBodySettings> exte
         if (cell instanceof DoubleValue) {
             DoubleValue dv = (DoubleValue)cell;
             return dv.getDoubleValue();
-        }
-        if (cell instanceof DateAndTimeValue) {
-            //Currently DateAndTimeValue implementations are also StringValues
-            throw new UnsupportedOperationException("Not supported datatype: date and time");
         }
         if (cell instanceof BinaryObjectDataValue) {
             BinaryObjectDataValue bodv = (BinaryObjectDataValue)cell;
