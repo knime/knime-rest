@@ -678,6 +678,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
                 } else {
                     makeFirstCall(null/*row*/, enabledAuthConfigs(), null/*spec*/, exec);
                 }
+                updateFirstCallColumnsOnHttpError();
                 //No more rows, so even if there are errors, m_readError should be true:
                 m_readNonError = true;
             }
