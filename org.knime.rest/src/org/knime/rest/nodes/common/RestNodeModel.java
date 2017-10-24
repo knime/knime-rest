@@ -513,6 +513,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         m_responseHeaderKeys.clear();
         m_newColumnsBasedOnFirstCalls = null;
         m_isContextSettingsFailed = false;
+        m_errorBodyParsers.clear();
     }
 
     /**
