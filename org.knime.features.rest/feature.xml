@@ -3,7 +3,7 @@
       id="org.knime.features.rest"
       label="KNIME REST Client Extension"
       version="3.5.0.qualifier"
-      provider-name="KNIME GmbH, Konstanz, Germany">
+      provider-name="KNIME AG, Zurich, Switzerland">
 
    <description>
       This feature contains several nodes for interacting with REST-ful
@@ -11,7 +11,7 @@ web services.
    </description>
 
    <copyright>
-      Copyright by KNIME GmbH, Konstanz, Germany
+      Copyright by KNIME AG, Zurich, Switzerland
    </copyright>
 
    <license>

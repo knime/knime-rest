@@ -1,7 +1,7 @@
 /*
  * ------------------------------------------------------------------------
  *
- *  Copyright by KNIME GmbH, Konstanz, Germany
+ *  Copyright by KNIME AG, Zurich, Switzerland
  *  Website: http://www.knime.com; Email: contact@knime.com
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -63,7 +63,7 @@ import javax.net.ssl.X509TrustManager;
  * Trust manager that delegates checks to several real trust managers. All delegates are tried until a positive answer
  * is returned or there are not more delegates to try.
  *
- * @author Thorsten Meinl, KNIME.com, Zurich, Switzerland
+ * @author Thorsten Meinl, KNIME AG, Zurich, Switzerland
  */
 public class DelegatingX509TrustManager implements X509TrustManager {
     private final List<X509TrustManager> m_delegates;
