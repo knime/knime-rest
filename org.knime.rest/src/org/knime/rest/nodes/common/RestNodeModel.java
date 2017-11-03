@@ -334,7 +334,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
                     Stream
                         .concat(Stream.of(Pair.create(STATUS, IntCell.TYPE)),
                             (response == null ? Collections.<String> emptyList() : response.getStringHeaders().keySet())
-                                .stream().map(header -> Pair.create(header, StringCell.TYPE)))
+                                .stream().map(header -> new Pair<String, DataType>(header, StringCell.TYPE)))
                         .forEachOrdered(pair -> m_responseHeaderKeys.add(new ResponseHeaderItem(pair.getFirst(),
                             pair.getSecond(), nameGenerator.newColumn(pair.getFirst(), pair.getSecond()).getName())));
                 } else {
