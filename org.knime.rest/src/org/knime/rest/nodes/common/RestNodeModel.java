@@ -474,13 +474,13 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
     }
 
     /**
-     * Creates the data table only based on the first call.
+     * Creates the data table only based on the first call. Only called if input is not connected.
      *
      * @param exec An {@link ExecutionContext}.
      * @return The array of a single {@link BufferedDataTable}.
      */
     private BufferedDataTable[] createTableFromFirstCallData(final ExecutionContext exec) {
-        updateFirstCallColumnsOnHttpError();
+        updateFirstCallColumnsOnHttpError(null);
         final DataTableSpec spec = new DataTableSpec(m_newColumnsBasedOnFirstCalls);
         final BufferedDataContainer container = exec.createDataContainer(spec, false);
         for (int i = 0; i < m_firstCallValues.size(); i++) {
@@ -491,11 +491,12 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
     }
 
     /**
+     * @param inputSpec the input spec or null (non connected optional input)
      *
      */
-    private void updateFirstCallColumnsOnHttpError() {
+    private void updateFirstCallColumnsOnHttpError(final DataTableSpec inputSpec) {
         if (!m_firstCallValues.isEmpty() && m_firstCallValues.get(0).length > m_newColumnsBasedOnFirstCalls.length) {
-            m_newColumnsBasedOnFirstCalls = createNewColumnsSpec();
+            m_newColumnsBasedOnFirstCalls = createNewColumnsSpec(inputSpec);
         }
     }
 
@@ -546,7 +547,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         final List<EachRequestAuthentication> enabledEachRequestAuthentications, final DataTableSpec spec,
         final ExecutionMonitor exec, final long tableSize) throws InvalidSettingsException {
         final ColumnRearranger rearranger = new ColumnRearranger(spec);
-        final DataColumnSpec[] newColumns = createNewColumnsSpec();
+        final DataColumnSpec[] newColumns = createNewColumnsSpec(spec);
         final int uriColumn = spec.findColumnIndex(m_settings.getUriColumn());
         final AbstractCellFactory factory = new AbstractCellFactory(newColumns) {
             @Override
@@ -669,17 +670,19 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
             @Override
             public void runIntermediate(final PortInput[] inputs, final ExecutionContext exec) throws Exception {
                 createResponseBodyParsers(exec);
+                DataTableSpec inputSpec = null;
                 if (inputs.length > 0 && inputs[0] != null && inputs[0] instanceof RowInput) {
                     final RowInput input = (RowInput)inputs[0];
+                    inputSpec = input.getDataTableSpec();
                     DataRow row;
                     while (!m_readNonError && (row = input.poll()) != null) {
-                        makeFirstCall(row, enabledAuthConfigs(), input.getDataTableSpec(), exec);
+                        makeFirstCall(row, enabledAuthConfigs(), inputSpec, exec);
                         m_consumedRows++;
                     }
                 } else {
                     makeFirstCall(null/*row*/, enabledAuthConfigs(), null/*spec*/, exec);
                 }
-                updateFirstCallColumnsOnHttpError();
+                updateFirstCallColumnsOnHttpError(inputSpec);
                 //No more rows, so even if there are errors, m_readError should be true:
                 m_readNonError = true;
             }
@@ -775,12 +778,14 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
     }
 
     /**
+     * @param spec the input spec
      * @return The new column specs.
      */
-    private DataColumnSpec[] createNewColumnsSpec() {
+    private DataColumnSpec[] createNewColumnsSpec(final DataTableSpec spec) {
+        UniqueNameGenerator uniqueNameGenerator = new UniqueNameGenerator(spec);
         return Stream.concat(m_responseHeaderKeys.stream(), m_bodyColumns.stream())
-            .map(rhi -> new DataColumnSpecCreator(rhi.getOutputColumnName(), rhi.getType()))
-            .map(creator -> creator.createSpec()).toArray(n -> new DataColumnSpec[n]);
+                .map(rhi -> uniqueNameGenerator.newCreator(rhi.getOutputColumnName(), rhi.getType()))
+                .map(creator -> creator.createSpec()).toArray(n -> new DataColumnSpec[n]);
     }
 
     /**
