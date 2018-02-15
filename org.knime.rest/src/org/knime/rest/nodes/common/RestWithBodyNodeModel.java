@@ -56,8 +56,6 @@ import javax.ws.rs.client.Invocation.Builder;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Variant;
 
-import org.apache.batik.transcoder.TranscoderException;
-import org.knime.base.data.xml.SvgImageContent;
 import org.knime.base.data.xml.SvgValue;
 import org.knime.core.data.BooleanValue;
 import org.knime.core.data.DataCell;
@@ -79,6 +77,7 @@ import org.knime.core.node.port.PortObject;
 import org.knime.core.node.port.PortType;
 import org.knime.rest.nodes.common.RestSettings.ReferenceType;
 import org.knime.rest.nodes.common.RestSettings.RequestHeaderKeyItem;
+import org.w3c.dom.Document;
 
 /**
  * Base class for the REST nodes which require body content in their call.
@@ -135,25 +134,15 @@ public abstract class RestWithBodyNodeModel<S extends RestWithBodySettings> exte
             PNGImageValue pngv = (PNGImageValue)cell;
             return pngv.getImageContent().getByteArray();
         }
-        if (cell instanceof SvgValue) {
-            SvgValue svgv = (SvgValue)cell;
-            if (cell instanceof StringValue) {
-                return ((StringValue)cell).getStringValue();
-            }
-            //Currently every implementation is a StringValue, but in case in the future it will not be the case:
-            try {
-                return SvgImageContent.serialize(svgv.getDocument());
-            } catch (TranscoderException e) {
-                throw new IllegalStateException(e);
-            }
-        }
-        if (cell instanceof XMLValue) {
-            XMLValue xmlv = (XMLValue)cell;
-            return xmlv.getDocument();
-        }
         if (cell instanceof StringValue) {
             StringValue sv = (StringValue)cell;
             return sv.getStringValue();
+        }
+        if (cell instanceof SvgValue) {
+            return ((SvgValue) cell).getDocumentSupplier().compute(doc -> doc.cloneNode(true));
+        }
+        if (cell instanceof XMLValue) {
+            return ((XMLValue<Document>) cell).getDocumentSupplier().compute(doc -> doc.cloneNode(true));
         }
         if (cell instanceof BooleanValue) {
             BooleanValue bv = (BooleanValue)cell;
