@@ -82,7 +82,7 @@ public abstract class RestWithBodyNodeDialog<S extends RestWithBodySettings> ext
         bg.add(m_useRequestBodyColumn);
     }
 
-    private final JTextArea m_constantRequestBody = new JTextArea(15, 111);
+    private final JTextArea m_constantRequestBody = new JTextArea();
 
     private final ColumnSelectionPanel m_requestBodyColumn = new ColumnSelectionPanel((String)null);
 
