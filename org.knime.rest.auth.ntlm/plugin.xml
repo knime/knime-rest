@@ -6,7 +6,7 @@
       <AuthenticateEachRequest
             class="org.knime.rest.internals.NTLMAuthentication"
             deprecated="false"
-            name="NTLM">
+            name="NTLM (Labs)">
       </AuthenticateEachRequest>
    </extension>
 </plugin>
