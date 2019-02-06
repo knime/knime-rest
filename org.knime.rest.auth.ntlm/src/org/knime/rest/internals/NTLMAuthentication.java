@@ -48,8 +48,13 @@
  */
 package org.knime.rest.internals;
 
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.Insets;
 import java.util.Map;
 
+import javax.swing.JLabel;
+import javax.swing.JPanel;
 import javax.ws.rs.client.Invocation.Builder;
 
 import org.apache.commons.lang3.ObjectUtils;
@@ -63,7 +68,15 @@ import org.apache.cxf.transports.http.configuration.HTTPClientPolicy;
 import org.apache.http.auth.Credentials;
 import org.apache.http.auth.NTCredentials;
 import org.knime.core.data.DataRow;
+import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.KNIMEConstants;
+import org.knime.core.node.NodeLogger;
+import org.knime.core.node.NodeSettingsRO;
+import org.knime.core.node.NodeSettingsWO;
+import org.knime.core.node.NotConfigurableException;
+import org.knime.core.node.port.PortObjectSpec;
+import org.knime.core.node.util.StringHistoryPanel;
+import org.knime.core.node.util.ViewUtils;
 import org.knime.core.node.workflow.CredentialsProvider;
 import org.knime.core.node.workflow.FlowVariable;
 import org.knime.core.node.workflow.ICredentials;
@@ -73,10 +86,17 @@ import org.knime.rest.generic.UsernamePasswordAuthentication;
  * NTLM authentication. Most of the logic was discovered trial and error and using a debugger. There doesn't seem to be
  * a lot of documentation on NTLM authentication in CXF (in comparison to Kerberos, where there is a lot...).
  *
- * It seems it's absolutely essential that the http client is in async mode, which is exactly not what it is set to
- * in the RestNodeModel class.
+ * It seems it's absolutely essential that the http client is in async mode, which is exactly not what it is set to in
+ * the RestNodeModel class.
  */
 public class NTLMAuthentication extends UsernamePasswordAuthentication {
+
+    /** Identifier in node settings and in string history. */
+    private static final String SETTINGS_DOMAIN = "org.knime.rest.auth.ntlm.domain";
+
+    private StringHistoryPanel m_domainPanel; // relevant when used in dialog
+    private String m_domainString; // relevant when used in model
+
     /**
      * Constructs with the empty defaults. (This constructor is called for the automatic instantiation.)
      */
@@ -100,16 +120,14 @@ public class NTLMAuthentication extends UsernamePasswordAuthentication {
         // this must happen _after_ the 'bus' is set to use an async conduit above
         // (and you would think that I know what a 'bus' or a 'conduit' is ... but I don't know)
         final HTTPConduit httpConduit = conf.getHttpConduit();
+        NodeLogger.getLogger(getClass()).debugWithFormat("Using \"%s\" conduit", httpConduit.getClass().getName());
 
         // the more you read about CXF and NTLM/Kerberos... the more you are convinced this line is needed but it's not:
         // SpnegoAuthSupplier supplier = new SpnegoAuthSupplier();
         // httpConduit.setAuthSupplier(supplier);
         HTTPClientPolicy httpClientPolicy = new HTTPClientPolicy();
-        httpClientPolicy.setConnectionTimeout(36000);
         httpClientPolicy.setAllowChunking(false);
         httpConduit.setAuthorization(null);
-
-        httpClientPolicy.setAutoRedirect(true);
 
         httpConduit.setClient(httpClientPolicy);
         return request;
@@ -138,7 +156,69 @@ public class NTLMAuthentication extends UsernamePasswordAuthentication {
         if (StringUtils.isEmpty(username) || StringUtils.isEmpty(password)) {
             throw new IllegalStateException("Username or Password cannot be blank !");
         }
-        return new NTCredentials(username, password, ObjectUtils.defaultIfNull(KNIMEConstants.getHostname(), "host"),
-            "");
+        return new NTCredentials(username, password, //
+            ObjectUtils.defaultIfNull(KNIMEConstants.getHostname(), "host"), //
+            ObjectUtils.defaultIfNull(m_domainString, ""));
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void addControls(final JPanel panel) {
+        JPanel newPanel = new JPanel(new GridBagLayout());
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(5, 5, 5, 5);
+        gbc.gridx = gbc.gridy = 0;
+        gbc.anchor = GridBagConstraints.NORTH;
+        JPanel temp = new JPanel();
+        super.addControls(temp);
+        newPanel.add(temp, gbc);
+        gbc.gridy += 1;
+        initControls();
+        newPanel.add(ViewUtils.getInFlowLayout(new JLabel("Domain "), m_domainPanel), gbc);
+        panel.add(newPanel);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void saveUserConfiguration(final NodeSettingsWO userSettings) {
+        super.saveUserConfiguration(userSettings);
+        String domain;
+        if (m_domainPanel != null) { // used in dialog
+            m_domainPanel.commitSelectedToHistory();
+            domain = m_domainPanel.getSelectedString();
+        } else { // used in model
+            domain = m_domainString;
+        }
+        userSettings.addString(SETTINGS_DOMAIN, domain);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void loadUserConfiguration(final NodeSettingsRO userSettings) throws InvalidSettingsException {
+        super.loadUserConfiguration(userSettings);
+        assert m_domainPanel == null : "Not meant to be called from dialog code (panel instance not null)";
+        m_domainString = userSettings.getString(SETTINGS_DOMAIN);
+    }
+
+    @Override
+    public void loadUserConfigurationForDialog(final NodeSettingsRO userSettings,
+        final PortObjectSpec[] specs, final CredentialsProvider credentialNames) throws NotConfigurableException {
+        super.loadUserConfigurationForDialog(userSettings, specs, credentialNames);
+        initControls();
+        m_domainPanel.updateHistory();
+        m_domainPanel.setSelectedString(userSettings.getString(SETTINGS_DOMAIN, ""));
+    }
+
+    private void initControls() {
+        if (m_domainPanel == null) {
+            m_domainPanel = new StringHistoryPanel(SETTINGS_DOMAIN);
+            m_domainPanel.setPrototypeDisplayValue("XXXXXXXXXXXXXXXXX");
+        }
     }
 }
