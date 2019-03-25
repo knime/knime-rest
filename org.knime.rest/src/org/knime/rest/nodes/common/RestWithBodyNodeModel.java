@@ -73,6 +73,7 @@ import org.knime.core.data.vector.bitvector.BitVectorValue;
 import org.knime.core.data.vector.bytevector.ByteVectorValue;
 import org.knime.core.data.xml.XMLValue;
 import org.knime.core.node.BufferedDataTable;
+import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.port.PortObject;
 import org.knime.core.node.port.PortType;
 import org.knime.rest.nodes.common.RestSettings.ReferenceType;
@@ -112,6 +113,37 @@ public abstract class RestWithBodyNodeModel<S extends RestWithBodySettings> exte
      */
     public RestWithBodyNodeModel() {
         super();
+    }
+
+    @Override
+    protected DataTableSpec[] configure(final DataTableSpec[] inSpecs) throws InvalidSettingsException {
+        final String requestBodyColumn = m_settings.getRequestBodyColumn();
+        if (requestBodyColumn == null && !m_settings.isUseConstantRequestBody()) {
+            throw new InvalidSettingsException(
+                "The node is configured to use an empty request body column. Please change the configuration."
+            );
+        }
+
+        if (requestBodyColumn != null) {
+            final DataTableSpec dataTableSpec = inSpecs[0];
+            if (dataTableSpec != null) {
+                if (!dataTableSpec.containsName(requestBodyColumn)) {
+                    throw new InvalidSettingsException(
+                        "The configured request body column '" + requestBodyColumn
+                        + "' is missing in the input table."
+                    );
+                }
+            } else {
+                throw new InvalidSettingsException(
+                    "Input table required to execute. The node is configured to use the request body from column '"
+                    + requestBodyColumn
+                    + "' in the input table."
+                );
+            }
+        }
+
+        // we do not know the exact columns (like type of body) without making a REST call, so return no table spec.
+        return new DataTableSpec[]{null};
     }
 
     /**

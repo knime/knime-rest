@@ -159,7 +159,10 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
 
     private static final NodeLogger LOGGER = NodeLogger.getLogger(RestNodeModel.class);
 
-    private final S m_settings = createSettings();
+    /**
+     * The settings of this node model.
+     */
+    protected final S m_settings = createSettings();
 
     private DataColumnSpec[] m_newColumnsBasedOnFirstCalls;
 
