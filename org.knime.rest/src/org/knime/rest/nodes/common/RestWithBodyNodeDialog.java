@@ -161,13 +161,18 @@ public abstract class RestWithBodyNodeDialog<S extends RestWithBodySettings> ext
         m_useConstantRequestBody.setSelected(getSettings().isUseConstantRequestBody());
         m_useRequestBodyColumn.setSelected(!getSettings().isUseConstantRequestBody());
         m_constantRequestBody.setText(getSettings().getConstantRequestBody());
-        if (specs.length > 0 && specs[0] != null) {
+        if (specs.length > 0 && specs[0] != null && specs[0].getNumColumns() > 0) {
             m_useRequestBodyColumn.setEnabled(true);
+            m_requestBodyColumn.setRequired(true);
             m_requestBodyColumn.setEnabled(m_useRequestBodyColumn.isSelected());
-            m_requestBodyColumn.update(specs[0], getSettings().getRequestBodyColumn());
+            m_requestBodyColumn.update(specs[0], getSettings().getRequestBodyColumn(), false, true);
         } else {
-            m_useRequestBodyColumn.setEnabled(false);
-            m_requestBodyColumn.setEnabled(false);
+            m_requestBodyColumn.setRequired(false);
+            final DataTableSpec dummySpec = new DataTableSpec();
+            m_requestBodyColumn.update(dummySpec, getSettings().getRequestBodyColumn(), false, true);
+            int nrItemsInList = m_requestBodyColumn.getNrItemsInList();
+            m_useRequestBodyColumn.setEnabled(nrItemsInList > 0);
+            m_requestBodyColumn.setEnabled(nrItemsInList > 0);
         }
     }
 }
