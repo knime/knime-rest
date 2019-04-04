@@ -1197,20 +1197,36 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         m_constantUri.setSelectedString(m_settings.getConstantURI());
         m_constantUri.setEnabled(m_settings.isUseConstantURI());
         if (specs[0] != null) {
-            m_uriColumnOption.setEnabled(true);
-            m_uriColumnOption.setSelected(!m_settings.isUseConstantURI());
-            m_uriColumn.setEnabled(m_uriColumnOption.isSelected());
-            try {
-                m_uriColumn.setRequired(false);
-                m_uriColumn.update(specs[0], m_settings.getUriColumn(), false, true);
-                m_uriColumn.setRequired(m_uriColumnOption.isSelected());
-            } catch (final NotConfigurableException e) {
-                m_uriColumn.setEnabled(false);
+            int inSpecSize = specs[0].getNumColumns();
+            if (inSpecSize == 0 && m_settings.getUriColumn() == null) {
                 m_uriColumnOption.setEnabled(false);
+                m_uriColumn.setEnabled(false);
+            } else {
+                m_uriColumnOption.setEnabled(true);
+                m_uriColumnOption.setSelected(!m_settings.isUseConstantURI());
+                m_uriColumn.setEnabled(m_uriColumnOption.isSelected());
+                try {
+                    m_uriColumn.setRequired(false);
+                    m_uriColumn.update(specs[0], m_settings.getUriColumn(), false, true);
+                    m_uriColumn.setRequired(m_uriColumnOption.isSelected());
+                } catch (final NotConfigurableException e) {
+                    m_uriColumn.setEnabled(false);
+                    m_uriColumnOption.setEnabled(false);
+                }
             }
         } else {
-            m_uriColumnOption.setEnabled(false);
-            m_uriColumn.setEnabled(false);
+            m_uriColumn.setRequired(false);
+            DataTableSpec dummySpec = new DataTableSpec();
+            m_uriColumn.update(dummySpec, m_settings.getUriColumn(), false, true);
+            if (!m_settings.isUseConstantURI()) {
+                m_uriColumnOption.setSelected(true);
+                m_uriColumnOption.setEnabled(true);
+                m_uriColumn.setEnabled(true);
+            } else {
+                int nrSelectableColumns = m_uriColumn.getNrItemsInList();
+                m_uriColumnOption.setEnabled(nrSelectableColumns > 0);
+                m_uriColumn.setEnabled(nrSelectableColumns > 0);
+            }
         }
         m_useDelay.setSelected(m_settings.isUseDelay());
         m_delay.setValue(m_settings.getDelay());
