@@ -255,6 +255,20 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
      */
     @Override
     protected DataTableSpec[] configure(final DataTableSpec[] inSpecs) throws InvalidSettingsException {
+        if (!m_settings.isUseConstantURI()) {
+            String uriColumn = m_settings.getUriColumn();
+            if (inSpecs[0] == null) {
+                throw new InvalidSettingsException(
+                    "Input table required to execute. The node is configured to use a URL from the column '" + uriColumn
+                        + "' of the input table.");
+            } else {
+                if (!inSpecs[0].containsName(uriColumn)) {
+                    throw new InvalidSettingsException(
+                        "The configured URL column '" + uriColumn + "' is missing in the input table.");
+                }
+            }
+        }
+
         // we do not know the exact columns (like type of body) without making a REST call, so return no table spec.
         return new DataTableSpec[]{null};
     }
