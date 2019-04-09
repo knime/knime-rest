@@ -132,15 +132,13 @@ public abstract class RestWithBodyNodeModel<S extends RestWithBodySettings> exte
                     }
                 } else {
                     throw new InvalidSettingsException(
-                        "Input table required to execute. The node is configured to use the request body from column '"
-                            + requestBodyColumn + "' in the input table.");
+                        "Input table required to execute. The node is configured to use a request body from the column "
+                            + "'" + requestBodyColumn + "' of the input table.");
                 }
-
             }
         }
 
-        // we do not know the exact columns (like type of body) without making a REST call, so return no table spec.
-        return new DataTableSpec[]{null};
+        return super.configure(inSpecs);
     }
 
     /**
