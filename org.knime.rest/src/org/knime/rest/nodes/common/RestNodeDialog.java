@@ -1206,16 +1206,13 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
                 m_uriColumnOption.setSelected(!m_settings.isUseConstantURI());
                 m_uriColumn.setEnabled(m_uriColumnOption.isSelected());
                 try {
-                    m_uriColumn.setRequired(false);
                     m_uriColumn.update(specs[0], m_settings.getUriColumn(), false, true);
-                    m_uriColumn.setRequired(m_uriColumnOption.isSelected());
                 } catch (final NotConfigurableException e) {
                     m_uriColumn.setEnabled(false);
                     m_uriColumnOption.setEnabled(false);
                 }
             }
         } else {
-            m_uriColumn.setRequired(false);
             DataTableSpec dummySpec = new DataTableSpec();
             m_uriColumn.update(dummySpec, m_settings.getUriColumn(), false, true);
             if (!m_settings.isUseConstantURI()) {
