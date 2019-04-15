@@ -136,6 +136,7 @@ import org.knime.core.node.streamable.StreamableOperator;
 import org.knime.core.node.streamable.StreamableOperatorInternals;
 import org.knime.core.node.streamable.simple.SimpleStreamableOperatorInternals;
 import org.knime.core.node.util.CheckUtils;
+import org.knime.core.node.workflow.FlowVariable;
 import org.knime.core.util.Pair;
 import org.knime.core.util.ThreadLocalHTTPAuthenticator;
 import org.knime.core.util.ThreadLocalHTTPAuthenticator.AuthenticationCloseable;
@@ -144,6 +145,7 @@ import org.knime.rest.generic.EachRequestAuthentication;
 import org.knime.rest.generic.ResponseBodyParser;
 import org.knime.rest.generic.ResponseBodyParser.Default;
 import org.knime.rest.generic.ResponseBodyParser.Missing;
+import org.knime.rest.nodes.common.RestSettings.ReferenceType;
 import org.knime.rest.nodes.common.RestSettings.RequestHeaderKeyItem;
 import org.knime.rest.nodes.common.RestSettings.ResponseHeaderItem;
 import org.knime.rest.util.DelegatingX509TrustManager;
@@ -255,16 +257,47 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
      */
     @Override
     protected DataTableSpec[] configure(final DataTableSpec[] inSpecs) throws InvalidSettingsException {
+        final DataTableSpec inputSpec = inSpecs[0];
         if (!m_settings.isUseConstantURI()) {
             String uriColumn = m_settings.getUriColumn();
-            if (inSpecs[0] == null) {
+            if (inputSpec == null) {
                 throw new InvalidSettingsException(
                     "Input table required to execute. The node is configured to use a URL from the column '" + uriColumn
                         + "' of the input table.");
             } else {
-                if (!inSpecs[0].containsName(uriColumn)) {
+                if (!inputSpec.containsName(uriColumn)) {
                     throw new InvalidSettingsException(
                         "The configured URL column '" + uriColumn + "' is missing in the input table.");
+                }
+            }
+        }
+
+        final List<RequestHeaderKeyItem> requestHeaders = m_settings.getRequestHeaders();
+        final Map<String, FlowVariable> availableFlowVariables = getAvailableFlowVariables();
+        for (final RequestHeaderKeyItem requestHeader : requestHeaders) {
+            final ReferenceType referenceType = requestHeader.getKind();
+            if (referenceType == ReferenceType.FlowVariable) {
+                final String requestHeaderFlowVariable = requestHeader.getValueReference();
+                if (!availableFlowVariables.containsKey(requestHeaderFlowVariable)) {
+                    throw new InvalidSettingsException(
+                        "The request header '" + requestHeader.getKey() + "' is configured to use a flow variable '"
+                            + requestHeaderFlowVariable + "' which is no longer present.");
+                }
+            }
+
+            if (referenceType == ReferenceType.Column) {
+                final String requestHeaderColumnName = requestHeader.getValueReference();
+                if (inputSpec == null) {
+                    throw new InvalidSettingsException(
+                        "Input table required to execute. The request header '" + requestHeader.getKey() + "' is "
+                            + "configured to use a column '" + requestHeaderColumnName
+                            + "' from the input table.");
+                } else {
+                    if (!inputSpec.containsName(requestHeaderColumnName)) {
+                        throw new InvalidSettingsException(
+                            "The request header '" + requestHeader.getKey() + "' is configured to use a column '"
+                                + requestHeaderColumnName + "' which is no longer present in the input table.");
+                    }
                 }
             }
         }
