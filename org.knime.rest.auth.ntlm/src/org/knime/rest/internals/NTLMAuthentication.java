@@ -59,8 +59,11 @@ import javax.ws.rs.client.Invocation.Builder;
 
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.cxf.interceptor.Fault;
+import org.apache.cxf.interceptor.Interceptor;
 import org.apache.cxf.jaxrs.client.ClientConfiguration;
 import org.apache.cxf.jaxrs.client.WebClient;
+import org.apache.cxf.message.Message;
 import org.apache.cxf.transport.http.HTTPConduit;
 import org.apache.cxf.transport.http.HTTPConduitFactory;
 import org.apache.cxf.transport.http.asyncclient.AsyncHTTPConduitFactory;
@@ -116,6 +119,22 @@ public class NTLMAuthentication extends UsernamePasswordAuthentication {
 
         requestContext.put("use.async.http.conduit", Boolean.TRUE);
         requestContext.put(Credentials.class.getName(), getNTCredentials(credProvider));
+
+        // can't explain this part... but: if no (no-op) fault interceptor is added any 401 auth error will
+        // error out with "Authorization loop detected on Conduit" -- output columns in KNIME will be all missing;
+        // with this interceptor added the error code and error message are available in KNIME
+        conf.getInFaultInterceptors().add(new Interceptor<Message>() {
+            @Override
+            public void handleFault(final Message message) {
+                message.toString();
+            }
+            @Override
+            public void handleMessage(final Message message) throws Fault {
+                message.toString();
+            }
+        });
+        // otherwise there are _a lot_ staling IO reactor threads lurking around (probably due to the async exec)
+        conf.setShutdownBusOnClose(true);
 
         // this must happen _after_ the 'bus' is set to use an async conduit above
         // (and you would think that I know what a 'bus' or a 'conduit' is ... but I don't know)
