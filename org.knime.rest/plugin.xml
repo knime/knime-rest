@@ -42,6 +42,11 @@
             deprecated="false"
             name="NTLM (Labs)">
       </AuthenticateEachRequest>
+       <AuthenticateEachRequest
+             class="org.knime.rest.internals.kerberos.KerberosAuthentication"
+             deprecated="false"
+             name="Kerberos">
+       </AuthenticateEachRequest>
     </extension>
     <extension
           id="org.knime.rest.header.webpage"
