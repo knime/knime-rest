@@ -361,10 +361,12 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         final UniqueNameGenerator nameGenerator = new UniqueNameGenerator(spec == null ? new DataTableSpec() : spec);
         Response response;
         DataCell missing;
+        Pair<Builder, Client> requestBuilderPair =
+                createRequest(spec == null ? -1 : spec.findColumnIndex(m_settings.getUriColumn()),
+                    enabledEachRequestAuthentications, row, spec);
         try {
-            response =
-                invoke(invocation(createRequest(spec == null ? -1 : spec.findColumnIndex(m_settings.getUriColumn()),
-                    enabledEachRequestAuthentications, row, spec), row, spec));
+            response = invoke(invocation(requestBuilderPair.getFirst(), row, spec));
+            requestBuilderPair.getSecond().close();
             missing = null;
         } catch (ProcessingException procEx) {
             LOGGER.warn("Call #" + (m_consumedRows + 1) + " failed: " + procEx.getMessage(), procEx);
@@ -375,6 +377,9 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
                 missing = new MissingCell(cause.getMessage());
                 response = null;
             }
+        } finally {
+            Client client = requestBuilderPair.getSecond();
+            client.close();
         }
         try {
             final List<DataCell> cells;
@@ -607,13 +612,14 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
                     return m_firstCallValues.get(firstRowIdx);
                 }
                 assert m_consumedRows > 0;
-                final Builder request = createRequest(uriColumn, enabledEachRequestAuthentications, row, spec);
+                final Pair<Builder, Client> requestBuilder =
+                        createRequest(uriColumn, enabledEachRequestAuthentications, row, spec);
                 final List<DataCell> cells;
                 DataCell missing = null;
                 try {
                     Response response;
                     try {
-                        response = invoke(invocation(request, row, spec));
+                        response = invoke(invocation(requestBuilder.getFirst(), row, spec));
                     } catch (ProcessingException e) {
                         LOGGER.debug("Call failed: " + e.getMessage(), e);
                         Throwable cause = ExceptionUtils.getRootCause(e);
@@ -666,12 +672,15 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
                     throw new IllegalStateException(e);
                 } finally {
                     m_consumedRows++;
+                    Client client = requestBuilder.getSecond();
+                    client.close();
                 }
                 if (exec != null) {
                     setProgress(m_consumedRows, tableSize, row.getKey(), exec);
                 }
                 return cells.toArray(new DataCell[cells.size()]);
             }
+
         };
         final int concurrency = Math.max(1, m_settings.getConcurrency());
         factory.setParallelProcessing(true, concurrency, 4 * concurrency);
@@ -917,7 +926,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
      * @return
      */
     @SuppressWarnings("null")
-    private Builder createRequest(final int uriColumn,
+    private Pair<Builder, Client> createRequest(final int uriColumn,
         final List<EachRequestAuthentication> enabledEachRequestAuthentications, final DataRow row,
         final DataTableSpec spec) {
         final Client client = createClient();
@@ -962,7 +971,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         if (!clientPolicy.isSetMaxRetransmits()) {
             clientPolicy.setMaxRetransmits(MAX_RETRANSITS);
         }
-        return request;
+        return Pair.create(request, client);
     }
 
     /**

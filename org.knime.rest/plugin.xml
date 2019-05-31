@@ -25,6 +25,11 @@
              deprecated="false"
              name="Digest">
        </AuthenticateEachRequest>
+      <AuthenticateEachRequest
+            class="org.knime.rest.internals.NTLMAuthentication"
+            deprecated="false"
+            name="NTLM (Labs)">
+      </AuthenticateEachRequest>
     </extension>
     <extension
           id="org.knime.rest.header.webpage"
