@@ -11,6 +11,11 @@
         <node category-path="/toolintegration/rest" factory-class="org.knime.rest.nodes.post.RestPostNodeFactory" after="org.knime.rest.nodes.get.RestGetNodeFactory"/>
         <node category-path="/toolintegration/rest" factory-class="org.knime.rest.nodes.put.RestPutNodeFactory" after="org.knime.rest.nodes.post.RestPostNodeFactory"/>
         <node category-path="/toolintegration/rest" factory-class="org.knime.rest.nodes.delete.RestDeleteNodeFactory" after="org.knime.rest.nodes.put.RestPutNodeFactory" />
+        <node
+              category-path="/toolintegration/rest"
+              deprecated="false"
+              factory-class="org.knime.rest.nodes.webpageloader.WebpageLoaderNodeFactory">
+        </node>
     </extension>
     <extension
           id="org.knime.rest.authentication.basic"

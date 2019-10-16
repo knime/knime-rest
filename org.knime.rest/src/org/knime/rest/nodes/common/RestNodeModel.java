@@ -166,7 +166,10 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
      */
     protected final S m_settings = createSettings();
 
-    private DataColumnSpec[] m_newColumnsBasedOnFirstCalls;
+    /**
+     * The specs of the new columns if no input is connected.
+     */
+    protected DataColumnSpec[] m_newColumnsBasedOnFirstCalls;
 
     private final List<DataCell[]> m_firstCallValues = new ArrayList<>();
 
@@ -797,7 +800,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
      * @param response
      * @return
      */
-    private boolean isHttpError(final Response response) {
+    private static boolean isHttpError(final Response response) {
         return response == null || response.getStatus() >= 400 && response.getStatus() < 600;
     }
 
@@ -840,7 +843,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
      * @param spec the input spec
      * @return The new column specs.
      */
-    private DataColumnSpec[] createNewColumnsSpec(final DataTableSpec spec) {
+    protected DataColumnSpec[] createNewColumnsSpec(final DataTableSpec spec) {
         UniqueNameGenerator uniqueNameGenerator = new UniqueNameGenerator(spec);
         return Stream.concat(m_responseHeaderKeys.stream(), m_bodyColumns.stream())
                 .map(rhi -> uniqueNameGenerator.newCreator(rhi.getOutputColumnName(), rhi.getType()))

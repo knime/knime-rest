@@ -38,7 +38,7 @@
             <option name="Fail on http errors (e.g. page not found)">By default failed requests (HTTP status codes <tt>4xx</tt>
             and <tt>5xx</tt>) will result in a row with appropriate status code and error message and the node will continue. If
             this option is checked the node will fail if a request fails.</option>
-            <option name="Follow redirects">If checked, the node will redirects (HTTP status code <tt>3xx</tt>) when checked</option>
+            <option name="Follow redirects">If checked, the node will follow redirects (HTTP status code <tt>3xx</tt>).</option>
             <option name="Timeout (s)">Timeout for a single request in seconds</option>
             <option name="Body">Name of the response body column in the output table</option>
         </tab>

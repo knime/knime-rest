@@ -170,7 +170,6 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
 
     private final StringHistoryPanel m_constantUri = new StringHistoryPanel(getClass().getName());
 
-    @SuppressWarnings("unchecked")
     private final ColumnSelectionPanel m_uriColumn = new ColumnSelectionPanel(StringValue.class, URIDataValue.class);
 
     private final JCheckBox m_useDelay = new JCheckBox("Delay (ms): ");
@@ -216,7 +215,11 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
 
     private final JCheckBox m_extractAllHeaders = new JCheckBox("Extract all headers");
 
-    private final StringHistoryPanel m_bodyColumnName = new StringHistoryPanel("GET body");
+    /** */
+    protected final JLabel m_labelBodyColumnName = new JLabel("Body column: ");
+
+    /** */
+    protected final StringHistoryPanel m_bodyColumnName = new StringHistoryPanel("GET body");
 
     private final JComboBox<String> m_requestHeaderKey = createEditableComboBox(),
             m_requestHeaderKeyPopup = createEditableComboBox();
@@ -425,7 +428,7 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.gridx = 0;
         gbc.gridy++;
-        ret.add(new JLabel("Body column: "), gbc);
+        ret.add(m_labelBodyColumnName, gbc);
         gbc.gridx++;
         gbc.gridwidth = 2;
         gbc.weightx = 1;

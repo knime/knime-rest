@@ -116,12 +116,14 @@ public class RestSettings {
 
     private static final boolean DEFAULT_SSL_TRUST_ALL = false;
 
-    private static final String FAIL_ON_CONNECTION_PROBLEMS = "Fail on connection problems";
+    /** Config key for fail on connection problems */
+    protected static final String FAIL_ON_CONNECTION_PROBLEMS = "Fail on connection problems";
 
     /** Default value for the fail on connection problems option. */
     protected static final boolean DEFAULT_FAIL_ON_CONNECTION_PROBLEMS = false;
 
-    private static final String FAIL_ON_HTTP_ERRORS = "Fail on HTTP errors";
+    /** Config key for fail on http problems */
+    protected static final String FAIL_ON_HTTP_ERRORS = "Fail on HTTP errors";
 
     /** Default value for the fail on http errors option. */
     protected static final boolean DEFAULT_FAIL_ON_HTTP_ERRORS = false;
