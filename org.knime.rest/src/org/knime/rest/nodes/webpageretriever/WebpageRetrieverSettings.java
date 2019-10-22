@@ -46,7 +46,7 @@
  * History
  *   Sep 25, 2019 (Simon Schmid, KNIME GmbH, Konstanz, Germany): created
  */
-package org.knime.rest.nodes.webpageloader;
+package org.knime.rest.nodes.webpageretriever;
 
 import org.knime.core.data.DataTableSpec;
 import org.knime.core.node.InvalidSettingsException;
@@ -56,11 +56,11 @@ import org.knime.core.node.workflow.CredentialsProvider;
 import org.knime.rest.nodes.common.RestSettings;
 
 /**
- * Node settings of the Webpage Loader node.
+ * Node settings of the Webpage Retriever node.
  *
  * @author Simon Schmid, KNIME GmbH, Konstanz, Germany
  */
-final class WebpageLoaderSettings extends RestSettings {
+final class WebpageRetrieverSettings extends RestSettings {
 
     private static final String OUTPUT_COL_NAME = "Output column name";
 
@@ -84,7 +84,7 @@ final class WebpageLoaderSettings extends RestSettings {
     private boolean m_outputAsXML = DEFAULT_OUTPUT_AS_XML;
 
     /** */
-    WebpageLoaderSettings() {
+    WebpageRetrieverSettings() {
         setFailOnConnectionProblems(DEFAULT_FAIL_ON_PROBLEMS);
         setFailOnHttpErrors(DEFAULT_FAIL_ON_PROBLEMS);
     }

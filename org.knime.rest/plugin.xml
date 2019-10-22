@@ -14,7 +14,7 @@
         <node
               category-path="/toolintegration/rest"
               deprecated="false"
-              factory-class="org.knime.rest.nodes.webpageloader.WebpageLoaderNodeFactory">
+              factory-class="org.knime.rest.nodes.webpageretriever.WebpageRetrieverNodeFactory">
         </node>
     </extension>
     <extension

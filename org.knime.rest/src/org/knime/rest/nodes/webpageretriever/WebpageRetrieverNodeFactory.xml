@@ -1,18 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<knimeNode icon="webpage_loader.png" type="Manipulator"
+<knimeNode icon="webpage_retriever.png" type="Manipulator"
 	xmlns="http://knime.org/node/v3.6"
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:schemaLocation="http://knime.org/node/v3.6 http://knime.org/node/v3.6.xsd">
-	<name>Webpage Loader</name>
+	<name>Webpage Retriever</name>
 
 	<shortDescription>
-		Loads an HTML webpage and outputs it either as XHTML
+		Retrieves an HTML webpage and outputs it either as XHTML
 		or String.
 	</shortDescription>
 
 	<fullDescription>
 		<intro>
-			This node can be used to load webpages by issuing HTTP GET requests
+			This node can be used to retrieve webpages by issuing HTTP GET requests
 			and parsing the
 			requested HTML webpages. For parsing,
 			<a href="https://jsoup.org">jsoup</a>
@@ -143,7 +143,7 @@
 		<inPort index="0" name="Table">Optional data table containing the
 			variable parameters of the requests.
 		</inPort>
-		<outPort index="0" name="Webpage Loader results">Data table containing the parsed HTML
+		<outPort index="0" name="Webpage Retriever results">Data table containing the parsed HTML
 			either as string or as XHTML.
 		</outPort>
 	</ports>

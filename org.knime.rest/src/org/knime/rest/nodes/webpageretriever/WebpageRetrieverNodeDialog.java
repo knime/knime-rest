@@ -46,7 +46,7 @@
  * History
  *   Sep 25, 2019 (Simon Schmid, KNIME GmbH, Konstanz, Germany): created
  */
-package org.knime.rest.nodes.webpageloader;
+package org.knime.rest.nodes.webpageretriever;
 
 import java.awt.Dimension;
 import java.awt.GridBagConstraints;
@@ -67,11 +67,11 @@ import org.knime.core.node.NotConfigurableException;
 import org.knime.rest.nodes.common.RestNodeDialog;
 
 /**
- * Node dialog of the Webpage Loader node.
+ * Node dialog of the Webpage Retriever node.
  *
  * @author Simon Schmid, KNIME GmbH, Konstanz, Germany
  */
-final class WebpageLoaderNodeDialog extends RestNodeDialog<WebpageLoaderSettings> {
+final class WebpageRetrieverNodeDialog extends RestNodeDialog<WebpageRetrieverSettings> {
 
     private JCheckBox m_outputAsXMLCheckBox;
 
@@ -80,7 +80,7 @@ final class WebpageLoaderNodeDialog extends RestNodeDialog<WebpageLoaderSettings
     private JTextField m_outputColumnNameTextField;
 
     /** */
-    WebpageLoaderNodeDialog() {
+    WebpageRetrieverNodeDialog() {
         super();
         renameTab("Connection Settings", "General Settings");
         removeTab("Response Headers");
@@ -90,8 +90,8 @@ final class WebpageLoaderNodeDialog extends RestNodeDialog<WebpageLoaderSettings
      * {@inheritDoc}
      */
     @Override
-    protected WebpageLoaderSettings createSettings() {
-        return new WebpageLoaderSettings();
+    protected WebpageRetrieverSettings createSettings() {
+        return new WebpageRetrieverSettings();
     }
 
     /**
@@ -153,7 +153,7 @@ final class WebpageLoaderNodeDialog extends RestNodeDialog<WebpageLoaderSettings
      */
     @Override
     protected void saveSettingsTo(final NodeSettingsWO settings) throws InvalidSettingsException {
-        final WebpageLoaderSettings nodeSettings = getSettings();
+        final WebpageRetrieverSettings nodeSettings = getSettings();
         if (m_outputColumnNameTextField.getText().trim().isEmpty()) {
             throw new InvalidSettingsException("The output column name must not be empty.");
         }
@@ -169,7 +169,7 @@ final class WebpageLoaderNodeDialog extends RestNodeDialog<WebpageLoaderSettings
     @Override
     protected void loadSettingsFrom(final NodeSettingsRO settings, final DataTableSpec[] specs)
         throws NotConfigurableException {
-        final WebpageLoaderSettings nodeSettings = getSettings();
+        final WebpageRetrieverSettings nodeSettings = getSettings();
         super.loadSettingsFrom(settings, specs);
         m_outputColumnNameTextField.setText(nodeSettings.getOutputColumnName());
         m_replaceRelativeURLSCheckBox.setSelected(nodeSettings.isReplaceRelativeURLS());

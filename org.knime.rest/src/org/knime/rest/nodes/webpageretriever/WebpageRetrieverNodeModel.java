@@ -46,7 +46,7 @@
  * History
  *   Sep 25, 2019 (Simon Schmid, KNIME GmbH, Konstanz, Germany): created
  */
-package org.knime.rest.nodes.webpageloader;
+package org.knime.rest.nodes.webpageretriever;
 
 import java.net.URI;
 import java.util.List;
@@ -79,18 +79,18 @@ import org.knime.rest.nodes.common.RestNodeModel;
 import org.w3c.dom.NodeList;
 
 /**
- * Node model of the Webpage Loader node.
+ * Node model of the Webpage Retriever node.
  *
  * @author Simon Schmid, KNIME GmbH, Konstanz, Germany
  */
-final class WebpageLoaderNodeModel extends RestNodeModel<WebpageLoaderSettings> {
+final class WebpageRetrieverNodeModel extends RestNodeModel<WebpageRetrieverSettings> {
 
     // the base URI is needed to replace relative URLs with the absolute ones
     private URI m_baseURI;
 
     @Override
-    protected WebpageLoaderSettings createSettings() {
-        return new WebpageLoaderSettings();
+    protected WebpageRetrieverSettings createSettings() {
+        return new WebpageRetrieverSettings();
     }
 
     @Override
@@ -152,20 +152,30 @@ final class WebpageLoaderNodeModel extends RestNodeModel<WebpageLoaderSettings> 
             // convert to w3c document
             org.w3c.dom.Document w3cDoc = new W3CDom().fromJsoup(htmlDocument);
 
-            // fix an issue where the xmlns attribute was twice in the output for SVGs
+            // fix an issue where the xmlns attribute was twice in the output for certain elements.
             // (can be tested with this webpage: http://www.handletheheat.com/peanut-butter-snickerdoodles
             // that could not be parsed by XPath if the attribute was set twice)
             // may be fixed with a later version of jsoup
-            final NodeList elementsByTagName = w3cDoc.getElementsByTagName("svg");
-            for (int i = 0; i < elementsByTagName.getLength(); i++) {
-                org.w3c.dom.Node item = elementsByTagName.item(i);
-                if (item instanceof org.w3c.dom.Element) {
-                    ((org.w3c.dom.Element)item).removeAttribute("xmlns");
-                }
+            final NodeList list = w3cDoc.getChildNodes();
+            for (int i = 0; i < list.getLength(); i++) {
+                removeNameSpaceAttributes(list.item(i));
             }
+
             cells.add(XMLCellFactory.create(w3cDoc));
         } else {
             cells.add(new StringCell(htmlDocument.html()));
+        }
+    }
+
+    // remove xmlns attributes, they will be in the output anyway since they are set as namespace
+    private static void removeNameSpaceAttributes(final org.w3c.dom.Node node) {
+        if (node.getNodeType() == org.w3c.dom.Node.ELEMENT_NODE) {
+            ((org.w3c.dom.Element)node).removeAttribute("xmlns");
+        }
+        // do it recursively
+        final NodeList list = node.getChildNodes();
+        for (int i = 0; i < list.getLength(); i++) {
+            removeNameSpaceAttributes(list.item(i));
         }
     }
 

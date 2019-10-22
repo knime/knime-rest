@@ -46,25 +46,25 @@
  * History
  *   Sep 25, 2019 (Simon Schmid, KNIME GmbH, Konstanz, Germany): created
  */
-package org.knime.rest.nodes.webpageloader;
+package org.knime.rest.nodes.webpageretriever;
 
 import org.knime.core.node.NodeDialogPane;
 import org.knime.core.node.NodeFactory;
 import org.knime.core.node.NodeView;
 
 /**
- * Node factory of the Webpage Loader node.
+ * Node factory of the Webpage Retriever node.
  *
  * @author Simon Schmid, KNIME GmbH, Konstanz, Germany
  */
-public final class WebpageLoaderNodeFactory extends NodeFactory<WebpageLoaderNodeModel> {
+public final class WebpageRetrieverNodeFactory extends NodeFactory<WebpageRetrieverNodeModel> {
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public WebpageLoaderNodeModel createNodeModel() {
-        return new WebpageLoaderNodeModel();
+    public WebpageRetrieverNodeModel createNodeModel() {
+        return new WebpageRetrieverNodeModel();
     }
 
     /**
@@ -79,8 +79,8 @@ public final class WebpageLoaderNodeFactory extends NodeFactory<WebpageLoaderNod
      * {@inheritDoc}
      */
     @Override
-    public NodeView<WebpageLoaderNodeModel> createNodeView(final int viewIndex,
-        final WebpageLoaderNodeModel nodeModel) {
+    public NodeView<WebpageRetrieverNodeModel> createNodeView(final int viewIndex,
+        final WebpageRetrieverNodeModel nodeModel) {
         return null;
     }
 
@@ -97,7 +97,7 @@ public final class WebpageLoaderNodeFactory extends NodeFactory<WebpageLoaderNod
      */
     @Override
     protected NodeDialogPane createNodeDialogPane() {
-        return new WebpageLoaderNodeDialog();
+        return new WebpageRetrieverNodeDialog();
     }
 
 }
