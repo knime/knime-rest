@@ -114,7 +114,7 @@ final class WebpageRetrieverNodeDialog extends RestNodeDialog<WebpageRetrieverSe
         gbc.gridy = 0;
         gbc.weightx = 0;
         gbc.weighty = 0;
-        m_replaceRelativeURLSCheckBox = new JCheckBox("Replace relative URLs with absoulte URLs");
+        m_replaceRelativeURLSCheckBox = new JCheckBox("Replace relative URLs with absolute URLs");
         m_outputAsXMLCheckBox = new JCheckBox("Output as XML");
         m_outputColumnNameTextField = new JTextField("asd");
         m_outputColumnNameTextField.setPreferredSize(new Dimension(150, 20));
