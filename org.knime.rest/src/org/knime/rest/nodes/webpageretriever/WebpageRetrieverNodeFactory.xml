@@ -37,6 +37,11 @@
 			The node supports several authentication methods, e.g. BASIC and
 			DIGEST. Other authentication methods may be provided by additional
 			extensions.
+			<br />
+			<br />
+			Cookies can be send to the server via the Request Header tab by setting the "Cookie" header.
+			In order to receive cookies, set the "Extract cookies" option. Any cookies sent by the server
+			are then extracted and appended as a List Cell in the output.
 		</intro>
 
 		<tab name="General Settings">
@@ -88,6 +93,13 @@
 			</option>
 			<option name="Replace relative URLs with absolute URLs">If checked, relative URLs in the HTML will be
 				replaced by the absolute ones. This may simplify further processing.
+			</option>
+			<option name="Extract cookies">
+				If checked, the cookies sent by the server are extracted from the response and appended as a list column.
+				A missing value is appended if the server doesn't send cookies.
+			</option>
+			<option name="Cookie column name">
+				The name of the column containing a list of cookies in the output table.
 			</option>
 		</tab>
 		<tab name="Authentication">
@@ -144,7 +156,7 @@
 			variable parameters of the requests.
 		</inPort>
 		<outPort index="0" name="Webpage Retriever results">Data table containing the parsed HTML
-			either as string or as XHTML.
+			either as string or as XHTML and optionally the cookies as list of strings.
 		</outPort>
 	</ports>
 </knimeNode>

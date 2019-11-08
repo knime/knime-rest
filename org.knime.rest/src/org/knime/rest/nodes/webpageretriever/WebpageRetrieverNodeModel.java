@@ -50,9 +50,12 @@ package org.knime.rest.nodes.webpageretriever;
 
 import java.net.URI;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import javax.ws.rs.client.Invocation;
 import javax.ws.rs.client.Invocation.Builder;
+import javax.ws.rs.core.NewCookie;
 import javax.ws.rs.core.Response;
 
 import org.apache.cxf.jaxrs.client.spec.InvocationBuilderImpl;
@@ -66,9 +69,10 @@ import org.knime.core.data.DataCell;
 import org.knime.core.data.DataColumnSpec;
 import org.knime.core.data.DataRow;
 import org.knime.core.data.DataTableSpec;
-import org.knime.core.data.IntValue;
 import org.knime.core.data.MissingCell;
 import org.knime.core.data.StringValue;
+import org.knime.core.data.collection.CollectionCellFactory;
+import org.knime.core.data.collection.ListCell;
 import org.knime.core.data.def.StringCell;
 import org.knime.core.data.xml.XMLCell;
 import org.knime.core.data.xml.XMLCellFactory;
@@ -87,6 +91,13 @@ final class WebpageRetrieverNodeModel extends RestNodeModel<WebpageRetrieverSett
 
     // the base URI is needed to replace relative URLs with the absolute ones
     private URI m_baseURI;
+
+    /**
+     * Constructor for a WebPageRetrieverNodeModel.
+     */
+    protected WebpageRetrieverNodeModel() {
+        super();
+    }
 
     @Override
     protected WebpageRetrieverSettings createSettings() {
@@ -107,17 +118,13 @@ final class WebpageRetrieverNodeModel extends RestNodeModel<WebpageRetrieverSett
     protected void addBodyValues(final List<DataCell> cells, final Response response, final DataCell missing) {
         super.addBodyValues(cells, response, missing);
         // the last cell is the one either containing the body value or is missing
-        final DataCell cell = cells.get(cells.size() - 1);
-
-        int httpStatus = 200;
-        if (cells.get(0) instanceof IntValue) {
-            httpStatus = ((IntValue)cells.get(0)).getIntValue();
-        }
-        // clear the cells, we just want to output the parsed HTML in the end
+        final DataCell cell = cells.remove(cells.size() - 1);
+        // we only want to output the html and optionally the cookies sent by the server
         cells.clear();
 
         // if the body value cell is missing, there must have been an error, so return the missing cell
         if (cell.isMissing()) {
+            final int httpStatus = response.getStatus();
             if (httpStatus == 200) {
                 cells.add(cell);
             } else {
@@ -164,6 +171,14 @@ final class WebpageRetrieverNodeModel extends RestNodeModel<WebpageRetrieverSett
             cells.add(XMLCellFactory.create(w3cDoc));
         } else {
             cells.add(new StringCell(htmlDocument.html()));
+        }
+
+        if (m_settings.isExtractCookies()) {
+            final Map<String, NewCookie> cookies = response.getCookies();
+            final List<StringCell> cookiesAsListOfStringCells =
+                cookies.values().stream().map(NewCookie::toString).map(StringCell::new).collect(Collectors.toList());
+            cells.add(cookiesAsListOfStringCells.isEmpty() ? new MissingCell("The server did not send any cookies.")
+                : CollectionCellFactory.createListCell(cookiesAsListOfStringCells));
         }
     }
 
@@ -217,13 +232,18 @@ final class WebpageRetrieverNodeModel extends RestNodeModel<WebpageRetrieverSett
     @Override
     protected DataColumnSpec[] createNewColumnsSpec(final DataTableSpec spec) {
         final UniqueNameGenerator uniqueNameGenerator = new UniqueNameGenerator(spec);
-        final DataColumnSpec[] dataColSpecs = new DataColumnSpec[1];
-        if (m_settings.isOutputAsXML()) {
-            dataColSpecs[0] = uniqueNameGenerator.newColumn(m_settings.getOutputColumnName(), XMLCell.TYPE);
-        } else {
-            dataColSpecs[0] = uniqueNameGenerator.newColumn(m_settings.getOutputColumnName(), StringCell.TYPE);
+        // the last column in responseHeaderSpecs is the body column that is replaced by the parsed html
+        final DataColumnSpec htmlSpec = uniqueNameGenerator.newColumn(m_settings.getOutputColumnName(),
+            m_settings.isOutputAsXML() ? XMLCell.TYPE : StringCell.TYPE);
+        final boolean extractCookies = m_settings.isExtractCookies();
+        final DataColumnSpec[] newSpecs = new DataColumnSpec[extractCookies ? 2 : 1];
+        newSpecs[0] = htmlSpec;
+        if (extractCookies) {
+            final DataColumnSpec cookieColumn = uniqueNameGenerator.newColumn(m_settings.getCookieOutputColumnName(),
+                ListCell.getCollectionType(StringCell.TYPE));
+            newSpecs[1] = cookieColumn;
         }
-        return dataColSpecs;
+        return newSpecs;
     }
 
     @Override

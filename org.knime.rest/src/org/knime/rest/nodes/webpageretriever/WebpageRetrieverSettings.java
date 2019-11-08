@@ -48,6 +48,8 @@
  */
 package org.knime.rest.nodes.webpageretriever;
 
+import java.util.Collections;
+
 import org.knime.core.data.DataTableSpec;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettingsRO;
@@ -61,6 +63,17 @@ import org.knime.rest.nodes.common.RestSettings;
  * @author Simon Schmid, KNIME GmbH, Konstanz, Germany
  */
 final class WebpageRetrieverSettings extends RestSettings {
+
+    private static final String COOKIE_OUTPUT_COLUMN_NAME = "Cookie output column name";
+
+    private static final String EXTRACT_COOKIES = "Extract cookies";
+
+    /**
+     * Default cookie output column name.
+     */
+    static final String DEFAULT_COOKIE_OUTPUT_COLUMN_NAME = "Cookies";
+
+    private static final boolean DEFAULT_EXTRACT_COOKIES = false;
 
     private static final String OUTPUT_COL_NAME = "Output column name";
 
@@ -83,10 +96,43 @@ final class WebpageRetrieverSettings extends RestSettings {
 
     private boolean m_outputAsXML = DEFAULT_OUTPUT_AS_XML;
 
+    private boolean m_extractCookies = DEFAULT_EXTRACT_COOKIES;
+
+    private String m_cookieOutputColumnName = DEFAULT_COOKIE_OUTPUT_COLUMN_NAME;
+
     /** */
     WebpageRetrieverSettings() {
+        super(Collections.emptyList());
         setFailOnConnectionProblems(DEFAULT_FAIL_ON_PROBLEMS);
         setFailOnHttpErrors(DEFAULT_FAIL_ON_PROBLEMS);
+    }
+
+    /**
+     * @return the extractCookies
+     */
+    boolean isExtractCookies() {
+        return m_extractCookies;
+    }
+
+    /**
+     * @param extractCookies the extractCookies to set
+     */
+    void setExtractCookies(final boolean extractCookies) {
+        m_extractCookies = extractCookies;
+    }
+
+    /**
+     * @return the cookieColumnName
+     */
+    String getCookieOutputColumnName() {
+        return m_cookieOutputColumnName;
+    }
+
+    /**
+     * @param cookieColumnName the cookieColumnName to set
+     */
+    void setCookieOutputColumnName(final String cookieColumnName) {
+        m_cookieOutputColumnName = cookieColumnName;
     }
 
     /**
@@ -140,6 +186,8 @@ final class WebpageRetrieverSettings extends RestSettings {
         settings.addString(OUTPUT_COL_NAME, m_outputColumnName);
         settings.addBoolean(REPLACE_RELATIVE_URLS, m_replaceRelativeURLS);
         settings.addBoolean(OUTPUT_AS_XML, m_outputAsXML);
+        settings.addBoolean(EXTRACT_COOKIES, m_extractCookies);
+        settings.addString(COOKIE_OUTPUT_COLUMN_NAME, m_cookieOutputColumnName);
     }
 
     /**
@@ -152,6 +200,8 @@ final class WebpageRetrieverSettings extends RestSettings {
         m_outputColumnName = settings.getString(OUTPUT_COL_NAME, DEFAULT_OUTPUT_COL_NAME);
         m_replaceRelativeURLS = settings.getBoolean(REPLACE_RELATIVE_URLS, DEFAULT_REPLACE_RELATIVE_URLS);
         m_outputAsXML = settings.getBoolean(OUTPUT_AS_XML, DEFAULT_OUTPUT_AS_XML);
+        m_extractCookies = settings.getBoolean(EXTRACT_COOKIES, DEFAULT_EXTRACT_COOKIES);
+        m_cookieOutputColumnName = settings.getString(COOKIE_OUTPUT_COLUMN_NAME, DEFAULT_COOKIE_OUTPUT_COLUMN_NAME);
         setFailOnConnectionProblems(settings.getBoolean(FAIL_ON_CONNECTION_PROBLEMS, DEFAULT_FAIL_ON_PROBLEMS));
         setFailOnHttpErrors(settings.getBoolean(FAIL_ON_HTTP_ERRORS, DEFAULT_FAIL_ON_PROBLEMS));
     }
@@ -165,5 +215,7 @@ final class WebpageRetrieverSettings extends RestSettings {
         m_outputColumnName = settings.getString(OUTPUT_COL_NAME);
         m_replaceRelativeURLS = settings.getBoolean(REPLACE_RELATIVE_URLS);
         m_outputAsXML = settings.getBoolean(OUTPUT_AS_XML);
+        m_extractCookies = settings.getBoolean(EXTRACT_COOKIES);
+        m_cookieOutputColumnName = settings.getString(COOKIE_OUTPUT_COLUMN_NAME);
     }
 }

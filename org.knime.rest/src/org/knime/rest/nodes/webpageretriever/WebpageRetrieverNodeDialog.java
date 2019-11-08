@@ -75,9 +75,15 @@ final class WebpageRetrieverNodeDialog extends RestNodeDialog<WebpageRetrieverSe
 
     private JCheckBox m_outputAsXMLCheckBox;
 
+    private JCheckBox m_extractCookiesCheckBox;
+
     private JCheckBox m_replaceRelativeURLSCheckBox;
 
     private JTextField m_outputColumnNameTextField;
+
+    private JTextField m_cookieOutputColumnNameTextField;
+
+    private JLabel m_cookieOutputColumnNameLabel;
 
     /** */
     WebpageRetrieverNodeDialog() {
@@ -116,6 +122,11 @@ final class WebpageRetrieverNodeDialog extends RestNodeDialog<WebpageRetrieverSe
         gbc.weighty = 0;
         m_replaceRelativeURLSCheckBox = new JCheckBox("Replace relative URLs with absolute URLs");
         m_outputAsXMLCheckBox = new JCheckBox("Output as XML");
+        m_extractCookiesCheckBox = new JCheckBox("Extract cookies");
+        m_cookieOutputColumnNameTextField = new JTextField(WebpageRetrieverSettings.DEFAULT_COOKIE_OUTPUT_COLUMN_NAME);
+        m_extractCookiesCheckBox.addActionListener(e -> setCookieOutputEnabled());
+        m_cookieOutputColumnNameTextField.setPreferredSize(new Dimension(150, 20));
+        m_cookieOutputColumnNameLabel = new JLabel("Cookie column name");
         m_outputColumnNameTextField = new JTextField("asd");
         m_outputColumnNameTextField.setPreferredSize(new Dimension(150, 20));
         panel.add(new JLabel("Output column name "), gbc);
@@ -126,10 +137,20 @@ final class WebpageRetrieverNodeDialog extends RestNodeDialog<WebpageRetrieverSe
         gbc.gridwidth = 2;
         gbc.gridy++;
         panel.add(m_outputAsXMLCheckBox, gbc);
+        gbc.gridy++;
         gbc.weightx = 1;
         gbc.weighty = 1;
         gbc.gridy++;
         panel.add(m_replaceRelativeURLSCheckBox, gbc);
+        gbc.weightx = 0;
+        gbc.weighty = 0;
+        gbc.gridy++;
+        panel.add(m_extractCookiesCheckBox, gbc);
+        gbc.gridwidth = 1;
+        gbc.gridy++;
+        panel.add(m_cookieOutputColumnNameLabel, gbc);
+        gbc.gridx = 1;
+        panel.add(m_cookieOutputColumnNameTextField, gbc);
 
         final JPanel panelComplete = new JPanel(new GridBagLayout());
         final GridBagConstraints gbcComplete = new GridBagConstraints();
@@ -148,6 +169,12 @@ final class WebpageRetrieverNodeDialog extends RestNodeDialog<WebpageRetrieverSe
         return panelComplete;
     }
 
+    private void setCookieOutputEnabled() {
+        final boolean outputCookies = m_extractCookiesCheckBox.isSelected();
+        m_cookieOutputColumnNameLabel.setEnabled(outputCookies);
+        m_cookieOutputColumnNameTextField.setEnabled(outputCookies);
+    }
+
     /**
      * {@inheritDoc}
      */
@@ -160,6 +187,8 @@ final class WebpageRetrieverNodeDialog extends RestNodeDialog<WebpageRetrieverSe
         nodeSettings.setOutputColumnName(m_outputColumnNameTextField.getText());
         nodeSettings.setReplaceRelativeURLS(m_replaceRelativeURLSCheckBox.isSelected());
         nodeSettings.setOutputAsXML(m_outputAsXMLCheckBox.isSelected());
+        nodeSettings.setExtractCookies(m_extractCookiesCheckBox.isSelected());
+        nodeSettings.setCookieOutputColumnName(m_cookieOutputColumnNameTextField.getText());
         super.saveSettingsTo(settings);
     }
 
@@ -174,5 +203,8 @@ final class WebpageRetrieverNodeDialog extends RestNodeDialog<WebpageRetrieverSe
         m_outputColumnNameTextField.setText(nodeSettings.getOutputColumnName());
         m_replaceRelativeURLSCheckBox.setSelected(nodeSettings.isReplaceRelativeURLS());
         m_outputAsXMLCheckBox.setSelected(nodeSettings.isOutputAsXML());
+        m_extractCookiesCheckBox.setSelected(nodeSettings.isExtractCookies());
+        m_cookieOutputColumnNameTextField.setText(nodeSettings.getCookieOutputColumnName());
+        setCookieOutputEnabled();
     }
 }

@@ -441,34 +441,38 @@ public class RestSettings {
 
     private List<EnablableUserConfiguration<UserConfiguration>> m_authorizationConfigurations = new ArrayList<>();
 
-    {
-        m_extractFields.add(new ResponseHeaderItem(STATUS, IntCell.TYPE, STATUS));
-        m_extractFields.add(new ResponseHeaderItem("Content-Type", StringCell.TYPE, "Content type"));
-    }
-
     /**
      * Constructs the default settings.
      */
     protected RestSettings() {
-        super();
+        this(DEFAULT_RESPONSE_HEADER_ITEMS);
+    }
+
+    /**
+     * Constructs the default settings with a customized set of default response headers to extract.
+     *
+     * @param defaultResponseHeaderItems the response headers to extract by default
+     */
+    protected RestSettings(final List<ResponseHeaderItem> defaultResponseHeaderItems) {
+        m_extractFields.addAll(defaultResponseHeaderItems);
         IConfigurationElement[] configurationElements =
-            Platform.getExtensionRegistry().getConfigurationElementsFor(EXTENSION_ID);
-        final EnablableUserConfiguration<UserConfiguration> noAuth =
-            new EnablableUserConfiguration<>(new NoAuthentication(), "None");
-        noAuth.setEnabled(true);
-        m_authorizationConfigurations.add(noAuth);
-        for (final IConfigurationElement configurationElement : configurationElements) {
-            try {
-                final Object object = configurationElement.createExecutableExtension("class");
-                if (object instanceof UserConfiguration) {
-                    final UserConfiguration uc = (UserConfiguration)object;
-                    m_authorizationConfigurations.add(new EnablableUserConfiguration<UserConfiguration>(uc,
-                        configurationElement.getAttribute("name")));
+                Platform.getExtensionRegistry().getConfigurationElementsFor(EXTENSION_ID);
+            final EnablableUserConfiguration<UserConfiguration> noAuth =
+                new EnablableUserConfiguration<>(new NoAuthentication(), "None");
+            noAuth.setEnabled(true);
+            m_authorizationConfigurations.add(noAuth);
+            for (final IConfigurationElement configurationElement : configurationElements) {
+                try {
+                    final Object object = configurationElement.createExecutableExtension("class");
+                    if (object instanceof UserConfiguration) {
+                        final UserConfiguration uc = (UserConfiguration)object;
+                        m_authorizationConfigurations.add(new EnablableUserConfiguration<UserConfiguration>(uc,
+                            configurationElement.getAttribute("name")));
+                    }
+                } catch (CoreException e) {
+                    LOGGER.warn("Failed to load: " + configurationElement.getName(), e);
                 }
-            } catch (CoreException e) {
-                LOGGER.warn("Failed to load: " + configurationElement.getName(), e);
             }
-        }
     }
 
     /**
