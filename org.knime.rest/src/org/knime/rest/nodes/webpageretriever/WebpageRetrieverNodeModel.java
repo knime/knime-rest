@@ -49,8 +49,11 @@
 package org.knime.rest.nodes.webpageretriever;
 
 import java.net.URI;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import javax.ws.rs.client.Invocation;
@@ -63,6 +66,7 @@ import org.jsoup.Jsoup;
 import org.jsoup.helper.W3CDom;
 import org.jsoup.nodes.Comment;
 import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
 import org.jsoup.nodes.Node;
 import org.jsoup.select.Elements;
 import org.knime.core.data.DataCell;
@@ -88,6 +92,8 @@ import org.w3c.dom.NodeList;
  * @author Simon Schmid, KNIME GmbH, Konstanz, Germany
  */
 final class WebpageRetrieverNodeModel extends RestNodeModel<WebpageRetrieverSettings> {
+
+    private static final String XMLNS = "xmlns";
 
     // the base URI is needed to replace relative URLs with the absolute ones
     private URI m_baseURI;
@@ -151,6 +157,9 @@ final class WebpageRetrieverNodeModel extends RestNodeModel<WebpageRetrieverSett
             replaceRelativeURLsWithAbsoluteURLs(htmlDocument);
         }
 
+        // handle unbound prefixes
+        handleUnboundPrefixes(htmlDocument);
+
         // remove the comments in the document
         removeComments(htmlDocument);
 
@@ -182,10 +191,47 @@ final class WebpageRetrieverNodeModel extends RestNodeModel<WebpageRetrieverSett
         }
     }
 
+    // tag names that contain unbound prefixes (prefixes not defined in the namespace) will be replaced
+    private static void handleUnboundPrefixes(final Document htmlDocument) {
+        // collect all bound prefixes
+        final Set<String> namespacePrefixes = Optional.ofNullable(htmlDocument.select("html").first())//
+            .map(e -> e.attributes().asList().stream()//
+                .filter(a -> a.getKey().startsWith(XMLNS + ":"))//
+                .map(a -> a.getKey().substring(a.getKey().indexOf(":") + 1))//
+                .collect(Collectors.toSet()))
+            .orElse(new HashSet<>());
+
+        // replace tag names with unbound prefixes
+        final String separator = ":";
+        for (final Element element : htmlDocument.select("*")) {
+            // we are interested in element tags that contain ':'
+            if (element.tagName().contains(separator)) {
+                // split the tag into prefix and suffix
+                final String[] tagSplit = element.tagName().split(separator, 2);
+                // if the prefix is bound, i.e., the namespace is defined in the root, skip
+                if (namespacePrefixes.contains(tagSplit[0])) {
+                    continue;
+                }
+                // otherwise, replace the tag with a new tag that starts with the prefix and is followed by an id which
+                // is the hash code of the suffix
+                // NOTE: The id should actually be unique and always the same for the same strings, #hashCode does
+                // not guarantee uniqueness but it's easy and should be good enough. Think about this if ever necessary.
+                final int id;
+                if (tagSplit.length > 1) {
+                    id = (separator + tagSplit[1]).hashCode();
+                } else {
+                    // no suffix would be a strange case, but may happen
+                    id = separator.hashCode();
+                }
+                element.tagName(tagSplit[0] + id);
+            }
+        }
+    }
+
     // remove xmlns attributes, they will be in the output anyway since they are set as namespace
     private static void removeNameSpaceAttributes(final org.w3c.dom.Node node) {
         if (node.getNodeType() == org.w3c.dom.Node.ELEMENT_NODE) {
-            ((org.w3c.dom.Element)node).removeAttribute("xmlns");
+            ((org.w3c.dom.Element)node).removeAttribute(XMLNS);
         }
         // do it recursively
         final NodeList list = node.getChildNodes();
