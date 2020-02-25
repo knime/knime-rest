@@ -29,7 +29,6 @@
 		<module>org.knime.update.rest</module>
 	</modules>
 
-	<!-- List all required repositories here. The variables are defined in knime-maven-parent/pom.xml. -->
 	<repositories>
 		<repository>
 			<id>p2-knime-core</id>
