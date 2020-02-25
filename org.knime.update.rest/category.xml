@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<site>
+   <feature id="org.knime.features.rest" version="0.0.0">
+       <category name="knime-rest" />
+   </feature>
+   <feature id="org.knime.features.rest.source" version="0.0.0">
+       <category name="knime-rest" />
+   </feature>
+
+   <category-def name="knime-rest" label="Build artifacts from knime-rest">
+       <description>Build artifacts from knime-rest</description>
+   </category-def>
+</site>
