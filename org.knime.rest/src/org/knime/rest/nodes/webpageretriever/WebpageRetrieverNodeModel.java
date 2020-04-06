@@ -130,11 +130,11 @@ final class WebpageRetrieverNodeModel extends RestNodeModel<WebpageRetrieverSett
 
         // if the body value cell is missing, there must have been an error, so return the missing cell
         if (cell.isMissing()) {
-            final int httpStatus = response.getStatus();
-            if (httpStatus == 200) {
+            if (response == null || response.getStatus() == 200) {
                 cells.add(cell);
             } else {
-                cells.add(new MissingCell("Status Code: " + httpStatus + "; " + ((MissingCell)cell).getError()));
+                cells.add(
+                    new MissingCell("Status Code: " + response.getStatus() + "; " + ((MissingCell)cell).getError()));
             }
             return;
         }
