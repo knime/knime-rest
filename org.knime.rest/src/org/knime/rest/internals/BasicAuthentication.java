@@ -80,7 +80,10 @@ public class BasicAuthentication extends UsernamePasswordAuthentication {
     public Builder updateRequest(final Builder request, final DataRow row, final CredentialsProvider credProvider,
         final Map<String, FlowVariable> flowVariables) {
         final String username = isUseCredentials() ? credProvider.get(getCredential()).getLogin() : getUsername();
-        final String password = isUseCredentials() ? credProvider.get(getCredential()).getPassword() : getPassword();
+        String password = isUseCredentials() ? credProvider.get(getCredential()).getPassword() : getPassword();
+        if (password == null) {
+            password = "";
+        }
         try {
             request.header("Authorization",
                 "Basic " + Base64Utility.encode((username + ":" + password).getBytes("UTF-8")));
