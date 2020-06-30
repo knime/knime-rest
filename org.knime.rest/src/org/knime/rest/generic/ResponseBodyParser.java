@@ -113,6 +113,8 @@ public interface ResponseBodyParser {
 
         private ExecutionContext m_exec;
 
+        private DataCellFactory m_cellFactory;
+
         /**
          * @param mimeType The MIME-type of the response body.
          * @param produced The to be produced {@link DataType}.
@@ -172,7 +174,7 @@ public interface ResponseBodyParser {
         public DataCell create(final Response response) {
             final MediaType mediaType = response.getMediaType();
             if (supportedMediaType().isCompatible(mediaType)) {
-                final DataCellFactory dataCellFactory = m_produced.getCellFactory(m_exec).get();
+                final DataCellFactory dataCellFactory = getCellFactory();
                 final String charset = mediaType.getParameters().get("charset");
                 if (isKnownCharset(charset) && (dataCellFactory instanceof FromReader)) {
                     final FromReader fromReader = (FromReader)dataCellFactory;
@@ -195,6 +197,13 @@ public interface ResponseBodyParser {
                 return new MissingCell(
                     "The value in the body has " + mediaType + ", but was expecting " + valueDescriptor() + " value.");
             }
+        }
+
+        private DataCellFactory getCellFactory() {
+            if (m_cellFactory == null) {
+                m_cellFactory = m_produced.getCellFactory(m_exec).get();
+            }
+            return m_cellFactory;
         }
 
         /**
