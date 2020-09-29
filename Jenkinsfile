@@ -5,11 +5,11 @@ library "knime-pipeline@$BN"
 
 properties([
     pipelineTriggers([
-        upstream('knime-json/' + env.BRANCH_NAME.replaceAll('/', '%2F')),
-        upstream('knime-xml/' + env.BRANCH_NAME.replaceAll('/', '%2F')),
-        upstream('knime-expressions/' + env.BRANCH_NAME.replaceAll('/', '%2F')),
-        upstream('knime-javasnippet/' + env.BRANCH_NAME.replaceAll('/', '%2F')),
-        upstream('knime-svg/' + env.BRANCH_NAME.replaceAll('/', '%2F'))
+        // knime-expressions -> knime-base -> knime-json
+        // knime-javasnippet -> knime-json
+        upstream("knime-json/${env.BRANCH_NAME.replaceAll('/', '%2F')}" +
+            ", knime-xml/${env.BRANCH_NAME.replaceAll('/', '%2F')}" +
+            ", knime-svg/${env.BRANCH_NAME.replaceAll('/', '%2F')}")
     ]),
     parameters(workflowTests.getConfigurationsAsParameters()),
     buildDiscarder(logRotator(numToKeepStr: '5')),
