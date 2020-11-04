@@ -12,6 +12,13 @@
         <node category-path="/toolintegration/rest" factory-class="org.knime.rest.nodes.put.RestPutNodeFactory" after="org.knime.rest.nodes.post.RestPostNodeFactory"/>
         <node category-path="/toolintegration/rest" factory-class="org.knime.rest.nodes.delete.RestDeleteNodeFactory" after="org.knime.rest.nodes.put.RestPutNodeFactory" />
         <node
+              after="org.knime.rest.nodes.delete.RestDeleteNodeFactory"
+              category-path="/toolintegration/rest"
+              deprecated="false"
+              factory-class="org.knime.rest.nodes.patch.RestPatchNodeFactory"
+              hidden="false">
+        </node>
+        <node
               category-path="/toolintegration/rest"
               deprecated="false"
               factory-class="org.knime.rest.nodes.webpageretriever.WebpageRetrieverNodeFactory">
