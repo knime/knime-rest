@@ -14,7 +14,6 @@
             <option name="Ignore hostname mismatches">Trust the certificate even if it was generated for a different host.</option>
             <option name="Trust all certificates">Trust all certificates regardless their origin or expiration date</option>
             <option name="Fail on connection problems (e.g. timeout, certificate errors, …)">Fails on connection problems when checked, otherwise just logs the error and continues execution.</option>
-            <option name="Fail on http errors (e.g. page not found)">Fails on errors reported from the server (status codes with 4xx, 5xx) when checked, otherwise just logs the error and continues execution.</option>
             <option name="Follow redirects">Follows redirects (on <tt>3xx</tt> status codes) when checked</option>
             <option name="Timeout (s)">Timeout in seconds</option>
             <option name="Body">Name of the response body column</option>
@@ -41,6 +40,41 @@
             <option name="Extract all fields">Extracts all header fields (present in the first response)</option>
             <option name="Header key">The name of the header value to extract</option>
             <option name="Header type">Convert the header value to this type</option>
+        </tab>
+        <tab name="Error Handling">
+            <option name="Server-side errors (HTTP 5XX)">
+                These options describe what should happen if a response with a 5XX status code is received. These
+                status codes usually describe errors on the server side.
+            </option>
+            <option name="Client-side errors (HTTP 4XX)">
+                These options describe what should happen if a response with a 4XX status code is received. These status
+                codes usually describe client-side errors such as an incorrect web address.
+            </option>
+            <option name="Fail node execution or output missing value">
+                This option describes what should happen after a request has failed. The node either fails in execution
+                or outputs a missing value in the row of the output table that corresponds to this request. This option can
+                be set separately for server- and client-side errors.
+            </option>
+            <option name="Retry on error">
+                Specifies whether the node should retry a request if the initial request received a response indicating
+                a server-side error.
+            </option>
+            <option name="Number of retries">
+                The maximum number of retries to perform for server errors (count does not include the initial request).
+            </option>
+            <option name="Retry delay">
+                The delay to apply between the first request and the first retry. For each subsequent retry, the delay
+                is doubled.
+            </option>
+            <option name="Rate-limiting error (HTTP 429)">
+                This status code can be returned by a server to indicate that the rate of incoming requests has been too
+                high.
+            </option>
+            <option name="Pause execution">
+                In case of a rate-limiting error, wait for the set amount of time before retrying the request. Note that
+                this delay is static and does not increase with subsequent attempts, neither does it count as retries
+                for server-side errors.
+            </option>
         </tab>
     </fullDescription>
     
