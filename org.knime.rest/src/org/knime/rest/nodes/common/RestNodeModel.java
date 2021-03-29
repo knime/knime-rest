@@ -148,6 +148,7 @@ import org.knime.rest.generic.ResponseBodyParser.Missing;
 import org.knime.rest.nodes.common.RestSettings.ReferenceType;
 import org.knime.rest.nodes.common.RestSettings.RequestHeaderKeyItem;
 import org.knime.rest.nodes.common.RestSettings.ResponseHeaderItem;
+import org.knime.rest.util.DelayPolicy;
 import org.knime.rest.util.DelegatingX509TrustManager;
 
 /**
@@ -236,6 +237,31 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
     }
 
     /**
+     * @param res The server response
+     * @return true iff the response corresponds to a 5XX HTTP status code.
+     */
+    public static boolean isServerError(final Response res) {
+        return res == null || res.getStatusInfo().getFamily() == Response.Status.Family.SERVER_ERROR;
+    }
+
+    /**
+     * @param res The server response
+     * @return true iff the response corresponds to a 4XX HTTP status code
+     */
+    public static boolean isClientError(final Response res) {
+        return res == null || res.getStatusInfo().getFamily() == Response.Status.Family.CLIENT_ERROR;
+    }
+
+    /**
+     *
+     * @param res The server response
+     * @return true iff the response corresponds to a 429 (rate-limiting) HTTP status code.
+     */
+    public static boolean isRateLimitError(final Response res) {
+        return res.getStatus() == 429;
+    }
+
+    /**
      * @return The newly created {@link RestSettings} (derived class {@code <S>}) instance.
      */
     protected abstract S createSettings();
@@ -293,8 +319,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
                 if (inputSpec == null) {
                     throw new InvalidSettingsException(
                         "Input table required to execute. The request header '" + requestHeader.getKey() + "' is "
-                            + "configured to use a column '" + requestHeaderColumnName
-                            + "' from the input table.");
+                            + "configured to use a column '" + requestHeaderColumnName + "' from the input table.");
                 } else {
                     if (!inputSpec.containsName(requestHeaderColumnName)) {
                         throw new InvalidSettingsException(
@@ -318,8 +343,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
     @Override
     protected BufferedDataTable[] execute(final BufferedDataTable[] inData, final ExecutionContext exec)
         throws Exception {
-        final List<EachRequestAuthentication> enabledEachRequestAuthentications =
-            enabledAuthConfigs();
+        final List<EachRequestAuthentication> enabledEachRequestAuthentications = enabledAuthConfigs();
         createResponseBodyParsers(exec);
         if (inData.length > 0 && inData[0] != null) {
             if (inData[0].size() == 0) {
@@ -368,7 +392,8 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
                 createRequest(spec == null ? -1 : spec.findColumnIndex(m_settings.getUriColumn()),
                     enabledEachRequestAuthentications, row, spec);
         try {
-            response = invoke(invocation(requestBuilderPair.getFirst(), row, spec));
+            Invocation invocation = invocation(requestBuilderPair.getFirst(), row, spec);
+            response = DelayPolicy.doWithDelays(m_settings.getDelayPolicy(), () -> invoke(invocation));
             requestBuilderPair.getSecond().close();
             missing = null;
         } catch (ProcessingException procEx) {
@@ -603,7 +628,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
      */
     private ColumnRearranger createColumnRearranger(
         final List<EachRequestAuthentication> enabledEachRequestAuthentications, final DataTableSpec spec,
-        final ExecutionMonitor exec, final long tableSize) throws InvalidSettingsException {
+        final ExecutionMonitor exec, final long tableSize) {
         final ColumnRearranger rearranger = new ColumnRearranger(spec);
         final DataColumnSpec[] newColumns = createNewColumnsSpec(spec);
         final int uriColumn = spec.findColumnIndex(m_settings.getUriColumn());
@@ -622,7 +647,8 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
                 try {
                     Response response;
                     try {
-                        response = invoke(invocation(requestBuilder.getFirst(), row, spec));
+                        Invocation invocation = invocation(requestBuilder.getFirst(), row, spec);
+                        response = DelayPolicy.doWithDelays(m_settings.getDelayPolicy(), () -> invoke(invocation));
                     } catch (ProcessingException e) {
                         LOGGER.debug("Call failed: " + e.getMessage(), e);
                         Throwable cause = ExceptionUtils.getRootCause(e);
@@ -632,6 +658,10 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
                             missing = new MissingCell(cause.getMessage());
                             response = null;
                         }
+                    } catch (Exception e) {
+                        LOGGER.debug("Call failed: " + e.getMessage(), e);
+                        Throwable cause = ExceptionUtils.getRootCause(e);
+                        throw new RuntimeException(cause);
                     }
                     try {
                         final Response finalResponse = response;
@@ -775,25 +805,31 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
      * @throws IllegalStateExcetion When the http status code is {@code 4xx} or {@code 5xx} and we have to check it.
      */
     private boolean checkResponse(final Response response) {
-        boolean httpError = isHttpError(response);
-        if ((response != null) && m_settings.isFailOnHttpErrors() && httpError) {
-            Object entity = response.getEntity();
-            if (entity instanceof InputStream) {
-                final InputStream is = (InputStream)entity;
-                try {
-                    getLogger().debug("Failed location: " + response.getLocation());
-                    getLogger().debug(IOUtils.toString(is,
-                        Charset.isSupported("UTF-8") ? Charset.forName("UTF-8") : Charset.defaultCharset()));
-                } catch (final IOException e) {
-                    getLogger().debug(e.getMessage(), e);
+        boolean isServerError = isServerError(response);
+        boolean isClientError = isClientError(response);
+        if (response != null) {
+            if ((m_settings.isFailOnClientErrors() && isClientError)
+                || (m_settings.isFailOnServerErrors() && isServerError)) {
+                // throw exception, will not be caught in callee and cause node to fail (i think)
+                Object entity = response.getEntity();
+                if (entity instanceof InputStream) {
+                    final InputStream is = (InputStream)entity;
+                    try {
+                        getLogger().debug("Failed location: " + response.getLocation());
+                        getLogger().debug(IOUtils.toString(is,
+                            Charset.isSupported("UTF-8") ? Charset.forName("UTF-8") : Charset.defaultCharset()));
+                    } catch (final IOException e) {
+                        getLogger().debug(e.getMessage(), e);
+                    }
+                } else {
+                    getLogger().debug(entity);
                 }
-            } else {
-                getLogger().debug(entity);
+                // only thrown if m_settings.isFailOnHttpError
+                throw new IllegalStateException(
+                    "Wrong status: " + response.getStatus() + " " + response.getStatusInfo().getReasonPhrase());
             }
-            throw new IllegalStateException(
-                "Wrong status: " + response.getStatus() + " " + response.getStatusInfo().getReasonPhrase());
         }
-        return httpError;
+        return isServerError || isClientError;
     }
 
     /**
@@ -811,6 +847,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
      */
     private void examineResponse(final Response response) {
         if (response == null) {
+            // nts: more like insert-or-replace
             replace(m_bodyColumns,
                 new ResponseHeaderItem(m_settings.getResponseBodyColumn(), BinaryObjectDataCell.TYPE));
         } else if (response.hasEntity()) {
@@ -846,8 +883,8 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
     protected DataColumnSpec[] createNewColumnsSpec(final DataTableSpec spec) {
         UniqueNameGenerator uniqueNameGenerator = new UniqueNameGenerator(spec);
         return Stream.concat(m_responseHeaderKeys.stream(), m_bodyColumns.stream())
-                .map(rhi -> uniqueNameGenerator.newCreator(rhi.getOutputColumnName(), rhi.getType()))
-                .map(creator -> creator.createSpec()).toArray(n -> new DataColumnSpec[n]);
+            .map(rhi -> uniqueNameGenerator.newCreator(rhi.getOutputColumnName(), rhi.getType()))
+            .map(creator -> creator.createSpec()).toArray(n -> new DataColumnSpec[n]);
     }
 
     /**
@@ -914,8 +951,10 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         if (m_settings.isSslIgnoreHostNameErrors()) {
             clientBuilder.hostnameVerifier((hostName, session) -> true);
         }
-        clientBuilder.property(org.apache.cxf.message.Message.CONNECTION_TIMEOUT, m_settings.getTimeoutInSeconds() * 1000L);
-        clientBuilder.property(org.apache.cxf.message.Message.RECEIVE_TIMEOUT, m_settings.getTimeoutInSeconds() * 1000L);
+        clientBuilder.property(org.apache.cxf.message.Message.CONNECTION_TIMEOUT,
+            m_settings.getTimeoutInSeconds() * 1000L);
+        clientBuilder.property(org.apache.cxf.message.Message.RECEIVE_TIMEOUT,
+            m_settings.getTimeoutInSeconds() * 1000L);
         return clientBuilder.build();
     }
 
@@ -991,12 +1030,12 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
                 MediaType mediaType = response.getMediaType();
                 if (mediaType == null) {
                     cells.add(new MissingCell("Response doesn't have a media type"));
-                } else if (missing != null){
+                } else if (missing != null) {
                     cells.add(missing);
                 } else {
                     boolean wasAdded = false;
-                    for (ResponseBodyParser parser :
-                        isHttpError(response) ? m_errorBodyParsers : m_responseBodyParsers) {
+                    for (ResponseBodyParser parser : isHttpError(response) ? m_errorBodyParsers
+                        : m_responseBodyParsers) {
                         if (parser.producedDataType().isCompatible(expectedType.getPreferredValueClass())
                             && parser.supportedMediaType().isCompatible(response.getMediaType())) {
                             wasAdded = true;

@@ -133,6 +133,7 @@ import org.knime.rest.generic.UserConfiguration;
 import org.knime.rest.nodes.common.RequestTableModel.Columns;
 import org.knime.rest.nodes.common.RestSettings.ReferenceType;
 import org.knime.rest.nodes.common.RestSettings.RequestHeaderKeyItem;
+import org.knime.rest.util.DelayPolicy;
 
 /**
  * Common dialog for the REST nodes. It adds the following tabs by default:
@@ -162,6 +163,12 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
 
     private final JRadioButton m_uriColumnOption = new JRadioButton("URL column: ");
 
+    private ServerErrorPanel m_serverErrorPanel = new ServerErrorPanel();
+
+    private ClientErrorPanel m_clientErrorPanel = new ClientErrorPanel();
+
+    private RateLimitPanel m_rateLimitPanel = new RateLimitPanel();
+
     {
         final ButtonGroup group = new ButtonGroup();
         group.add(m_constantUriOption);
@@ -185,8 +192,6 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
 
     private final JCheckBox m_failOnConnectionProblems =
         new JCheckBox("Fail on connection problems (e.g. timeout, certificate errors, ...)");
-
-    private final JCheckBox m_failOnHttpErrors = new JCheckBox("Fail on http errors (e.g. page not found)");
 
     private final JCheckBox m_followRedirects = new JCheckBox("Follow redirects");
 
@@ -278,6 +283,7 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         }
         addTab("Connection Settings", createConnectionSettingsTab());
         addTab("Authentication", createAuthenticationTab());
+        addTab("Error Handling", createErrorHandlingTab());
         addTab("Request Headers", createRequestHeadersTab());
         addTab("Response Headers", createResponseHeadersTab());
     }
@@ -413,8 +419,6 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         gbc.gridy++;
         ret.add(m_failOnConnectionProblems, gbc);
         gbc.gridy++;
-        ret.add(m_failOnHttpErrors, gbc);
-        gbc.gridy++;
         ret.add(m_followRedirects, gbc);
         gbc.gridy++;
         gbc.weightx = 0;
@@ -454,7 +458,6 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         m_uriColumn.setRequired(false);
         m_delay.setEnabled(false);
         m_failOnConnectionProblems.setSelected(RestSettings.DEFAULT_FAIL_ON_CONNECTION_PROBLEMS);
-        m_failOnHttpErrors.setSelected(RestSettings.DEFAULT_FAIL_ON_HTTP_ERRORS);
         return ret;
     }
 
@@ -512,13 +515,13 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
                         RequestTableModel.Columns.kind.ordinal());
                     dialog.dispose();
                 });
-//                m_requestHeadersModel.setValueAt(m_requestHeaderKeyPopup.getSelectedItem(), selectedRow,
-//                    RequestTableModel.Columns.headerKey.ordinal());
-//                m_requestHeadersModel.setValueAt(m_requestHeaderValuePopup.getSelectedItem(), selectedRow,
-//                    RequestTableModel.Columns.value.ordinal());
-//                m_requestHeadersModel.setValueAt(m_requestHeaderValueTypePopup.getSelectedItem(), selectedRow,
-//                    RequestTableModel.Columns.kind.ordinal());
-//                dialog.dispose();
+                //                m_requestHeadersModel.setValueAt(m_requestHeaderKeyPopup.getSelectedItem(), selectedRow,
+                //                    RequestTableModel.Columns.headerKey.ordinal());
+                //                m_requestHeadersModel.setValueAt(m_requestHeaderValuePopup.getSelectedItem(), selectedRow,
+                //                    RequestTableModel.Columns.value.ordinal());
+                //                m_requestHeadersModel.setValueAt(m_requestHeaderValueTypePopup.getSelectedItem(), selectedRow,
+                //                    RequestTableModel.Columns.kind.ordinal());
+                //                dialog.dispose();
             }
         }));
         final AbstractAction cancel = new AbstractAction("Cancel") {
@@ -693,6 +696,16 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         }
         ret.add(tabs);
         return ret;
+    }
+
+    private Component createErrorHandlingTab() {
+        final JPanel container = new JPanel();
+        container.setLayout(new BoxLayout(container, BoxLayout.Y_AXIS));
+        container.add(m_serverErrorPanel);
+        container.add(m_clientErrorPanel);
+        container.add(m_rateLimitPanel);
+        container.add(Box.createHorizontalGlue());
+        return container;
     }
 
     /**
@@ -1157,7 +1170,6 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         m_settings.setSslIgnoreHostNameErrors(m_sslIgnoreHostnameMismatches.isSelected());
         m_settings.setSslTrustAll(m_sslTrustAll.isSelected());
         m_settings.setFailOnConnectionProblems(m_failOnConnectionProblems.isSelected());
-        m_settings.setFailOnHttpErrors(m_failOnHttpErrors.isSelected());
         m_settings.setFollowRedirects(m_followRedirects.isSelected());
         m_settings.setTimeoutInSeconds(((Number)m_timeoutInSeconds.getValue()).intValue());
         m_settings.getRequestHeaders().clear();
@@ -1172,6 +1184,13 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         for (final EnablableUserConfiguration<UserConfiguration> euc : m_settings.getAuthorizationConfigurations()) {
             euc.getUserConfiguration().updateSettings();
         }
+        DelayPolicy delayPolicy =
+            new DelayPolicy(m_serverErrorPanel.getRetryDelay(), m_serverErrorPanel.getNumRetries(),
+                m_rateLimitPanel.getDelay(), m_serverErrorPanel.getRetryEnabled(), m_rateLimitPanel.getActive());
+        m_settings.setDelayPolicy(delayPolicy);
+        m_settings.setFailOnClientErrors(m_clientErrorPanel.getFailOrOutput());
+        m_settings.setFailOnServerErrors(m_serverErrorPanel.getFailOrOutput());
+
         m_settings.saveSettings(settings);
     }
 
@@ -1234,8 +1253,20 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         m_concurrency.setValue(m_settings.getConcurrency());
         m_sslIgnoreHostnameMismatches.setSelected(m_settings.isSslIgnoreHostNameErrors());
         m_sslTrustAll.setSelected(m_settings.isSslTrustAll());
+
         m_failOnConnectionProblems.setSelected(m_settings.isFailOnConnectionProblems());
-        m_failOnHttpErrors.setSelected(m_settings.isFailOnHttpErrors());
+        m_serverErrorPanel.setFailOrOutput(m_settings.isFailOnServerErrors());
+        m_clientErrorPanel.setFailOrOutput(m_settings.isFailOnClientErrors());
+
+        DelayPolicy delayPolicy = m_settings.getDelayPolicy();
+
+        m_serverErrorPanel.setActive(delayPolicy.isRetriesEnabled());
+        m_serverErrorPanel.setRetryDelay(delayPolicy.getRetryBase());
+        m_serverErrorPanel.setNumRetries(delayPolicy.getMaxRetries());
+
+        m_rateLimitPanel.setActive(delayPolicy.isCooldownEnabled());
+        m_rateLimitPanel.setDelay(delayPolicy.getCooldown());
+
         m_followRedirects.setSelected(m_settings.isFollowRedirects());
         m_timeoutInSeconds.setValue(m_settings.getTimeoutInSeconds());
         m_requestHeadersModel.clear();

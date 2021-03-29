@@ -53,6 +53,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IConfigurationElement;
@@ -71,6 +72,7 @@ import org.knime.core.node.workflow.CredentialsProvider;
 import org.knime.rest.generic.EnablableUserConfiguration;
 import org.knime.rest.generic.UserConfiguration;
 import org.knime.rest.internals.NoAuthentication;
+import org.knime.rest.util.DelayPolicy;
 
 /**
  * Common settings for the REST nodes.
@@ -122,8 +124,15 @@ public class RestSettings {
     /** Default value for the fail on connection problems option. */
     protected static final boolean DEFAULT_FAIL_ON_CONNECTION_PROBLEMS = false;
 
-    /** Config key for fail on http problems */
+    /**
+     * Config key for fail on http problems. Superseded by {@link RestSettings#FAIL_ON_CLIENT_ERRORS} and
+     * {@link RestSettings#FAIL_ON_SERVER_ERRORS}.
+     */
     protected static final String FAIL_ON_HTTP_ERRORS = "Fail on HTTP errors";
+
+    protected static final String FAIL_ON_CLIENT_ERRORS = "failOnClientError";
+
+    protected static final String FAIL_ON_SERVER_ERRORS = "failOnServerError";
 
     /** Default value for the fail on http errors option. */
     protected static final boolean DEFAULT_FAIL_ON_HTTP_ERRORS = false;
@@ -164,6 +173,8 @@ public class RestSettings {
 
     private static final String TIMEOUT = "timeout";
 
+    private static final DelayPolicy DEFAULT_DELAY_POLICY = new DelayPolicy(1, 3, 60, false, false);
+
     /** Default value for the timeout (in seconds) option. */
     protected static final int DEFAULT_TIMEOUT = 2;
 
@@ -185,11 +196,19 @@ public class RestSettings {
 
     private boolean m_failOnConnectionProblems = DEFAULT_FAIL_ON_CONNECTION_PROBLEMS;
 
-    private boolean m_failOnHttpErrors = DEFAULT_FAIL_ON_HTTP_ERRORS;
-
     private boolean m_followRedirects = DEFAULT_FOLLOW_REDIRECTS;
 
     private int m_timeoutInSeconds = DEFAULT_TIMEOUT;
+
+    private Optional<DelayPolicy> m_delayPolicy = Optional.empty();
+
+    protected Optional<Boolean> m_failOnClientErrors = Optional.of(DEFAULT_FAIL_ON_HTTP_ERRORS);
+
+    protected Optional<Boolean> m_failOnServerErrors = Optional.of(DEFAULT_FAIL_ON_HTTP_ERRORS);
+
+    public void setDelayPolicy(final DelayPolicy delayPolicy) {
+        m_delayPolicy = Optional.ofNullable(delayPolicy);
+    }
 
     //Request
     /**
@@ -601,18 +620,20 @@ public class RestSettings {
         m_failOnConnectionProblems = failOnConnectionProblems;
     }
 
-    /**
-     * @return the failOnHttpErrors
-     */
-    protected boolean isFailOnHttpErrors() {
-        return m_failOnHttpErrors;
+    protected boolean isFailOnClientErrors() {
+        return m_failOnClientErrors.orElse(DEFAULT_FAIL_ON_HTTP_ERRORS);
     }
 
-    /**
-     * @param failOnHttpErrors the failOnHttpErrors to set
-     */
-    protected void setFailOnHttpErrors(final boolean failOnHttpErrors) {
-        m_failOnHttpErrors = failOnHttpErrors;
+    protected boolean isFailOnServerErrors() {
+        return m_failOnServerErrors.orElse(DEFAULT_FAIL_ON_HTTP_ERRORS);
+    }
+
+    protected void setFailOnClientErrors(final boolean value) {
+        m_failOnClientErrors = Optional.of(value);
+    }
+
+    protected void setFailOnServerErrors(final boolean value) {
+        m_failOnServerErrors = Optional.of(value);
     }
 
     /**
@@ -685,6 +706,10 @@ public class RestSettings {
         m_timeoutInSeconds = timeoutInSeconds;
     }
 
+    protected DelayPolicy getDelayPolicy() {
+        return m_delayPolicy.orElse(DEFAULT_DELAY_POLICY);
+    }
+
     /**
      * @return the authorizationConfigurations (not modifiable!)
      */
@@ -707,7 +732,6 @@ public class RestSettings {
         settings.addBoolean(SSL_IGNORE_HOSTNAME_ERRORS, m_sslIgnoreHostNameErrors);
         settings.addBoolean(SSL_TRUST_ALL, m_sslTrustAll);
         settings.addBoolean(FAIL_ON_CONNECTION_PROBLEMS, m_failOnConnectionProblems);
-        settings.addBoolean(FAIL_ON_HTTP_ERRORS, m_failOnHttpErrors);
         settings.addStringArray(REQUEST_HEADER_KEYS,
             m_requestHeaders.stream().map(rh -> rh.getKey()).toArray(n -> new String[n]));
         settings.addStringArray(REQUEST_HEADER_KEY_SELECTOR,
@@ -730,6 +754,9 @@ public class RestSettings {
         }
         settings.addBoolean(FOLLOW_REDIRECTS, m_followRedirects);
         settings.addInt(TIMEOUT, m_timeoutInSeconds);
+        m_delayPolicy.ifPresent(v -> v.saveToSettings(settings));
+        m_failOnServerErrors.ifPresent(b -> settings.addBoolean(FAIL_ON_SERVER_ERRORS, b));
+        m_failOnClientErrors.ifPresent(b -> settings.addBoolean(FAIL_ON_CLIENT_ERRORS, b));
     }
 
     /**
@@ -748,7 +775,6 @@ public class RestSettings {
         m_sslIgnoreHostNameErrors = settings.getBoolean(SSL_IGNORE_HOSTNAME_ERRORS);
         m_sslTrustAll = settings.getBoolean(SSL_TRUST_ALL);
         m_failOnConnectionProblems = settings.getBoolean(FAIL_ON_CONNECTION_PROBLEMS);
-        m_failOnHttpErrors = settings.getBoolean(FAIL_ON_HTTP_ERRORS);
         m_requestHeaders.clear();
         String[] requestKeys = settings.getStringArray(REQUEST_HEADER_KEYS);
         String[] requestKeySelectors = settings.getStringArray(REQUEST_HEADER_KEY_SELECTOR);
@@ -773,8 +799,8 @@ public class RestSettings {
             "Response header keys and output columns: they have different lengths: " + responseKeys.length + " <> "
                 + responseColumns.length);
         CheckUtils.checkSetting(responseKeys.length == responseTypes.length,
-                "Response header keys and output column types: they have different lengths: " + responseKeys.length + " <> "
-                        + responseTypes.length);
+            "Response header keys and output column types: they have different lengths: " + responseKeys.length + " <> "
+                + responseTypes.length);
         for (int i = 0; i < responseKeys.length; ++i) {
             m_extractFields.add(new ResponseHeaderItem(responseKeys[i], responseTypes[i], responseColumns[i]));
         }
@@ -795,6 +821,29 @@ public class RestSettings {
         }
         m_followRedirects = settings.getBoolean(FOLLOW_REDIRECTS);
         m_timeoutInSeconds = settings.getInt(TIMEOUT);
+        m_delayPolicy = DelayPolicy.loadFromSettings(settings);
+        loadFailOnHttp(settings);
+    }
+
+    private void loadFailOnHttp(final NodeSettingsRO settings) {
+        // backwards compat.: If fail on client/server is not set, check if older, more general option "fail on http"
+        // is set and use that.
+        Optional<Boolean> failOnHttp = Optional.empty();
+        try {
+            failOnHttp = Optional.of(settings.getBoolean(FAIL_ON_HTTP_ERRORS));
+        } catch (InvalidSettingsException e) { // NOSONAR: exception handled properly
+            // noop
+        }
+        try {
+            m_failOnClientErrors = Optional.of(settings.getBoolean(FAIL_ON_CLIENT_ERRORS));
+        } catch (InvalidSettingsException e) { // NOSONAR: exception handled properly
+            m_failOnClientErrors = failOnHttp;
+        }
+        try {
+            m_failOnServerErrors = Optional.of(settings.getBoolean(FAIL_ON_SERVER_ERRORS));
+        } catch (InvalidSettingsException e) { // NOSONAR: exception handled properly
+            m_failOnServerErrors = failOnHttp;
+        }
     }
 
     /**
@@ -817,7 +866,6 @@ public class RestSettings {
         m_sslTrustAll = settings.getBoolean(SSL_TRUST_ALL, DEFAULT_SSL_TRUST_ALL);
         m_failOnConnectionProblems =
             settings.getBoolean(FAIL_ON_CONNECTION_PROBLEMS, DEFAULT_FAIL_ON_CONNECTION_PROBLEMS);
-        m_failOnHttpErrors = settings.getBoolean(FAIL_ON_HTTP_ERRORS, DEFAULT_FAIL_ON_HTTP_ERRORS);
         m_requestHeaders.clear();
         String[] requestKeys = settings.getStringArray(REQUEST_HEADER_KEYS,
             DEFAULT_REQUEST_HEADER_KEY_ITEMS.stream().map(RequestHeaderKeyItem::getKey).toArray(n -> new String[n]));
@@ -872,5 +920,7 @@ public class RestSettings {
         }
         m_followRedirects = settings.getBoolean(FOLLOW_REDIRECTS, DEFAULT_FOLLOW_REDIRECTS);
         m_timeoutInSeconds = settings.getInt(TIMEOUT, DEFAULT_TIMEOUT);
+        m_delayPolicy = DelayPolicy.loadFromSettings(settings);
+        loadFailOnHttp(settings);
     }
 }
