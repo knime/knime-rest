@@ -67,6 +67,10 @@
 				<tt>3xx</tt>
 				).
 			</option>
+			<option name="Send large data in chunks">
+				Specifies whether HTTP Chunked Transfer Encoding is allowed to be used by the node. If enabled, messages
+				with a large body size are being sent to the server in a series of chunks.
+			</option>
 			<option name="Timeout (s)">Timeout for a single request in seconds.</option>
 			<option name="Output column name">The name of the created output column.</option>
 			<option name="Output as XML">If checked, the output will be an XML column

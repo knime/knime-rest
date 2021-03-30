@@ -194,6 +194,8 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
 
     private final JCheckBox m_followRedirects = new JCheckBox("Follow redirects");
 
+    private final JCheckBox m_allowChunking = new JCheckBox("Send large data in chunks", true);
+
     private final JSpinner m_timeoutInSeconds =
         new JSpinner(new SpinnerNumberModel(RestSettings.DEFAULT_TIMEOUT, 1, Integer.MAX_VALUE, 1));
 
@@ -417,6 +419,8 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         ret.add(sslPanel, gbc);
         gbc.gridy++;
         ret.add(m_followRedirects, gbc);
+        gbc.gridy++;
+        ret.add(m_allowChunking, gbc);
         gbc.gridy++;
         gbc.weightx = 0;
         gbc.gridx = 0;
@@ -1184,6 +1188,7 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         m_settings.getExtractFields()
             .addAll(StreamSupport.stream(m_responseHeadersModel.spliterator(), false).collect(Collectors.toList()));
         m_settings.setResponseBodyColumn(m_bodyColumnName.getSelectedString());
+        m_settings.setAllowChunking(m_allowChunking.isSelected());
         m_bodyColumnName.commitSelectedToHistory();
         for (final EnablableUserConfiguration<UserConfiguration> euc : m_settings.getAuthorizationConfigurations()) {
             euc.getUserConfiguration().updateSettings();
@@ -1283,6 +1288,7 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         for (int i = 0; i < m_settings.getExtractFields().size(); ++i) {
             m_responseHeadersModel.addRow(m_settings.getExtractFields().get(i));
         }
+        m_settings.isAllowChunking().ifPresent(m_allowChunking::setSelected);
         m_bodyColumnName.setSelectedString(m_settings.getResponseBodyColumn());
         for (final EnablableUserConfiguration<UserConfiguration> euc : m_settings.getAuthorizationConfigurations()) {
             for (final JRadioButton radioButton : m_authenticationTabTitles) {

@@ -14,6 +14,10 @@
             <option name="Ignore hostname mismatches">Trust the certificate even if it was generated for a different host.</option>
             <option name="Trust all certificates">Trust all certificates regardless their origin or expiration date</option>
             <option name="Follow redirects">Follows redirects (on <tt>3xx</tt> status codes) when checked</option>
+            <option name="Send large data in chunks">
+                Specifies whether HTTP Chunked Transfer Encoding is allowed to be used by the node. If enabled, messages
+                with a large body size are being sent to the server in a series of chunks.
+            </option>
             <option name="Timeout (s)">Timeout in seconds</option>
             <option name="Body">Name of the response body column</option>
         </tab>

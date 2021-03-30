@@ -173,10 +173,15 @@ public class RestSettings {
 
     private static final String TIMEOUT = "timeout";
 
+    private static final String ALLOW_CHUNKING_KEY = "allowChunking";
+
     private static final DelayPolicy DEFAULT_DELAY_POLICY = new DelayPolicy(1, 3, 60, false, false);
 
     /** Default value for the timeout (in seconds) option. */
     protected static final int DEFAULT_TIMEOUT = 2;
+
+    /** Whether the requests are allowed to be made with Chunked Transfer Encoding **/
+    protected static final boolean DEFAULT_ALLOW_CHUNKING = true;
 
     private boolean m_isUseConstantURI = DEFAULT_USE_CONSTANT_URI;
 
@@ -470,6 +475,8 @@ public class RestSettings {
 
     private List<EnablableUserConfiguration<UserConfiguration>> m_authorizationConfigurations = new ArrayList<>();
 
+    private Optional<Boolean> m_allowChunking = Optional.empty();
+
     /**
      * Constructs the default settings.
      */
@@ -727,6 +734,14 @@ public class RestSettings {
         return Collections.unmodifiableList(m_authorizationConfigurations);
     }
 
+    protected Optional<Boolean> isAllowChunking() {
+        return m_allowChunking;
+    }
+
+    protected void setAllowChunking(final boolean value) {
+        m_allowChunking = Optional.of(value);
+    }
+
     /**
      * Saves the internal state to {@code settings}.
      *
@@ -767,6 +782,7 @@ public class RestSettings {
         m_delayPolicy.ifPresent(v -> v.saveToSettings(settings));
         settings.addBoolean(FAIL_ON_SERVER_ERRORS, m_failOnServerErrors);
         settings.addBoolean(FAIL_ON_CLIENT_ERRORS, m_failOnClientErrors);
+        m_allowChunking.ifPresent(allowChunking -> settings.addBoolean(ALLOW_CHUNKING_KEY, allowChunking));
     }
 
     /**
@@ -833,6 +849,11 @@ public class RestSettings {
         m_timeoutInSeconds = settings.getInt(TIMEOUT);
         m_delayPolicy = DelayPolicy.loadFromSettings(settings);
         loadFailOnHttp(settings);
+        try {
+            m_allowChunking = Optional.of(settings.getBoolean(ALLOW_CHUNKING_KEY));
+        } catch (InvalidSettingsException e) { // NOSONAR
+            // noop
+        }
     }
 
     private void loadFailOnHttp(final NodeSettingsRO settings) {
@@ -919,5 +940,10 @@ public class RestSettings {
         m_timeoutInSeconds = settings.getInt(TIMEOUT, DEFAULT_TIMEOUT);
         m_delayPolicy = DelayPolicy.loadFromSettings(settings);
         loadFailOnHttp(settings);
+        try {
+            m_allowChunking = Optional.of(settings.getBoolean(ALLOW_CHUNKING_KEY));
+        } catch (InvalidSettingsException e) { // NOSONAR
+            // noop
+        }
     }
 }

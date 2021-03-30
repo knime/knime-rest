@@ -34,6 +34,10 @@
             <option name="Trust all certificates">If checked, the node trusts all certificates regardless of their
             origin or expiration date.</option>
             <option name="Follow redirects">If checked, the node will follow redirects (HTTP status code <tt>3xx</tt>).</option>
+            <option name="Send large data in chunks">
+                Specifies whether HTTP Chunked Transfer Encoding is allowed to be used by the node. If enabled, messages
+                with a large body size are being sent to the server in a series of chunks.
+            </option>
             <option name="Timeout (s)">Timeout for a single request in seconds</option>
             <option name="Body">Name of the response body column in the output table</option>
         </tab>

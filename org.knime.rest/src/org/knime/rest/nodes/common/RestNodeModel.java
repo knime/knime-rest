@@ -1012,6 +1012,8 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         }
 
         HTTPClientPolicy clientPolicy = WebClient.getConfig(request).getHttpConduit().getClient();
+        boolean allowChunking = m_settings.isAllowChunking().orElse(RestSettings.DEFAULT_ALLOW_CHUNKING);
+        clientPolicy.setAllowChunking(allowChunking);
 
         if (!clientPolicy.isSetAutoRedirect()) {
             clientPolicy.setAutoRedirect(m_settings.isFollowRedirects());
