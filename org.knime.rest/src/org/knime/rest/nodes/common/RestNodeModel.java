@@ -349,7 +349,6 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
     @Override
     protected BufferedDataTable[] execute(final BufferedDataTable[] inData, final ExecutionContext exec)
         throws Exception {
-        m_cooldownContext = new CooldownContext();
         final List<EachRequestAuthentication> enabledEachRequestAuthentications = enabledAuthConfigs();
         createResponseBodyParsers(exec);
         if (inData.length > 0 && inData[0] != null) {
@@ -384,6 +383,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
     protected void makeFirstCall(final DataRow row,
         final List<EachRequestAuthentication> enabledEachRequestAuthentications, final DataTableSpec spec,
         final ExecutionContext exec) throws Exception {
+        m_cooldownContext = new CooldownContext();  // reset context before execution.
         if (row == null) {
             m_firstRows = null;
         } else {
