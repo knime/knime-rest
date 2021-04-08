@@ -204,23 +204,10 @@ final class WebpageRetrieverSettings extends RestSettings {
         m_extractCookies = settings.getBoolean(EXTRACT_COOKIES, DEFAULT_EXTRACT_COOKIES);
         m_cookieOutputColumnName = settings.getString(COOKIE_OUTPUT_COLUMN_NAME, DEFAULT_COOKIE_OUTPUT_COLUMN_NAME);
         setFailOnConnectionProblems(settings.getBoolean(FAIL_ON_CONNECTION_PROBLEMS, DEFAULT_FAIL_ON_PROBLEMS));
+        setFailOnClientErrors(settings.getBoolean(FAIL_ON_CLIENT_ERRORS, DEFAULT_FAIL_ON_PROBLEMS));
+        setFailOnServerErrors(settings.getBoolean(FAIL_ON_SERVER_ERRORS, DEFAULT_FAIL_ON_PROBLEMS));
     }
 
-    @Override
-    protected boolean isFailOnClientErrors() {
-        // different default
-        return m_failOnClientErrors.orElse(DEFAULT_FAIL_ON_PROBLEMS);
-    }
-
-    @Override
-    protected boolean isFailOnServerErrors() {
-        // different default
-        return m_failOnServerErrors.orElse(DEFAULT_FAIL_ON_PROBLEMS);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
     @Override
     protected void loadSettingsFrom(final NodeSettingsRO settings) throws InvalidSettingsException {
         super.loadSettingsFrom(settings);

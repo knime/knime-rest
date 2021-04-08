@@ -202,9 +202,19 @@ public class RestSettings {
 
     private Optional<DelayPolicy> m_delayPolicy = Optional.empty();
 
-    protected Optional<Boolean> m_failOnClientErrors = Optional.of(DEFAULT_FAIL_ON_HTTP_ERRORS);
+    /**
+     * Whether the node should output a missing value or fail in execution when a response returns a HTTP status code
+     * indicating a client-side error.
+     *
+     * The option "fail on http errors" was removed and replaced with the more specific options
+     * {@link RestSettings#m_failOnClientErrors} and {@link RestSettings#m_failOnServerErrors}
+     */
+    protected boolean m_failOnClientErrors = DEFAULT_FAIL_ON_HTTP_ERRORS;
 
-    protected Optional<Boolean> m_failOnServerErrors = Optional.of(DEFAULT_FAIL_ON_HTTP_ERRORS);
+    /**
+     * @see RestSettings#m_failOnClientErrors
+     */
+    protected boolean m_failOnServerErrors = DEFAULT_FAIL_ON_HTTP_ERRORS;
 
     public void setDelayPolicy(final DelayPolicy delayPolicy) {
         m_delayPolicy = Optional.ofNullable(delayPolicy);
@@ -621,19 +631,19 @@ public class RestSettings {
     }
 
     protected boolean isFailOnClientErrors() {
-        return m_failOnClientErrors.orElse(DEFAULT_FAIL_ON_HTTP_ERRORS);
+        return m_failOnClientErrors;
     }
 
     protected boolean isFailOnServerErrors() {
-        return m_failOnServerErrors.orElse(DEFAULT_FAIL_ON_HTTP_ERRORS);
+        return m_failOnServerErrors;
     }
 
     protected void setFailOnClientErrors(final boolean value) {
-        m_failOnClientErrors = Optional.of(value);
+        m_failOnClientErrors = value;
     }
 
     protected void setFailOnServerErrors(final boolean value) {
-        m_failOnServerErrors = Optional.of(value);
+        m_failOnServerErrors = value;
     }
 
     /**
@@ -755,8 +765,8 @@ public class RestSettings {
         settings.addBoolean(FOLLOW_REDIRECTS, m_followRedirects);
         settings.addInt(TIMEOUT, m_timeoutInSeconds);
         m_delayPolicy.ifPresent(v -> v.saveToSettings(settings));
-        m_failOnServerErrors.ifPresent(b -> settings.addBoolean(FAIL_ON_SERVER_ERRORS, b));
-        m_failOnClientErrors.ifPresent(b -> settings.addBoolean(FAIL_ON_CLIENT_ERRORS, b));
+        settings.addBoolean(FAIL_ON_SERVER_ERRORS, m_failOnServerErrors);
+        settings.addBoolean(FAIL_ON_CLIENT_ERRORS, m_failOnClientErrors);
     }
 
     /**
@@ -828,22 +838,9 @@ public class RestSettings {
     private void loadFailOnHttp(final NodeSettingsRO settings) {
         // backwards compat.: If fail on client/server is not set, check if older, more general option "fail on http"
         // is set and use that.
-        Optional<Boolean> failOnHttp = Optional.empty();
-        try {
-            failOnHttp = Optional.of(settings.getBoolean(FAIL_ON_HTTP_ERRORS));
-        } catch (InvalidSettingsException e) { // NOSONAR: exception handled properly
-            // noop
-        }
-        try {
-            m_failOnClientErrors = Optional.of(settings.getBoolean(FAIL_ON_CLIENT_ERRORS));
-        } catch (InvalidSettingsException e) { // NOSONAR: exception handled properly
-            m_failOnClientErrors = failOnHttp;
-        }
-        try {
-            m_failOnServerErrors = Optional.of(settings.getBoolean(FAIL_ON_SERVER_ERRORS));
-        } catch (InvalidSettingsException e) { // NOSONAR: exception handled properly
-            m_failOnServerErrors = failOnHttp;
-        }
+        boolean failOnHttp = settings.getBoolean(FAIL_ON_HTTP_ERRORS, DEFAULT_FAIL_ON_HTTP_ERRORS);
+        m_failOnClientErrors = settings.getBoolean(FAIL_ON_CLIENT_ERRORS, failOnHttp);
+        m_failOnServerErrors = settings.getBoolean(FAIL_ON_SERVER_ERRORS, failOnHttp);
     }
 
     /**
