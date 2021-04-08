@@ -148,6 +148,7 @@ import org.knime.rest.generic.ResponseBodyParser.Missing;
 import org.knime.rest.nodes.common.RestSettings.ReferenceType;
 import org.knime.rest.nodes.common.RestSettings.RequestHeaderKeyItem;
 import org.knime.rest.nodes.common.RestSettings.ResponseHeaderItem;
+import org.knime.rest.util.CooldownContext;
 import org.knime.rest.util.DelayPolicy;
 import org.knime.rest.util.DelegatingX509TrustManager;
 
@@ -206,6 +207,11 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         }
 
     };
+
+    /**
+     * Holds context information regarding rate-limiting. Constructed freshly at the beginning of each node execution.
+     */
+    private CooldownContext m_cooldownContext;
 
     /**
      * Constructor with {@link BufferedDataTable}s in input/output ports.
@@ -343,6 +349,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
     @Override
     protected BufferedDataTable[] execute(final BufferedDataTable[] inData, final ExecutionContext exec)
         throws Exception {
+        m_cooldownContext = new CooldownContext();
         final List<EachRequestAuthentication> enabledEachRequestAuthentications = enabledAuthConfigs();
         createResponseBodyParsers(exec);
         if (inData.length > 0 && inData[0] != null) {
@@ -393,7 +400,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
                     enabledEachRequestAuthentications, row, spec);
         try {
             Invocation invocation = invocation(requestBuilderPair.getFirst(), row, spec);
-            response = DelayPolicy.doWithDelays(m_settings.getDelayPolicy(), () -> invoke(invocation));
+            response = DelayPolicy.doWithDelays(m_settings.getDelayPolicy(), m_cooldownContext, () -> invoke(invocation));
             requestBuilderPair.getSecond().close();
             missing = null;
         } catch (ProcessingException procEx) {
@@ -648,7 +655,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
                     Response response;
                     try {
                         Invocation invocation = invocation(requestBuilder.getFirst(), row, spec);
-                        response = DelayPolicy.doWithDelays(m_settings.getDelayPolicy(), () -> invoke(invocation));
+                        response = DelayPolicy.doWithDelays(m_settings.getDelayPolicy(), m_cooldownContext, () -> invoke(invocation));
                     } catch (ProcessingException e) {
                         LOGGER.debug("Call failed: " + e.getMessage(), e);
                         Throwable cause = ExceptionUtils.getRootCause(e);
@@ -847,7 +854,6 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
      */
     private void examineResponse(final Response response) {
         if (response == null) {
-            // nts: more like insert-or-replace
             replace(m_bodyColumns,
                 new ResponseHeaderItem(m_settings.getResponseBodyColumn(), BinaryObjectDataCell.TYPE));
         } else if (response.hasEntity()) {

@@ -64,6 +64,10 @@ import org.knime.rest.nodes.common.RestNodeModel;
  * Utility class for retrying a task that returns a {@link Response}. Makes a distinction between "server errors" and
  * "rate-limiting errors".
  *
+ * Holds information describing how server and rate-limiting errors should be handled in terms of timeouts and retries.
+ *
+ * Provides a utility method to run a task and apply timeouts and retries.
+ *
  * We distinguish between "retry delays" (aka "backoff"; after a server error; timeout between retries) and "cooldown
  * delays" (after a rate-limiting error, timeout before trying again). Retry delays increase exponentially with each
  * attempt, cooldown delay always stays the same.
@@ -71,13 +75,14 @@ import org.knime.rest.nodes.common.RestNodeModel;
  * @see RestNodeModel#isServerError(Response)
  * @see RestNodeModel#isRateLimitError(Response)
  *
+ * @noreference
  * @author Benjamin Moser
  */
 public final class DelayPolicy {
 
-    private boolean m_retriesEnabled = false;
+    private final boolean m_retriesEnabled;
 
-    private boolean m_cooldownEnabled = false;
+    private final boolean m_cooldownEnabled;
 
     /**
      * Always use exponential backoff with powers of two. This means the base timeout will double before each retry.
@@ -105,13 +110,6 @@ public final class DelayPolicy {
     private final long m_cooldownPeriod;
 
     /**
-     * The timestamp at which the last rate limit cooldown was triggered. This value plus the
-     * {@link DelayPolicy#m_cooldownPeriod} will be compared against the current system time by threads that are waking
-     * up from sleep, see {@link DelayPolicy#getCooldownDelta()}.
-     */
-    private final AtomicLong m_cooldownInitTimestamp = new AtomicLong(0);
-
-    /**
      * Construct a new object representing how retries and delays should be handled. Additionally offers utility methods
      * to execute a {@code Callable} with retries.
      *
@@ -119,6 +117,8 @@ public final class DelayPolicy {
      *            retry, the delay is determined according to {@link DelayPolicy#getRetryDelayAt(int)}
      * @param maxRetries The maximum number of retries to perform, not including the initial request.
      * @param cooldown The delay to apply after a ratelimit error has been encountered.
+     * @param retriesEnabled Whether the request should be retried.
+     * @param cooldownEnabled Whether on a rate-limiting response a cooldown delay should be applied.
      */
     public DelayPolicy(final long baseRetryDelay, final int maxRetries, final long cooldown,
         final boolean retriesEnabled, final boolean cooldownEnabled) {
@@ -136,11 +136,12 @@ public final class DelayPolicy {
      * Perform the given {@code Callable} and inspect the result, potentially retrying after some delay.
      *
      * @param policy The policy defining number of retries and sleep durations
+     * @param cooldownContext Context maintained across multiple requests.
      * @param task The task that will return a {@link Response}. Will usually perform a request.
      * @return The server response obtained from the last performed attempt.
      * @throws Exception Generic exception, will be handled by the node model.
      */
-    public static Response doWithDelays(final DelayPolicy policy, final Callable<Response> task) throws Exception {
+    public static Response doWithDelays(final DelayPolicy policy, final CooldownContext cooldownContext, final Callable<Response> task) throws Exception {
         Response lastResponse = null;
         int retryCount = 0;
         long alreadyWaited = 0;
@@ -148,7 +149,7 @@ public final class DelayPolicy {
         boolean tryAgain = false;
         do {
             // rate-limit cooldown delay
-            long cooldownDelta = policy.getCooldownDelta();
+            long cooldownDelta = cooldownContext.getCooldownDelta(policy);
             if (cooldownDelta > 0 && policy.isCooldownEnabled()) {
                 // Accumulate time waited for rate-limit cooldown. In case the thread is
                 // currently in a retry cycle but a rate-limit error was encountered,
@@ -182,7 +183,7 @@ public final class DelayPolicy {
                 tryAgain = policy.isRetriesEnabled() && retryCount <= policy.getMaxRetries();
                 // re-enter loop
             } else if (RestNodeModel.isRateLimitError(lastResponse)) {
-                policy.resetCooldown(); // set cooldown init to current time
+                cooldownContext.resetCooldown(); // set cooldown init to current time
                 tryAgain = policy.isCooldownEnabled();
                 // continue and re-enter loop without increasing retry counter
             } else { // other error or successful
@@ -200,18 +201,6 @@ public final class DelayPolicy {
      */
     private long getRetryDelayAt(final int i) {
         return (long)(this.getRetryBaseMs() * Math.pow(RETRY_MULTIPLIER, i));
-    }
-
-    private void resetCooldown() {
-        m_cooldownInitTimestamp.set(System.currentTimeMillis());
-    }
-
-    /**
-     *
-     * @return smaller-equal zero if cooldown period has passed, else the remaining time.
-     */
-    private long getCooldownDelta() {
-        return (m_cooldownInitTimestamp.get() + this.getCooldownPeriodMs()) - System.currentTimeMillis();
     }
 
     public int getMaxRetries() {
@@ -234,11 +223,19 @@ public final class DelayPolicy {
         return m_retryBaseDelay * 1000;
     }
 
+    public boolean isRetriesEnabled() {
+        return m_retriesEnabled;
+    }
+
+    public boolean isCooldownEnabled() {
+        return m_cooldownEnabled;
+    }
+
     /**
      * Load the child settings from the settings and return a new {@link DelayPolicy} (if present).
      *
      * @param settings
-     * @return
+     * @return An optional containing the DelayPolicy if according settings are set, else an empty optional.
      */
     public static Optional<DelayPolicy> loadFromSettings(final NodeSettingsRO settings) {
         try {
@@ -266,14 +263,6 @@ public final class DelayPolicy {
         childSettings.addLong("delayRateLimitCooldown", getCooldown());
         childSettings.addBoolean("delayRetriesEnabled", isRetriesEnabled());
         childSettings.addBoolean("delayCooldownEnabled", isCooldownEnabled());
-    }
-
-    public boolean isRetriesEnabled() {
-        return m_retriesEnabled;
-    }
-
-    public boolean isCooldownEnabled() {
-        return m_cooldownEnabled;
     }
 
 }
