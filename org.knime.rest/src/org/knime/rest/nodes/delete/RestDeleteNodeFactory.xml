@@ -33,9 +33,6 @@
             it was generated for a different host.</option>
             <option name="Trust all certificates">If checked, the node trusts all certificates regardless of their
             origin or expiration date.</option>
-            <option name="Fail on connection problems (e.g. timeout, certificate errors, …)">By default connection problems
-            will result in a row with appropriate status code and error message and the node will continue. If this
-            option is checked the node will fail if a request fails.</option>
             <option name="Follow redirects">If checked, the node will follow redirects (HTTP status code <tt>3xx</tt>).</option>
             <option name="Timeout (s)">Timeout for a single request in seconds</option>
             <option name="Body">Name of the response body column in the output table</option>
@@ -64,6 +61,11 @@
             <option name="Header type">The KNIME data type the header should be converted into.</option>
         </tab>
         <tab name="Error Handling">
+            <option name="Fail on connection problems (e.g. timeout, certificate errors, …)">
+                This option describes what should happen if there was a problem establishing the connection to the
+                server. The node either fails in execution or outputs status code and error message in the corresponding
+                row.
+            </option>
             <option name="Server-side errors (HTTP 5XX)">
                 These options describe what should happen if a response with a 5XX status code is received. These
                 status codes usually describe errors on the server side.

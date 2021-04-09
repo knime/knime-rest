@@ -62,14 +62,6 @@
 				regardless of their
 				origin or expiration date.
 			</option>
-			<option
-				name="Fail on connection problems (e.g. timeout, certificate errors, …)">
-				By default, the node will fail if a request fails. If this
-				option is unchecked, connection problems will result in a missing
-				value in the output containing the error
-				message and the node will
-				continue.
-			</option>
 			<option name="Follow redirects">
 				If checked, the node will follow redirects (HTTP status code
 				<tt>3xx</tt>
@@ -136,6 +128,11 @@
 			</option>
 		</tab>
 		<tab name="Error Handling">
+			<option name="Fail on connection problems (e.g. timeout, certificate errors, …)">
+                This option describes what should happen if there was a problem establishing the connection to the
+				server. The node either fails in execution or outputs status code and error message in the corresponding
+				row.
+			</option>
 			<option name="Server-side errors (HTTP 5XX)">
 				These options describe what should happen if a response with a 5XX status code is received. These
 				status codes usually describe errors on the server side.

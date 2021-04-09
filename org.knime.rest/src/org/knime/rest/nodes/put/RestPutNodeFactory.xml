@@ -13,7 +13,6 @@
             <option name="Concurrency">Number of concurrent requests</option>
             <option name="Ignore hostname mismatches">Trust the certificate even if it was generated for a different host.</option>
             <option name="Trust all certificates">Trust all certificates regardless their origin or expiration date</option>
-            <option name="Fail on connection problems (e.g. timeout, certificate errors, …)">Fails on connection problems when checked, otherwise just logs the error and continues execution.</option>
             <option name="Follow redirects">Follows redirects (on <tt>3xx</tt> status codes) when checked</option>
             <option name="Timeout (s)">Timeout in seconds</option>
             <option name="Body">Name of the response body column</option>
@@ -42,6 +41,11 @@
             <option name="Header type">Convert the header value to this type</option>
         </tab>
         <tab name="Error Handling">
+            <option name="Fail on connection problems (e.g. timeout, certificate errors, …)">
+                This option describes what should happen if there was a problem establishing the connection to the
+                server. The node either fails in execution or outputs status code and error message in the corresponding
+                row.
+            </option>
             <option name="Server-side errors (HTTP 5XX)">
                 These options describe what should happen if a response with a 5XX status code is received. These
                 status codes usually describe errors on the server side.

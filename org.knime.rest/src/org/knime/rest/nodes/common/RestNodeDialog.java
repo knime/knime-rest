@@ -163,11 +163,13 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
 
     private final JRadioButton m_uriColumnOption = new JRadioButton("URL column: ");
 
-    private ServerErrorPanel m_serverErrorPanel = new ServerErrorPanel();
+    private final ConnectionErrorPanel m_connectionErrorPanel = new ConnectionErrorPanel();
 
-    private ClientErrorPanel m_clientErrorPanel = new ClientErrorPanel();
+    private final ServerErrorPanel m_serverErrorPanel = new ServerErrorPanel();
 
-    private RateLimitPanel m_rateLimitPanel = new RateLimitPanel();
+    private final ClientErrorPanel m_clientErrorPanel = new ClientErrorPanel();
+
+    private final RateLimitPanel m_rateLimitPanel = new RateLimitPanel();
 
     {
         final ButtonGroup group = new ButtonGroup();
@@ -189,9 +191,6 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
     private final JCheckBox m_sslIgnoreHostnameMismatches = new JCheckBox("Ignore hostname mismatches");
 
     private final JCheckBox m_sslTrustAll = new JCheckBox("Trust all certificates");
-
-    private final JCheckBox m_failOnConnectionProblems =
-        new JCheckBox("Fail on connection problems (e.g. timeout, certificate errors, ...)");
 
     private final JCheckBox m_followRedirects = new JCheckBox("Follow redirects");
 
@@ -417,8 +416,6 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         sslPanel.add(m_sslTrustAll);
         ret.add(sslPanel, gbc);
         gbc.gridy++;
-        ret.add(m_failOnConnectionProblems, gbc);
-        gbc.gridy++;
         ret.add(m_followRedirects, gbc);
         gbc.gridy++;
         gbc.weightx = 0;
@@ -457,7 +454,6 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         m_uriColumn.setEnabled(false);
         m_uriColumn.setRequired(false);
         m_delay.setEnabled(false);
-        m_failOnConnectionProblems.setSelected(RestSettings.DEFAULT_FAIL_ON_CONNECTION_PROBLEMS);
         return ret;
     }
 
@@ -701,6 +697,7 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
     private Component createErrorHandlingTab() {
         final JPanel container = new JPanel();
         container.setLayout(new BoxLayout(container, BoxLayout.Y_AXIS));
+        container.add(m_connectionErrorPanel);
         container.add(m_serverErrorPanel);
         container.add(m_clientErrorPanel);
         container.add(m_rateLimitPanel);
@@ -1169,7 +1166,7 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         m_settings.setConcurrency(((Number)m_concurrency.getValue()).intValue());
         m_settings.setSslIgnoreHostNameErrors(m_sslIgnoreHostnameMismatches.isSelected());
         m_settings.setSslTrustAll(m_sslTrustAll.isSelected());
-        m_settings.setFailOnConnectionProblems(m_failOnConnectionProblems.isSelected());
+        m_settings.setFailOnConnectionProblems(m_connectionErrorPanel.getFailOrOutput());
         m_settings.setFollowRedirects(m_followRedirects.isSelected());
         m_settings.setTimeoutInSeconds(((Number)m_timeoutInSeconds.getValue()).intValue());
         m_settings.getRequestHeaders().clear();
@@ -1254,7 +1251,7 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         m_sslIgnoreHostnameMismatches.setSelected(m_settings.isSslIgnoreHostNameErrors());
         m_sslTrustAll.setSelected(m_settings.isSslTrustAll());
 
-        m_failOnConnectionProblems.setSelected(m_settings.isFailOnConnectionProblems());
+        m_connectionErrorPanel.setFailOrOutput(m_settings.isFailOnConnectionProblems());
         m_serverErrorPanel.setFailOrOutput(m_settings.isFailOnServerErrors());
         m_clientErrorPanel.setFailOrOutput(m_settings.isFailOnClientErrors());
 
