@@ -67,10 +67,12 @@ import javax.swing.table.TableCellRenderer;
  *
  * @author Gabor Bakos
  */
-class ButtonCell implements TableCellEditor, TableCellRenderer {
-    private final JButton m_button, m_buttonRender;
+final class ButtonCell implements TableCellEditor, TableCellRenderer {
+    private final JButton m_button;
+    private final JButton m_buttonRender;
 
-    private final JPanel m_panel, m_panelRender;
+    private final JPanel m_panel;
+    private final JPanel m_panelRender;
 
     private final List<CellEditorListener> m_listeners = new ArrayList<>();
 
@@ -79,7 +81,7 @@ class ButtonCell implements TableCellEditor, TableCellRenderer {
     /**
      * Constructs the editor.
      */
-    public ButtonCell() {
+    ButtonCell() {
         m_button = new JButton();
         m_buttonRender = new JButton();
         m_button.setFont(m_button.getFont().deriveFont(11f));

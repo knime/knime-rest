@@ -695,13 +695,20 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
     }
 
     private Component createErrorHandlingTab() {
-        final JPanel container = new JPanel();
-        container.setLayout(new BoxLayout(container, BoxLayout.Y_AXIS));
-        container.add(m_connectionErrorPanel);
-        container.add(m_serverErrorPanel);
-        container.add(m_clientErrorPanel);
-        container.add(m_rateLimitPanel);
-        container.add(Box.createHorizontalGlue());
+        final JPanel container = new JPanel(new GridBagLayout());
+        GridBagConstraints gbc = FramedPanel.initGridBagConstraints();
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.anchor = GridBagConstraints.FIRST_LINE_START;
+        container.add(m_connectionErrorPanel, gbc);
+        gbc.gridy += 1;
+        container.add(m_serverErrorPanel, gbc);
+        gbc.gridy += 1;
+        container.add(m_clientErrorPanel, gbc);
+        gbc.gridy += 1;
+        container.add(m_rateLimitPanel, gbc);
+        gbc.gridy += 1;
+        gbc.weighty = 1.0;
+        container.add(new JLabel(), gbc);
         return container;
     }
 
@@ -1166,7 +1173,7 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         m_settings.setConcurrency(((Number)m_concurrency.getValue()).intValue());
         m_settings.setSslIgnoreHostNameErrors(m_sslIgnoreHostnameMismatches.isSelected());
         m_settings.setSslTrustAll(m_sslTrustAll.isSelected());
-        m_settings.setFailOnConnectionProblems(m_connectionErrorPanel.getFailOrOutput());
+        m_settings.setFailOnConnectionProblems(m_connectionErrorPanel.isFailOnError());
         m_settings.setFollowRedirects(m_followRedirects.isSelected());
         m_settings.setTimeoutInSeconds(((Number)m_timeoutInSeconds.getValue()).intValue());
         m_settings.getRequestHeaders().clear();
@@ -1183,10 +1190,10 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         }
         DelayPolicy delayPolicy =
             new DelayPolicy(m_serverErrorPanel.getRetryDelay(), m_serverErrorPanel.getNumRetries(),
-                m_rateLimitPanel.getDelay(), m_serverErrorPanel.getRetryEnabled(), m_rateLimitPanel.getActive());
+                m_rateLimitPanel.getDelay(), m_serverErrorPanel.isRetryEnabled(), m_rateLimitPanel.isActive());
         m_settings.setDelayPolicy(delayPolicy);
-        m_settings.setFailOnClientErrors(m_clientErrorPanel.getFailOrOutput());
-        m_settings.setFailOnServerErrors(m_serverErrorPanel.getFailOrOutput());
+        m_settings.setFailOnClientErrors(m_clientErrorPanel.isFailOnError());
+        m_settings.setFailOnServerErrors(m_serverErrorPanel.isFailOnError());
 
         m_settings.saveSettings(settings);
     }
@@ -1251,9 +1258,9 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         m_sslIgnoreHostnameMismatches.setSelected(m_settings.isSslIgnoreHostNameErrors());
         m_sslTrustAll.setSelected(m_settings.isSslTrustAll());
 
-        m_connectionErrorPanel.setFailOrOutput(m_settings.isFailOnConnectionProblems());
-        m_serverErrorPanel.setFailOrOutput(m_settings.isFailOnServerErrors());
-        m_clientErrorPanel.setFailOrOutput(m_settings.isFailOnClientErrors());
+        m_connectionErrorPanel.setFailOnError(m_settings.isFailOnConnectionProblems());
+        m_serverErrorPanel.setFailOnError(m_settings.isFailOnServerErrors());
+        m_clientErrorPanel.setFailOnError(m_settings.isFailOnClientErrors());
 
         DelayPolicy delayPolicy = m_settings.getDelayPolicy();
 

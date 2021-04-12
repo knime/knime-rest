@@ -64,7 +64,11 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JSpinner;
 
-public class DisableablePanel extends JPanel implements ItemListener {
+/**
+ * One of the sub-panels in the "Error Handling" tab.
+ */
+@SuppressWarnings("serial")
+final class DisableablePanel extends JPanel implements ItemListener {
     private final JCheckBox m_checkbox;
 
     private final JPanel m_childContainer;
@@ -74,7 +78,7 @@ public class DisableablePanel extends JPanel implements ItemListener {
     private final GridBagConstraints m_childGBC;
 
     @SuppressWarnings("java:S1699") // calls to overridable methods in constructor -- fine in swing.
-    public DisableablePanel(final String label) {
+    DisableablePanel(final String label) {
         this.setLayout(new GridBagLayout());
         m_gbc = FramedPanel.initGridBagConstraints();
         // padding for checkbox
@@ -91,7 +95,7 @@ public class DisableablePanel extends JPanel implements ItemListener {
         m_childGBC.insets = new Insets(0, 27, 5, 0);
 
         m_gbc.gridy++;
-        this.add(m_childContainer, m_gbc);
+        add(m_childContainer, m_gbc);
         // checkbox is disabled by default, make sure child fields are disabled aswell.
         DisableablePanel.toggleChildrenRec(m_childContainer, false);
     }

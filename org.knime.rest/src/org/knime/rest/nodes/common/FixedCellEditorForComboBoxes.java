@@ -62,7 +62,7 @@ import javax.swing.JComboBox;
  * @author Gabor Bakos
  */
 @SuppressWarnings("serial")
-class FixedCellEditorForComboBoxes extends DefaultCellEditor {
+final class FixedCellEditorForComboBoxes extends DefaultCellEditor {
     /**
      * @param comboBox {@link JComboBox} to wrap.
      */

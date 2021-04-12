@@ -57,7 +57,7 @@ import javax.swing.JRadioButton;
  *
  */
 @SuppressWarnings("serial")
-public class BooleanRadioButtonGroup extends JPanel {
+final class BooleanRadioButtonGroup extends JPanel {
     private final JRadioButton m_trueButton;
 
     private final JRadioButton m_falseButton;
@@ -67,7 +67,7 @@ public class BooleanRadioButtonGroup extends JPanel {
      * @param falseLabel Label of the radio button
      */
     @SuppressWarnings("java:S1699") // calls to overridable methods in constructor -- fine in swing.
-    public BooleanRadioButtonGroup(final String trueLabel, final String falseLabel) {
+    BooleanRadioButtonGroup(final String trueLabel, final String falseLabel) {
         this.setLayout(new GridLayout(0, 1));
         m_trueButton = new JRadioButton(trueLabel);
         m_falseButton = new JRadioButton(falseLabel);
