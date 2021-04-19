@@ -58,7 +58,7 @@ final class RateLimitPanel extends FramedPanel {
     private final DisableablePanel m_pauseExecution;
 
     RateLimitPanel() {
-        m_pauseExecution = new DisableablePanel("Pause execution");
+        m_pauseExecution = new DisableablePanel("Pause execution (and retry)");
         m_delaySpinner = createSpinner(1, 10);
         setTitle("Rate-limiting error (HTTP 429)");
         addAsRow(m_pauseExecution);

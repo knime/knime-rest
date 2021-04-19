@@ -50,7 +50,6 @@ package org.knime.rest.util;
 
 import java.util.Optional;
 import java.util.concurrent.Callable;
-import java.util.concurrent.atomic.AtomicLong;
 
 import javax.ws.rs.core.Response;
 
@@ -183,6 +182,7 @@ public final class DelayPolicy {
                 tryAgain = policy.isRetriesEnabled() && retryCount <= policy.getMaxRetries();
                 // re-enter loop
             } else if (RestNodeModel.isRateLimitError(lastResponse)) {
+                retryCount++;
                 cooldownContext.resetCooldown(); // set cooldown init to current time
                 tryAgain = policy.isCooldownEnabled();
                 // continue and re-enter loop without increasing retry counter
