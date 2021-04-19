@@ -98,7 +98,7 @@ public final class DelayPolicy {
 
     /**
      * The maximum number of retries to perform for server errors. Note that rate-limiting errors are handled
-     * seperately.
+     * separately.
      */
     private final int m_retryMaxAttempts;
 
@@ -107,6 +107,11 @@ public final class DelayPolicy {
      * delays. Given in seconds.
      */
     private final long m_cooldownPeriod;
+
+    /**
+     * The maximum number of times the task is retried after a ratelimiting-error is returned.
+     */
+    private static final int COOLDOWN_MAX_RETRIES = 5;
 
     /**
      * Construct a new object representing how retries and delays should be handled. Additionally offers utility methods
@@ -140,9 +145,11 @@ public final class DelayPolicy {
      * @return The server response obtained from the last performed attempt.
      * @throws Exception Generic exception, will be handled by the node model.
      */
-    public static Response doWithDelays(final DelayPolicy policy, final CooldownContext cooldownContext, final Callable<Response> task) throws Exception {
+    public static Response doWithDelays(final DelayPolicy policy, final CooldownContext cooldownContext,
+        final Callable<Response> task) throws Exception {
         Response lastResponse = null;
-        int retryCount = 0;
+        int errorRetryCount = 0;
+        int cooldownRetryCount = 0;
         long alreadyWaited = 0;
         // determines whether to do another request after the current one (applies to both server and ratelimit errors).
         boolean tryAgain = false;
@@ -165,8 +172,8 @@ public final class DelayPolicy {
             }
 
             // retry backoff delay
-            long timeout = policy.getRetryDelayAt(retryCount) - alreadyWaited;
-            if (timeout > 0 && retryCount > 0 && policy.isRetriesEnabled()) {
+            long timeout = policy.getRetryDelayAt(errorRetryCount) - alreadyWaited;
+            if (timeout > 0 && errorRetryCount > 0 && policy.isRetriesEnabled()) {
                 Thread.sleep(timeout);
             }
 
@@ -178,14 +185,14 @@ public final class DelayPolicy {
 
             // inspect result and handle accordingly
             if (RestNodeModel.isServerError(lastResponse)) {
-                retryCount++;
-                tryAgain = policy.isRetriesEnabled() && retryCount <= policy.getMaxRetries();
+                errorRetryCount++;
+                tryAgain = policy.isRetriesEnabled() && errorRetryCount <= policy.getMaxRetries();
                 // re-enter loop
             } else if (RestNodeModel.isRateLimitError(lastResponse)) {
-                retryCount++;
+                cooldownRetryCount++;
                 cooldownContext.resetCooldown(); // set cooldown init to current time
-                tryAgain = policy.isCooldownEnabled();
-                // continue and re-enter loop without increasing retry counter
+                tryAgain = policy.isCooldownEnabled() && cooldownRetryCount <= COOLDOWN_MAX_RETRIES;
+                // re-enter loop
             } else { // other error or successful
                 return lastResponse; // exit loop and return
             }
