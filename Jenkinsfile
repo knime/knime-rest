@@ -23,7 +23,7 @@ try {
         dependencies: [
             repositories: [
                 'knime-rest', 'knime-xml', 'knime-json', 'knime-filehandling', 'knime-stats', 'knime-timeseries',
-                'knime-textprocessing', 'knime-reporting', 'knime-jfreechart', 'knime-distance', 
+                'knime-textprocessing', 'knime-reporting', 'knime-jfreechart', 'knime-distance', 'knime-kerberos',
                 'knime-js-core', 'knime-js-base', 'knime-expressions', 'knime-python'
             ]
         ]
