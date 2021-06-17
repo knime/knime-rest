@@ -30,7 +30,10 @@
         <tab name="Request Headers">
             <option name="Merge">Adds header values from the selected template</option>
             <option name="Reset">Removes actual headers and adds the values from the template.</option>
-            <option name="Header key">constant key</option>
+			<option name="Header key">The HTTP header key. Note that some header keys such as <tt>Origin</tt> are silently
+			ignored by default for security reasons. You can configure KNIME AP to allow any header key by setting the
+			<tt>sun.net.http.allowRestrictedHeaders</tt> system property in the <i>knime.ini</i> configuration file
+			to <tt>true</tt>.</option>
             <option name="Header value">the value (or reference to flow variable, column, credential name/password)</option>
             <option name="Header kind">value Flow variable/Constant/Column or Credential name/password</option>
             <!-- option name="Header type">in case we need to convert the type to string, the conversion option</option-->

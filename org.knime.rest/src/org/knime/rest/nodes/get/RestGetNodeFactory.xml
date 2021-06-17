@@ -51,7 +51,10 @@
             merged with the already existing header definitions in the table below.</option>
             <option name="Replace">If you click this button the request headers from the selected template on the left will
             replace any existing header definitions in the table below.</option>
-            <option name="Header key">The HTTP header key, e.g. <tt>Accept</tt> or <tt>X-Custom-Key</tt>.</option>
+			<option name="Header key">The HTTP header key, e.g. <tt>Accept</tt> or <tt>X-Custom-Key</tt>. Note that some
+			header keys such as <tt>Origin</tt> are silently ignored by default for security reasons. You can configure
+			KNIME AP to allow any header key by setting the <tt>sun.net.http.allowRestrictedHeaders</tt> system property in the
+			<i>knime.ini</i> configuration file to <tt>true</tt>.</option>
             <option name="Header value">The value for the header which can be a constant value or a reference to a flow
             variable, a column, a credential name, or a credential password (see the kind option).</option>
             <option name="Header kind">The kind of the value specified, which is either a constant value or a reference

@@ -112,11 +112,10 @@
 				definitions in the table below.
 			</option>
 			<option name="Header key">
-				The HTTP header key, e.g.
-				<tt>Accept</tt>
-				or
-				<tt>X-Custom-Key</tt>
-				.
+				The HTTP header key, e.g. <tt>Accept</tt> or <tt>X-Custom-Key</tt>. Note that some
+				header keys such as <tt>Origin</tt> are silently ignored by default for security reasons. You can configure
+				KNIME AP to allow any header key by setting the <tt>sun.net.http.allowRestrictedHeaders</tt> system property in the
+				<i>knime.ini</i> configuration file to <tt>true</tt>.
 			</option>
 			<option name="Header value">The value for the header which can be a constant
 				value or a reference to a flow
