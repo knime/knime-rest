@@ -134,8 +134,12 @@ public class RestSettings {
 
     protected static final String FAIL_ON_SERVER_ERRORS = "failOnServerError";
 
+    private static final String OUTPUT_ERROR_CAUSE_KEY = "outputErrorCause";
+
     /** Default value for the fail on http errors option. */
     protected static final boolean DEFAULT_FAIL_ON_HTTP_ERRORS = false;
+
+    protected static final boolean DEFAULT_OUTPUT_ERROR_CAUSE = false;
 
     private static final String REQUEST_HEADER_KEYS = "Request header keys";
 
@@ -220,6 +224,12 @@ public class RestSettings {
      * @see RestSettings#m_failOnClientErrors
      */
     protected boolean m_failOnServerErrors = DEFAULT_FAIL_ON_HTTP_ERRORS;
+
+    /**
+     * Whether the node should output an additional column containing a string description of the error cause if
+     * the request failed.
+     */
+    private Optional<Boolean> m_outputErrorCause = Optional.empty();
 
     public void setDelayPolicy(final DelayPolicy delayPolicy) {
         m_delayPolicy = Optional.ofNullable(delayPolicy);
@@ -653,6 +663,14 @@ public class RestSettings {
         m_failOnServerErrors = value;
     }
 
+    protected void setOutputErrorCause(boolean value) {
+        m_outputErrorCause = Optional.of(value);
+    }
+
+    protected Optional<Boolean> isOutputErrorCause() {
+        return m_outputErrorCause;
+    }
+
     /**
      * @return the extractAllResponseFields
      */
@@ -782,6 +800,7 @@ public class RestSettings {
         m_delayPolicy.ifPresent(v -> v.saveToSettings(settings));
         settings.addBoolean(FAIL_ON_SERVER_ERRORS, m_failOnServerErrors);
         settings.addBoolean(FAIL_ON_CLIENT_ERRORS, m_failOnClientErrors);
+        m_outputErrorCause.ifPresent(value -> settings.addBoolean(OUTPUT_ERROR_CAUSE_KEY, value));
         m_allowChunking.ifPresent(allowChunking -> settings.addBoolean(ALLOW_CHUNKING_KEY, allowChunking));
     }
 
@@ -849,6 +868,11 @@ public class RestSettings {
         m_timeoutInSeconds = settings.getInt(TIMEOUT);
         m_delayPolicy = DelayPolicy.loadFromSettings(settings);
         loadFailOnHttp(settings);
+        try {
+            m_outputErrorCause = Optional.of(settings.getBoolean(OUTPUT_ERROR_CAUSE_KEY));
+        } catch (InvalidSettingsException e) { // NOSONAR
+            // noop
+        }
         try {
             m_allowChunking = Optional.of(settings.getBoolean(ALLOW_CHUNKING_KEY));
         } catch (InvalidSettingsException e) { // NOSONAR
@@ -940,6 +964,11 @@ public class RestSettings {
         m_timeoutInSeconds = settings.getInt(TIMEOUT, DEFAULT_TIMEOUT);
         m_delayPolicy = DelayPolicy.loadFromSettings(settings);
         loadFailOnHttp(settings);
+        try {
+            m_outputErrorCause = Optional.of(settings.getBoolean(OUTPUT_ERROR_CAUSE_KEY));
+        } catch (InvalidSettingsException e) { // NOSONAR
+            // noop
+        }
         try {
             m_allowChunking = Optional.of(settings.getBoolean(ALLOW_CHUNKING_KEY));
         } catch (InvalidSettingsException e) { // NOSONAR

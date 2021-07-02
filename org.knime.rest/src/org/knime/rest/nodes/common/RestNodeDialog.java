@@ -171,6 +171,8 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
 
     private final RateLimitPanel m_rateLimitPanel = new RateLimitPanel();
 
+    private final ErrorCausePanel m_errorCausePanel = new ErrorCausePanel();
+
     {
         final ButtonGroup group = new ButtonGroup();
         group.add(m_constantUriOption);
@@ -711,6 +713,8 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         gbc.gridy += 1;
         container.add(m_rateLimitPanel, gbc);
         gbc.gridy += 1;
+        container.add(m_errorCausePanel, gbc);
+        gbc.gridy += 1;
         gbc.weighty = 1.0;
         container.add(new JLabel(), gbc);
         return container;
@@ -1199,6 +1203,7 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         m_settings.setDelayPolicy(delayPolicy);
         m_settings.setFailOnClientErrors(m_clientErrorPanel.isFailOnError());
         m_settings.setFailOnServerErrors(m_serverErrorPanel.isFailOnError());
+        m_settings.setOutputErrorCause(m_errorCausePanel.isSelected());
 
         m_settings.saveSettings(settings);
     }
@@ -1275,6 +1280,8 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
 
         m_rateLimitPanel.setActive(delayPolicy.isCooldownEnabled());
         m_rateLimitPanel.setDelay(delayPolicy.getCooldown());
+
+        m_settings.isOutputErrorCause().ifPresent(m_errorCausePanel::setSelected);
 
         m_followRedirects.setSelected(m_settings.isFollowRedirects());
         m_timeoutInSeconds.setValue(m_settings.getTimeoutInSeconds());

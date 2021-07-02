@@ -49,11 +49,7 @@
 package org.knime.rest.nodes.webpageretriever;
 
 import java.net.URI;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import javax.ws.rs.client.Invocation;
@@ -282,14 +278,15 @@ final class WebpageRetrieverNodeModel extends RestNodeModel<WebpageRetrieverSett
         final DataColumnSpec htmlSpec = uniqueNameGenerator.newColumn(m_settings.getOutputColumnName(),
             m_settings.isOutputAsXML() ? XMLCell.TYPE : StringCell.TYPE);
         final boolean extractCookies = m_settings.isExtractCookies();
-        final DataColumnSpec[] newSpecs = new DataColumnSpec[extractCookies ? 2 : 1];
-        newSpecs[0] = htmlSpec;
+        final List<DataColumnSpec> newSpecs = new ArrayList<>();
+        newSpecs.add(htmlSpec);
         if (extractCookies) {
             final DataColumnSpec cookieColumn = uniqueNameGenerator.newColumn(m_settings.getCookieOutputColumnName(),
                 ListCell.getCollectionType(StringCell.TYPE));
-            newSpecs[1] = cookieColumn;
+            newSpecs.add(cookieColumn);
         }
-        return newSpecs;
+        maybeAddErrorCauseColSpec(newSpecs, uniqueNameGenerator);
+        return newSpecs.toArray(new DataColumnSpec[0]);
     }
 
     @Override

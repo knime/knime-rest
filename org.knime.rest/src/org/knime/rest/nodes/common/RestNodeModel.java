@@ -59,6 +59,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -482,11 +483,58 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
             }
             m_readNonError = !httpError;
             addBodyValues(cells, response, missing);
+            maybeAddErrorCause(cells);
             m_firstCallValues.add(cells.toArray(new DataCell[cells.size()]));
             m_newColumnsBasedOnFirstCalls = specs.toArray(new DataColumnSpec[specs.size()]);
         } finally {
             if (response != null) {
                 response.close();
+            }
+        }
+    }
+
+    /**
+     * Add a column for error causes (String descriptions) to the given list of <code>DataColumnSpec</code>s, which will
+     * ultimately determine the node's output column specification. Do this only if the respective setting is enabled.
+     * Use the given <code>nameGenerator</code> to find a name for the new column.
+     *
+     * @param specs The list of <code>DataColumnSpec</code>s to add the newly created column spec to.
+     * @param nameGenerator The generator to use for finding a name for the column to be added.
+     */
+    protected void maybeAddErrorCauseColSpec(final List<DataColumnSpec> specs,
+        final UniqueNameGenerator nameGenerator) {
+        if (m_settings.isOutputErrorCause().orElse(RestSettings.DEFAULT_OUTPUT_ERROR_CAUSE)) {
+            final DataColumnSpec errorCauseCol = nameGenerator.newColumn("Error Cause", StringCell.TYPE);
+            specs.add(errorCauseCol);
+        }
+    }
+
+    /**
+     * Construct a String cell containing the error cause description if there was an error while performing the
+     * request. Do this only if the respective user setting is enabled. In case the request was successful, a missing
+     * value is added.
+     *
+     * @param cells A list of cells which will ultimately determine the output for the current row.
+     */
+    private void maybeAddErrorCause(final List<DataCell> cells) {
+        if (m_settings.isOutputErrorCause().orElse(RestSettings.DEFAULT_OUTPUT_ERROR_CAUSE)) {
+            List<String> errorCauses = cells.stream().filter(cell -> cell instanceof MissingCell)
+                .map(cell -> ((MissingCell)cell).getError()).collect(Collectors.toList());
+            if (!errorCauses.isEmpty()) {
+                String errorCausesReadable;
+                if (errorCauses.stream().allMatch(Objects::isNull)) {
+                    // We assume missing values always correspond to some error.
+                    errorCausesReadable = "Unknown error";
+                } else {
+                    // However, there are error scenarios in which only some columns have a missing value with a cause.
+                    // In this case we want to avoid printing "null" for the missing values with no associated cause,
+                    // but still do print all non-null causes.
+                    errorCausesReadable =
+                        errorCauses.stream().filter(Objects::nonNull).collect(Collectors.joining("\n"));
+                }
+                cells.add(new StringCell(errorCausesReadable));
+            } else {
+                cells.add(new MissingCell("Request was successful"));
             }
         }
     }
@@ -691,6 +739,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
                             return DataType.getMissingCell();
                         }).collect(Collectors.toList());
                         addBodyValues(cells, response, missing);
+                        maybeAddErrorCause(cells);
                     } finally {
                         if (response != null) {
                             response.close();
@@ -888,9 +937,12 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
      */
     protected DataColumnSpec[] createNewColumnsSpec(final DataTableSpec spec) {
         UniqueNameGenerator uniqueNameGenerator = new UniqueNameGenerator(spec);
-        return Stream.concat(m_responseHeaderKeys.stream(), m_bodyColumns.stream())
-            .map(rhi -> uniqueNameGenerator.newCreator(rhi.getOutputColumnName(), rhi.getType()))
-            .map(creator -> creator.createSpec()).toArray(n -> new DataColumnSpec[n]);
+        List<DataColumnSpec> specs = Stream.concat(m_responseHeaderKeys.stream(), m_bodyColumns.stream())
+                .map(rhi -> uniqueNameGenerator.newCreator(rhi.getOutputColumnName(), rhi.getType()))
+                .map(DataColumnSpecCreator::createSpec)
+                .collect(Collectors.toList());
+        maybeAddErrorCauseColSpec(specs, uniqueNameGenerator);
+        return specs.toArray(new DataColumnSpec[0]);
     }
 
     /**
