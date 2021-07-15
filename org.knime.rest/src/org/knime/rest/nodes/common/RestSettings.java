@@ -227,7 +227,7 @@ public class RestSettings {
 
     /**
      * Whether the node should output an additional column containing a string description of the error cause if
-     * the request failed.
+     * the request failed. Added in 4.5.
      */
     private Optional<Boolean> m_outputErrorCause = Optional.empty();
 
@@ -663,7 +663,7 @@ public class RestSettings {
         m_failOnServerErrors = value;
     }
 
-    protected void setOutputErrorCause(boolean value) {
+    protected void setOutputErrorCause(final boolean value) {
         m_outputErrorCause = Optional.of(value);
     }
 

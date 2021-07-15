@@ -534,7 +534,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
                 }
                 cells.add(new StringCell(errorCausesReadable));
             } else {
-                cells.add(new MissingCell("Request was successful"));
+                cells.add(DataType.getMissingCell());
             }
         }
     }
