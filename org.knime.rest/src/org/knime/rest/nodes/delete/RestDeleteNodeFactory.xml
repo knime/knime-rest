@@ -106,6 +106,11 @@
                 this delay is static and does not increase with subsequent attempts, neither does it count as retries
                 for server-side errors.
             </option>
+            <option name="Output additional column with error cause">
+                If enabled, each output row corresponding to a request will contain an additional cell that, in case
+                the request has failed, will provide a description of the error cause. If the request was successful, the
+                cell will contain a missing value.
+            </option>
         </tab>
     </fullDescription>
     
