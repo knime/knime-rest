@@ -51,31 +51,37 @@ package org.knime.rest.internals.kerberos;
 import java.net.URI;
 
 import org.apache.cxf.common.util.Base64Utility;
+import org.apache.cxf.common.util.PropertyUtils;
 import org.apache.cxf.configuration.security.AuthorizationPolicy;
 import org.apache.cxf.message.Message;
-import org.apache.cxf.message.MessageUtils;
 import org.apache.cxf.transport.http.auth.AbstractSpnegoAuthSupplier;
 import org.apache.cxf.transport.http.auth.HttpAuthHeader;
 import org.apache.cxf.transport.http.auth.HttpAuthSupplier;
 import org.ietf.jgss.GSSContext;
+import org.ietf.jgss.GSSCredential;
 import org.ietf.jgss.GSSManager;
 import org.ietf.jgss.GSSName;
 import org.ietf.jgss.Oid;
-import org.knime.kerberos.api.KerberosProvider;
+import org.knime.kerberos.api.KerberosDelegationProvider;
+import org.knime.kerberos.api.KerberosDelegationProvider.KerberosDelegationCallback;
 
 /**
+ *{@link HttpAuthSupplier} implementation that uses the {@link KerberosDelegationProvider} to get the proper
+ * service ticket and also supports user delegation if executed on the KNIME Server.
  *
- * @author Björn Lohrmann, KNIME GmbH
+ * @author Bjoern Lohrmann, KNIME GmbH
+ * @author Tobias Koetter, KNIME GmbH
  */
 public class KNIMEKerberosAuthSupplier extends AbstractSpnegoAuthSupplier implements HttpAuthSupplier {
 
     /**
-     * Can be set on the client properties. If set to true then the kerberos oid is used
-     * instead of the default spnego OID
+     * Can be set on the client properties. If set to true then the kerberos oid is used instead of the default spnego
+     * OID.
      */
     private static final String PROPERTY_USE_KERBEROS_OID = "auth.spnego.useKerberosOid";
 
     private static final String KERBEROS_OID = "1.2.840.113554.1.2.2";
+
     private static final String SPNEGO_OID = "1.3.6.1.5.5.2";
 
     @Override
@@ -91,33 +97,33 @@ public class KNIMEKerberosAuthSupplier extends AbstractSpnegoAuthSupplier implem
             return null;
         }
         try {
-            String spn = getCompleteServicePrincipalName(currentURI);
+            final String spn = getCompleteServicePrincipalName(currentURI);
 
-            boolean useKerberosOid = MessageUtils.isTrue(message.getContextualProperty(PROPERTY_USE_KERBEROS_OID));
-            Oid oid = new Oid(useKerberosOid ? KERBEROS_OID : SPNEGO_OID);
+            final boolean useKerberosOid =
+                    PropertyUtils.isTrue(message.getContextualProperty(PROPERTY_USE_KERBEROS_OID));
+            final Oid oid = new Oid(useKerberosOid ? KERBEROS_OID : SPNEGO_OID);
 
-            byte[] token = getToken(authPolicy, spn, oid, message);
+            final byte[] token = getToken(spn, oid);
             return HttpAuthHeader.AUTH_TYPE_NEGOTIATE + " " + Base64Utility.encode(token);
         } catch (Exception e) {
             throw new RuntimeException(e.getMessage(), e);
         }
     }
 
-    private byte[] getToken(final AuthorizationPolicy authPolicy, final String spn, final Oid oid, final Message message)
-        throws Exception {
+    private static byte[] getToken(final String spn, final Oid oid) throws Exception {
 
-        return KerberosProvider.doWithKerberosAuthBlocking(() -> {
-//            GSSCredential delegatedCred = (GSSCredential)message.getContextualProperty(GSSCredential.class.getName());
+        return KerberosDelegationProvider.doWithConstrainedDelegationBlocking(new KerberosDelegationCallback<byte[]>() {
+            @Override
+            public byte[] doAuthenticated(final GSSCredential credential) throws Exception {
 
-            GSSManager manager = GSSManager.getInstance();
-            GSSName serverName = manager.createName(spn, null);
+                final GSSManager manager = GSSManager.getInstance();
+                final GSSName serverName = manager.createName(spn, null);
 
-            GSSContext context =
-                manager.createContext(serverName.canonicalize(oid), oid, null, GSSContext.DEFAULT_LIFETIME);
+                final GSSContext context =
+                    manager.createContext(serverName.canonicalize(oid), oid, credential, GSSContext.DEFAULT_LIFETIME);
 
-            // not sure if this is needed
-            // context.requestCredDeleg(isCredDelegationRequired(message));
-            return context.initSecContext(new byte[0], 0, 0);
+                return context.initSecContext(new byte[0], 0, 0);
+            }
         }, null);
     }
 }

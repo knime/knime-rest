@@ -37,12 +37,12 @@
              deprecated="false"
              name="Digest">
        </AuthenticateEachRequest>
-      <AuthenticateEachRequest
+       <AuthenticateEachRequest
             class="org.knime.rest.internals.NTLMAuthentication"
             deprecated="false"
             name="NTLM (Labs)">
       </AuthenticateEachRequest>
-       <AuthenticateEachRequest
+      <AuthenticateEachRequest
              class="org.knime.rest.internals.kerberos.KerberosAuthentication"
              deprecated="false"
              name="Kerberos">

@@ -32,6 +32,11 @@
 			<layout>p2</layout>
 			<url>${knime.core.p2}</url>
 		</repository>
+        <repository>
+            <id>p2-knime-kerberos</id>
+            <layout>p2</layout>
+            <url>${knime.kerberos.p2}</url>
+        </repository>
 		<repository>
 			<id>p2-knime-shared</id>
 			<layout>p2</layout>

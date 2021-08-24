@@ -65,14 +65,14 @@ import org.knime.core.node.workflow.FlowVariable;
 import org.knime.rest.generic.EachRequestAuthentication;
 
 /**
+ * {@link EachRequestAuthentication} implementation that performs Kerberos authentication via the
+ * {@link KNIMEKerberosAuthSupplier}.
  *
  * @author Bjoern Lohrmann, KNIME GmbH
+ * @author Tobias Koetter, KNIME GmbH
  */
 public class KerberosAuthentication extends EachRequestAuthentication {
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public Builder updateRequest(final Builder request, final DataRow row, final CredentialsProvider credProvider,
         final Map<String, FlowVariable> flowVariables) {
@@ -82,58 +82,37 @@ public class KerberosAuthentication extends EachRequestAuthentication {
         return request;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public boolean hasUserConfiguration() {
         return false;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void saveUserConfiguration(final NodeSettingsWO userSettings) {
         // do nothing
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void loadUserConfiguration(final NodeSettingsRO userSettings) throws InvalidSettingsException {
         // do nothing
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void loadUserConfigurationForDialog(final NodeSettingsRO userSettings, final PortObjectSpec[] specs,
         final CredentialsProvider credentialNames) throws NotConfigurableException {
         // do nothing
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void addControls(final JPanel panel) {
         // do nothing
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void updateControls() throws NotConfigurableException {
         // do nothing
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void updateSettings() {
         // do nothing
