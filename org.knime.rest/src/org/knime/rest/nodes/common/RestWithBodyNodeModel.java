@@ -220,11 +220,18 @@ public abstract class RestWithBodyNodeModel<S extends RestWithBodySettings> exte
 
     /**
      * Converts a {@link String} to an object consumable by the {@link Entity} constructor (no structural checks).
+     * If an asynchronous client is used and the body is empty, we default to 'Content-Type: "application/json"'
+     * by returning a string representation of an empty JSON object.
      *
      * @param string A {@link String}.
      * @return The converted {@code string}.
      */
     protected Object createObjectFromString(final String string) {
+        // Corner case: if the async client is in place and the body is empty, it does not send a content-type.
+        // Using this empty JSON object, this implicitly sets the content-type.
+        if (m_settings.isUsedAsyncClient() && string.equals("")) {
+            return "{}";
+        }
         return string;
     }
 

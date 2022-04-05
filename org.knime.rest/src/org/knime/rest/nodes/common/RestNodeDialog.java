@@ -198,6 +198,8 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
 
     private final JCheckBox m_allowChunking = new JCheckBox("Send large data in chunks", true);
 
+    private final JCheckBox m_useAsyncClient = new JCheckBox("Use asynchronous http client implementation");
+
     private final JSpinner m_timeoutInSeconds =
         new JSpinner(new SpinnerNumberModel(RestSettings.DEFAULT_TIMEOUT, 1, Integer.MAX_VALUE, 1));
 
@@ -423,6 +425,8 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         ret.add(m_followRedirects, gbc);
         gbc.gridy++;
         ret.add(m_allowChunking, gbc);
+        gbc.gridy++;
+        ret.add(m_useAsyncClient, gbc);
         gbc.gridy++;
         gbc.weightx = 0;
         gbc.gridx = 0;
@@ -1183,6 +1187,7 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         m_settings.setSslTrustAll(m_sslTrustAll.isSelected());
         m_settings.setFailOnConnectionProblems(m_connectionErrorPanel.isFailOnError());
         m_settings.setFollowRedirects(m_followRedirects.isSelected());
+        m_settings.setUseAsyncClient(m_useAsyncClient.isSelected());
         m_settings.setTimeoutInSeconds(((Number)m_timeoutInSeconds.getValue()).intValue());
         m_settings.getRequestHeaders().clear();
         m_settings.getRequestHeaders()
@@ -1284,6 +1289,7 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         m_settings.isOutputErrorCause().ifPresent(m_errorCausePanel::setSelected);
 
         m_followRedirects.setSelected(m_settings.isFollowRedirects());
+        m_useAsyncClient.setSelected(m_settings.isUsedAsyncClient());
         m_timeoutInSeconds.setValue(m_settings.getTimeoutInSeconds());
         m_requestHeadersModel.clear();
         for (int i = 0; i < m_settings.getRequestHeaders().size(); ++i) {
@@ -1296,6 +1302,7 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
             m_responseHeadersModel.addRow(m_settings.getExtractFields().get(i));
         }
         m_settings.isAllowChunking().ifPresent(m_allowChunking::setSelected);
+
         m_bodyColumnName.setSelectedString(m_settings.getResponseBodyColumn());
         for (final EnablableUserConfiguration<UserConfiguration> euc : m_settings.getAuthorizationConfigurations()) {
             for (final JRadioButton radioButton : m_authenticationTabTitles) {

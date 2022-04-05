@@ -83,11 +83,13 @@ import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.cxf.Bus;
 import org.apache.cxf.BusFactory;
+import org.apache.cxf.configuration.security.ProxyAuthorizationPolicy;
 import org.apache.cxf.jaxrs.client.WebClient;
 import org.apache.cxf.jaxrs.client.spec.ClientBuilderImpl;
 import org.apache.cxf.jaxrs.impl.RuntimeDelegateImpl;
-import org.apache.cxf.transport.http.HTTPConduitFactory;
+import org.apache.cxf.transport.http.asyncclient.AsyncHTTPConduit;
 import org.apache.cxf.transports.http.configuration.HTTPClientPolicy;
+import org.apache.cxf.transports.http.configuration.ProxyServerType;
 import org.eclipse.e4.core.di.annotations.Execute;
 import org.knime.base.data.xml.SvgCell;
 import org.knime.core.data.DataCell;
@@ -1050,9 +1052,9 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
 
         final Builder request = target.request();
 
-        // make sure that the AsyncHTTPConduitFactory is *not* used
         Bus bus = BusFactory.getThreadDefaultBus();
-        bus.setExtension(null, HTTPConduitFactory.class);
+        // Per default, the sync client is used. Proxy authorization credentials are only sent with the async client.
+        bus.setProperty(AsyncHTTPConduit.USE_ASYNC, m_settings.isUsedAsyncClient());
 
         for (final RequestHeaderKeyItem headerItem : m_settings.getRequestHeaders()) {
             Object value = computeHeaderValue(row, spec, headerItem);
@@ -1066,6 +1068,8 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         HTTPClientPolicy clientPolicy = WebClient.getConfig(request).getHttpConduit().getClient();
         boolean allowChunking = m_settings.isAllowChunking().orElse(RestSettings.DEFAULT_ALLOW_CHUNKING);
         clientPolicy.setAllowChunking(allowChunking);
+        // Configures the proxy credentials for the request builder if needed.
+        setProxyCredentialsIfNeeded(request);
 
         if (!clientPolicy.isSetAutoRedirect()) {
             clientPolicy.setAutoRedirect(m_settings.isFollowRedirects());
@@ -1074,6 +1078,60 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
             clientPolicy.setMaxRetransmits(MAX_RETRANSITS);
         }
         return Pair.create(request, client);
+    }
+
+    /**
+     * Uses the System proxy properties to configure the request builder client if needed.
+     * Sets the server, port, user and password to a <code>HTTPClientPolicy</code> and
+     * <code>ProxyAuthorizationPolicy</code> and adds them to the client configuration.
+     *
+     * @param request Builder that creates the invocation.
+     */
+    protected void setProxyCredentialsIfNeeded(final Builder request) {
+        // Determine which http variant system property should be queried
+        var httpVariant = "http";
+        // If there is no entry as the proxy host, don't set the credentials.
+        if (System.getProperty("http.proxyHost") == null) {
+            if (System.getProperty("https.proxyHost") == null) {
+                return;
+            } else {
+                httpVariant = "https";
+            }
+        }
+
+        // The synchronous client does not support proxy authentication because of not sending its credentials.
+        if (!m_settings.isUsedAsyncClient()) {
+            throw new ProcessingException("Proxy can only be used with the asynchronous client setting");
+        }
+
+        // Getting configuration conduit from request builder.
+        var conduit = WebClient.getConfig(request).getHttpConduit();
+
+        // Collecting stored proxy settings from System variables.
+        String proxyServer = System.getProperty(httpVariant + ".proxyHost");
+        String proxyPort = System.getProperty(httpVariant + ".proxyPort");
+        String username = System.getProperty(httpVariant + ".proxyUser");
+        String password = System.getProperty(httpVariant + ".proxyPassword");
+
+        // Setting proxy credentials.
+        HTTPClientPolicy policy = conduit.getClient();
+        if (policy == null) {
+            policy = new HTTPClientPolicy();
+        }
+        policy.setProxyServer(proxyServer);
+        policy.setProxyServerPort(proxyPort != null ? Integer.parseInt(proxyPort) : null);
+        policy.setProxyServerType(ProxyServerType.HTTP);
+        conduit.setClient(policy);
+
+        // Setting authentication data.
+        ProxyAuthorizationPolicy authorization = conduit.getProxyAuthorization();
+        if (authorization == null) {
+            authorization = new ProxyAuthorizationPolicy();
+        }
+        authorization.setUserName(username);
+        authorization.setPassword(password);
+        authorization.setAuthorizationType("Basic");
+        conduit.setProxyAuthorization(authorization);
     }
 
     /**
