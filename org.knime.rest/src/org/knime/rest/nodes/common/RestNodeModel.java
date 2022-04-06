@@ -1101,7 +1101,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
 
         // The synchronous client does not support proxy authentication because of not sending its credentials.
         if (!m_settings.isUsedAsyncClient()) {
-            throw new ProcessingException("Proxy can only be used with the asynchronous client setting");
+            throw new ProcessingException("Please enable the asynchronous http client setting in the node configuration");
         }
 
         // Getting configuration conduit from request builder.
