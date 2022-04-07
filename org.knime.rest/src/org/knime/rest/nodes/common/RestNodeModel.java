@@ -1098,20 +1098,18 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
                 httpVariant = "https";
             }
         }
+        String proxyServer = System.getProperty(httpVariant + ".proxyHost");
+        String proxyPort = System.getProperty(httpVariant + ".proxyPort");
+        String username = System.getProperty(httpVariant + ".proxyUser");
+        String password = System.getProperty(httpVariant + ".proxyPassword");
 
         // The synchronous client does not support proxy authentication because of not sending its credentials.
-        if (!m_settings.isUsedAsyncClient()) {
+        if (!m_settings.isUsedAsyncClient() && (username != null || password != null)) {
             throw new ProcessingException("Please enable the asynchronous http client setting in the node configuration");
         }
 
         // Getting configuration conduit from request builder.
         var conduit = WebClient.getConfig(request).getHttpConduit();
-
-        // Collecting stored proxy settings from System variables.
-        String proxyServer = System.getProperty(httpVariant + ".proxyHost");
-        String proxyPort = System.getProperty(httpVariant + ".proxyPort");
-        String username = System.getProperty(httpVariant + ".proxyUser");
-        String password = System.getProperty(httpVariant + ".proxyPassword");
 
         // Setting proxy credentials.
         HTTPClientPolicy policy = conduit.getClient();
