@@ -198,7 +198,7 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
 
     private final JCheckBox m_allowChunking = new JCheckBox("Send large data in chunks", true);
 
-    private final JCheckBox m_useAsyncClient = new JCheckBox("Use asynchronous http client implementation");
+    private final JCheckBox m_useAsyncClient = new JCheckBox("Use asynchronous HTTP client implementation");
 
     private final JSpinner m_timeoutInSeconds =
         new JSpinner(new SpinnerNumberModel(RestSettings.DEFAULT_TIMEOUT, 1, Integer.MAX_VALUE, 1));
