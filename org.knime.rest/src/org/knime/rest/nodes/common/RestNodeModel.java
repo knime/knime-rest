@@ -907,7 +907,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         if (response == null) {
             replace(m_bodyColumns,
                 new ResponseHeaderItem(m_settings.getResponseBodyColumn(), BinaryObjectDataCell.TYPE));
-        } else if (response.hasEntity()) {
+        } else {
             boolean isHttpError = isHttpError(response);
             final MediaType mediaType = response.getMediaType();
             DataType type = BinaryObjectDataCell.TYPE;
@@ -1141,7 +1141,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
      */
     protected void addBodyValues(final List<DataCell> cells, final Response response, final DataCell missing) {
         m_bodyColumns.stream().forEachOrdered(rhi -> {
-            if (response != null && response.hasEntity()) {
+            if (response != null) {
                 DataType expectedType = rhi.getType();
                 MediaType mediaType = response.getMediaType();
                 if (mediaType == null) {
