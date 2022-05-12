@@ -49,7 +49,12 @@
 package org.knime.rest.nodes.webpageretriever;
 
 import java.net.URI;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import javax.ws.rs.client.Invocation;
@@ -132,6 +137,10 @@ final class WebpageRetrieverNodeModel extends RestNodeModel<WebpageRetrieverSett
                 cells.add(
                     new MissingCell("Status Code: " + response.getStatus() + "; " + ((MissingCell)cell).getError()));
             }
+            // add extracted cookies if any
+            if (m_settings.isExtractCookies()) {
+                cells.add(extractCookies(response));
+            }
             return;
         }
         // we can only handle strings
@@ -179,11 +188,7 @@ final class WebpageRetrieverNodeModel extends RestNodeModel<WebpageRetrieverSett
         }
 
         if (m_settings.isExtractCookies()) {
-            final Map<String, NewCookie> cookies = response.getCookies();
-            final List<StringCell> cookiesAsListOfStringCells =
-                cookies.values().stream().map(NewCookie::toString).map(StringCell::new).collect(Collectors.toList());
-            cells.add(cookiesAsListOfStringCells.isEmpty() ? new MissingCell("The server did not send any cookies.")
-                : CollectionCellFactory.createListCell(cookiesAsListOfStringCells));
+            cells.add(extractCookies(response));
         }
     }
 
@@ -269,6 +274,26 @@ final class WebpageRetrieverNodeModel extends RestNodeModel<WebpageRetrieverSett
                 i++;
             }
         }
+    }
+
+    /**
+     * Extracts cookies from the response. If the response is null or does not contain any
+     * cookies, a missing cell is returned.
+     * Otherwise, a list cell with all cookies is returned.
+     * @param response
+     * @return DataCell containing cookies
+     */
+    private static DataCell extractCookies(final Response response) {
+        var noCookiesCell = new MissingCell("The server did not send any cookies.");
+        if (response == null) {
+            return noCookiesCell;
+        }
+        final Map<String, NewCookie> cookies = response.getCookies();
+        // maps each cookie to a StingCell
+        final List<StringCell> cookiesAsListOfStringCells =
+            cookies.values().stream().map(NewCookie::toString).map(StringCell::new).collect(Collectors.toList());
+        // StringCells of cookies are then aggregated into a ListCell
+        return cookiesAsListOfStringCells.isEmpty() ? noCookiesCell : CollectionCellFactory.createListCell(cookiesAsListOfStringCells);
     }
 
     @Override
