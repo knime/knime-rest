@@ -80,6 +80,7 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.ext.RuntimeDelegate;
 
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.cxf.Bus;
 import org.apache.cxf.BusFactory;
@@ -1102,6 +1103,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         String proxyPort = System.getProperty(httpVariant + ".proxyPort");
         String username = System.getProperty(httpVariant + ".proxyUser");
         String password = System.getProperty(httpVariant + ".proxyPassword");
+        String nonProxyHosts = System.getProperty(httpVariant + ".nonProxyHosts");
 
         // The synchronous client does not support proxy authentication because of not sending its credentials.
         if (!m_settings.isUsedAsyncClient() && (username != null || password != null)) {
@@ -1119,6 +1121,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         policy.setProxyServer(proxyServer);
         policy.setProxyServerPort(proxyPort != null ? Integer.parseInt(proxyPort) : null);
         policy.setProxyServerType(ProxyServerType.HTTP);
+        policy.setNonProxyHosts(StringUtils.defaultIfEmpty(nonProxyHosts, null));
         conduit.setClient(policy);
 
         // Setting authentication data.
