@@ -1090,45 +1090,44 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
      */
     protected void setProxyCredentialsIfNeeded(final Builder request) {
         // Determine which http variant system property should be queried
-        var httpVariant = "http";
-        // If there is no entry as the proxy host, don't set the credentials.
-        if (System.getProperty("http.proxyHost") == null) {
-            if (System.getProperty("https.proxyHost") == null) {
-                return;
-            } else {
-                httpVariant = "https";
-            }
+        var httpPresent = StringUtils.isNotBlank(System.getProperty("http.proxyHost"));
+        var httpsPresent = StringUtils.isNotBlank(System.getProperty("https.proxyHost"));
+
+        String protocol = null;
+        if (httpsPresent) {
+            protocol = "https";
+        } else if (httpPresent) {
+            protocol = "http";
         }
-        String proxyServer = System.getProperty(httpVariant + ".proxyHost");
-        String proxyPort = System.getProperty(httpVariant + ".proxyPort");
-        String username = System.getProperty(httpVariant + ".proxyUser");
-        String password = System.getProperty(httpVariant + ".proxyPassword");
-        String nonProxyHosts = System.getProperty(httpVariant + ".nonProxyHosts");
+        if (protocol == null || !"true".equals(System.getProperty(protocol + ".proxySet"))) {
+            // If there is no entry as the proxy host, don't set the credentials.
+            return;
+        }
+
+        String username = System.getProperty(protocol + ".proxyUser");
+        String password = System.getProperty(protocol + ".proxyPassword");
 
         // The synchronous client does not support proxy authentication because of not sending its credentials.
         if (!m_settings.isUsedAsyncClient() && (username != null || password != null)) {
             throw new ProcessingException("Please enable the asynchronous HTTP client setting in the node configuration");
         }
-
-        // Getting configuration conduit from request builder.
         var conduit = WebClient.getConfig(request).getHttpConduit();
 
         // Setting proxy credentials.
-        HTTPClientPolicy policy = conduit.getClient();
-        if (policy == null) {
-            policy = new HTTPClientPolicy();
-        }
+        String proxyServer = System.getProperty(protocol + ".proxyHost");
+        String proxyPort = System.getProperty(protocol + ".proxyPort");
+        String nonProxyHosts = System.getProperty(protocol + ".nonProxyHosts");
+
+        HTTPClientPolicy policy = Objects.requireNonNullElse(conduit.getClient(), new HTTPClientPolicy());
         policy.setProxyServer(proxyServer);
         policy.setProxyServerPort(proxyPort != null ? Integer.parseInt(proxyPort) : null);
         policy.setProxyServerType(ProxyServerType.HTTP);
         policy.setNonProxyHosts(StringUtils.defaultIfEmpty(nonProxyHosts, null));
         conduit.setClient(policy);
 
-        // Setting authentication data.
-        ProxyAuthorizationPolicy authorization = conduit.getProxyAuthorization();
-        if (authorization == null) {
-            authorization = new ProxyAuthorizationPolicy();
-        }
+        // Setting authorization data.
+        ProxyAuthorizationPolicy authorization =
+            Objects.requireNonNullElse(conduit.getProxyAuthorization(), new ProxyAuthorizationPolicy());
         authorization.setUserName(username);
         authorization.setPassword(password);
         authorization.setAuthorizationType("Basic");
