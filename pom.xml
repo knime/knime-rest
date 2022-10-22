@@ -22,6 +22,7 @@
 	</properties>
 
 	<modules>
+		<module>org.knime.rest.tests</module>
 		<module>org.knime.rest</module>
 		<module>org.knime.features.rest</module>
 		<module>org.knime.update.rest</module>
