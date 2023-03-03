@@ -86,6 +86,8 @@ public class RestSettings {
 
     static final String EXTENSION_ID = "org.knime.rest.authentication";
 
+    // -- Static settings keys and default values. --
+
     private static final String USE_CONSTANT_URI = "Use constant URI";
 
     private static final boolean DEFAULT_USE_CONSTANT_URI = true;
@@ -135,6 +137,8 @@ public class RestSettings {
     protected static final String FAIL_ON_SERVER_ERRORS = "failOnServerError";
 
     private static final String OUTPUT_ERROR_CAUSE_KEY = "outputErrorCause";
+
+    private static final String FAIL_MISSING_HEADERS_KEY = "failOnMissingHeaders";
 
     /** Default value for the fail on http errors option. */
     protected static final boolean DEFAULT_FAIL_ON_HTTP_ERRORS = false;
@@ -191,6 +195,10 @@ public class RestSettings {
     /** Whether the requests are allowed to be made with Chunked Transfer Encoding **/
     protected static final boolean DEFAULT_ALLOW_CHUNKING = true;
 
+    private static final boolean DEFAULT_FAIL_MISSING_HEADERS = true;
+
+    // -- RestSettings instance properties. --
+
     private boolean m_isUseConstantURI = DEFAULT_USE_CONSTANT_URI;
 
     private String m_constantURI = DEFAULT_CONSTANT_URI;
@@ -216,6 +224,8 @@ public class RestSettings {
     private int m_timeoutInSeconds = DEFAULT_TIMEOUT;
 
     private Optional<DelayPolicy> m_delayPolicy = Optional.empty();
+
+    private boolean m_isFailOnMissingHeaders = DEFAULT_FAIL_MISSING_HEADERS;
 
     /**
      * Whether the node should output a missing value or fail in execution when a response returns a HTTP status code
@@ -698,6 +708,14 @@ public class RestSettings {
         return m_requestHeaders;
     }
 
+    protected boolean isFailOnMissingHeaders() {
+        return m_isFailOnMissingHeaders;
+    }
+
+    protected void setFailOnMissingHeaders(final boolean value) {
+        m_isFailOnMissingHeaders = value;
+    }
+
     /**
      * @return the extractFields (mutable, be careful!)
      */
@@ -796,9 +814,9 @@ public class RestSettings {
         settings.addBoolean(SSL_TRUST_ALL, m_sslTrustAll);
         settings.addBoolean(FAIL_ON_CONNECTION_PROBLEMS, m_failOnConnectionProblems);
         settings.addStringArray(REQUEST_HEADER_KEYS,
-            m_requestHeaders.stream().map(rh -> rh.getKey()).toArray(n -> new String[n]));
+            m_requestHeaders.stream().map(RequestHeaderKeyItem::getKey).toArray(n -> new String[n]));
         settings.addStringArray(REQUEST_HEADER_KEY_SELECTOR,
-            m_requestHeaders.stream().map(rh -> rh.getValueReference()).toArray(n -> new String[n]));
+            m_requestHeaders.stream().map(RequestHeaderKeyItem::getValueReference).toArray(n -> new String[n]));
         settings.addStringArray(REQUEST_HEADER_KEY_KIND,
             m_requestHeaders.stream().map(rh -> rh.getKind().name()).toArray(n -> new String[n]));
         settings.addBoolean(EXTRACT_ALL_RESPONSE_FIELDS, m_extractAllResponseFields);
@@ -823,6 +841,7 @@ public class RestSettings {
         settings.addBoolean(FAIL_ON_CLIENT_ERRORS, m_failOnClientErrors);
         m_outputErrorCause.ifPresent(value -> settings.addBoolean(OUTPUT_ERROR_CAUSE_KEY, value));
         m_allowChunking.ifPresent(allowChunking -> settings.addBoolean(ALLOW_CHUNKING_KEY, allowChunking));
+        settings.addBoolean(FAIL_MISSING_HEADERS_KEY, m_isFailOnMissingHeaders);
     }
 
     /**
@@ -903,6 +922,9 @@ public class RestSettings {
         } catch (InvalidSettingsException e) { // NOSONAR
             // noop
         }
+        /* Backwards compatibility: if not present, missing headers are ignored.
+         * Otherwise, the new default (see DEFAULT_FAIL_MISSING_HEADERS) is to fail. */
+        m_isFailOnMissingHeaders = settings.getBoolean(FAIL_MISSING_HEADERS_KEY, false);
     }
 
     private void loadFailOnHttp(final NodeSettingsRO settings) {
@@ -1000,5 +1022,8 @@ public class RestSettings {
         } catch (InvalidSettingsException e) { // NOSONAR
             // noop
         }
+        /* Backwards compatibility: if not present, missing headers are ignored.
+         * Otherwise, the new default (see DEFAULT_FAIL_MISSING_HEADERS) is to fail. */
+        m_isFailOnMissingHeaders = settings.getBoolean(FAIL_MISSING_HEADERS_KEY, false);
     }
 }

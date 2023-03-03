@@ -211,6 +211,8 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
 
     private final JButton m_requestDeleteRow = new JButton("Remove header parameter");
 
+    private final JCheckBox m_failOnMissingHeaderCheck = new JCheckBox("Fail on missing header value");
+
     private final ResponseTableModel m_responseHeadersModel = new ResponseTableModel();
 
     private final JTable m_requestHeaders = new JTable(m_requestHeadersModel);
@@ -862,6 +864,8 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         gbc.gridx++;
         ret.add(m_requestEditRow, gbc);
         gbc.gridx++;
+        ret.add(m_failOnMissingHeaderCheck, gbc);
+        gbc.gridx++;
         gbc.weightx = .5;
         ret.add(new JPanel(), gbc);
         m_requestHeaders.getColumnModel().getColumn(RequestTableModel.Columns.headerKey.ordinal())
@@ -1192,6 +1196,7 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         m_settings.getRequestHeaders().clear();
         m_settings.getRequestHeaders()
             .addAll(StreamSupport.stream(m_requestHeadersModel.spliterator(), false).collect(Collectors.toList()));
+        m_settings.setFailOnMissingHeaders(m_failOnMissingHeaderCheck.isSelected());
         m_settings.setExtractAllResponseFields(m_extractAllHeaders.isSelected());
         m_settings.getExtractFields().clear();
         m_settings.getExtractFields()
@@ -1296,6 +1301,7 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
             m_requestHeadersModel.addRow(m_settings.getRequestHeaders().get(i));
         }
         enableRequestHeaderChangeControls(!m_settings.getRequestHeaders().isEmpty());
+        m_failOnMissingHeaderCheck.setSelected(m_settings.isFailOnMissingHeaders());
         m_extractAllHeaders.setSelected(m_settings.isExtractAllResponseFields());
         m_responseHeadersModel.clear();
         for (int i = 0; i < m_settings.getExtractFields().size(); ++i) {

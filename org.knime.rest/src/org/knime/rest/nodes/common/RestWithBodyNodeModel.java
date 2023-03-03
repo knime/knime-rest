@@ -242,7 +242,7 @@ public abstract class RestWithBodyNodeModel<S extends RestWithBodySettings> exte
     protected Invocation invocation(final Builder request, final DataRow row, final DataTableSpec spec) {
         final RestWithBodySettings settings = getSettings();
         final int bodyColumn = spec == null ? -1 : spec.findColumnIndex(settings.getRequestBodyColumn());
-        final MediaType mediaType = MediaType.valueOf((String)computeHeaderValue(row, spec,
+        final MediaType mediaType = MediaType.valueOf(extractHeaderValue(row, spec,
             settings.getRequestHeaders().stream().filter(v -> "Content-Type".equals(v.getKey())).findAny()
                 .orElse(new RequestHeaderKeyItem("Content-Type", "application/json", ReferenceType.Constant))));
 

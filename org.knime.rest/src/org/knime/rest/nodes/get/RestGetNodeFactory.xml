@@ -67,7 +67,9 @@
             <option name="Header value">The value for the header which can be a constant value or a reference to a flow
             variable, a column, a credential name, or a credential password (see the kind option).</option>
             <option name="Header kind">The kind of the value specified, which is either a constant value or a reference
-            to a flow variable, a column, a credential name, or a credential password </option>
+            to a flow variable, a column, a credential name, or a credential password.</option>
+            <option name="Fail on missing header value">Setting this option makes the node fail once a header input value is not 
+            available anymore, e.g. due to a missing value. Is enabled by default.</option>
         </tab>
         <tab name="Response Headers">
             <option name="Extract all fields">If checked, all header fields present in the first response are extracted

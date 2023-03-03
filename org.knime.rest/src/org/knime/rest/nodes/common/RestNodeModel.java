@@ -141,6 +141,12 @@ import org.knime.core.node.streamable.StreamableOperatorInternals;
 import org.knime.core.node.streamable.simple.SimpleStreamableOperatorInternals;
 import org.knime.core.node.util.CheckUtils;
 import org.knime.core.node.workflow.FlowVariable;
+import org.knime.core.node.workflow.VariableType;
+import org.knime.core.node.workflow.VariableType.BooleanType;
+import org.knime.core.node.workflow.VariableType.DoubleType;
+import org.knime.core.node.workflow.VariableType.IntType;
+import org.knime.core.node.workflow.VariableType.LongType;
+import org.knime.core.node.workflow.VariableType.StringType;
 import org.knime.core.util.Pair;
 import org.knime.core.util.ThreadLocalHTTPAuthenticator;
 import org.knime.core.util.ThreadLocalHTTPAuthenticator.AuthenticationCloseable;
@@ -400,8 +406,8 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         Response response;
         DataCell missing;
         Pair<Builder, Client> requestBuilderPair =
-                createRequest(spec == null ? -1 : spec.findColumnIndex(m_settings.getUriColumn()),
-                    enabledEachRequestAuthentications, row, spec);
+            createRequest(spec == null ? -1 : spec.findColumnIndex(m_settings.getUriColumn()),
+                enabledEachRequestAuthentications, row, spec);
         try {
             Invocation invocation = invocation(requestBuilderPair.getFirst(), row, spec);
             response = DelayPolicy.doWithDelays(m_settings.getDelayPolicy(), m_cooldownContext, () -> invoke(invocation));
@@ -698,13 +704,14 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
                     return m_firstCallValues.get(firstRowIdx);
                 }
                 assert m_consumedRows > 0;
-                final Pair<Builder, Client> requestBuilder =
-                        createRequest(uriColumn, enabledEachRequestAuthentications, row, spec);
                 final List<DataCell> cells;
+                Pair<Builder, Client> requestBuilder = null;
                 DataCell missing = null;
                 try {
                     Response response;
                     try {
+                        // Creating the request can cause an ISE, see AP-20219.
+                        requestBuilder = createRequest(uriColumn, enabledEachRequestAuthentications, row, spec);
                         Invocation invocation = invocation(requestBuilder.getFirst(), row, spec);
                         response = DelayPolicy.doWithDelays(m_settings.getDelayPolicy(), m_cooldownContext, () -> invoke(invocation));
                     } catch (ProcessingException e) {
@@ -764,8 +771,9 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
                     throw new IllegalStateException(e);
                 } finally {
                     m_consumedRows++;
-                    Client client = requestBuilder.getSecond();
-                    client.close();
+                    if (requestBuilder != null) {
+                        requestBuilder.getSecond().close();
+                    }
                 }
                 if (exec != null) {
                     setProgress(m_consumedRows, tableSize, row.getKey(), exec);
@@ -1027,11 +1035,12 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
      * @param row The input {@link DataRow}.
      * @param spec The input table spec.
      * @return
+     * @throws InvalidSettingsException
      */
     @SuppressWarnings("null")
     private Pair<Builder, Client> createRequest(final int uriColumn,
         final List<EachRequestAuthentication> enabledEachRequestAuthentications, final DataRow row,
-        final DataTableSpec spec) {
+        final DataTableSpec spec) throws InvalidSettingsException {
         final Client client = createClient();
         CheckUtils.checkState(m_settings.isUseConstantURI() || row != null,
             "Without the constant uri and input, it is not possible to call a REST service!");
@@ -1058,7 +1067,12 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         bus.setProperty(AsyncHTTPConduit.USE_ASYNC, m_settings.isUsedAsyncClient());
 
         for (final RequestHeaderKeyItem headerItem : m_settings.getRequestHeaders()) {
-            Object value = computeHeaderValue(row, spec, headerItem);
+            var value = extractHeaderValue(row, spec, headerItem);
+            // If a specified request header has no value, the REST node execution fails with an ISE.
+            if (Objects.isNull(value) && m_settings.isFailOnMissingHeaders()) {
+                throw new InvalidSettingsException("The value of request header \"" + headerItem.getKey()
+                    + "\" is not available. Enter a non-empty value.");
+            }
             request.header(headerItem.getKey(), value);
         }
 
@@ -1180,28 +1194,19 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
      * @param headerItem {@link RequestHeaderKeyItem} for the specification of how to select the value.
      * @return The transformed value.
      */
-    Object computeHeaderValue(final DataRow row, final DataTableSpec spec, final RequestHeaderKeyItem headerItem) {
-        Object value;
-        switch (headerItem.getKind()) {
-            case Constant:
-                value = headerItem.getValueReference();
-                break;
-            case Column:
-                value = row.getCell(spec.findColumnIndex(headerItem.getValueReference())).toString();
-                break;
-            case FlowVariable:
-                value = getAvailableInputFlowVariables().get(headerItem.getValueReference()).getValueAsString();
-                break;
-            case CredentialName:
-                value = getCredentialsProvider().get(headerItem.getValueReference()).getLogin();
-                break;
-            case CredentialPassword:
-                value = getCredentialsProvider().get(headerItem.getValueReference()).getPassword();
-                break;
-            default:
-                throw new UnsupportedOperationException("Unknown: " + headerItem.getKind() + " in: " + headerItem);
-        }
-        return value;
+    String extractHeaderValue(final DataRow row, final DataTableSpec spec, final RequestHeaderKeyItem headerItem) {
+        final var ref = headerItem.getValueReference();
+        final var supportedTypes = new VariableType[]{BooleanType.INSTANCE, DoubleType.INSTANCE, IntType.INSTANCE,
+            LongType.INSTANCE, StringType.INSTANCE};
+
+        return switch (headerItem.getKind()) {
+            case Constant -> ref;
+            case Column -> row.getCell(spec.findColumnIndex(ref)).isMissing() ? null
+                : row.getCell(spec.findColumnIndex(ref)).toString();
+            case FlowVariable -> getAvailableFlowVariables(supportedTypes).get(ref).getValueAsString();
+            case CredentialName -> getCredentialsProvider().get(ref).getLogin();
+            case CredentialPassword -> getCredentialsProvider().get(ref).getPassword();
+        };
     }
 
     /**
