@@ -44,61 +44,73 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   10. Febr. 2016. (Gabor Bakos): created
+ *   8 Mar 2023 (leon.wenzler): created
  */
-package org.knime.rest.internals;
+package org.knime.rest.nodes.common.proxy;
 
-import java.io.UnsupportedEncodingException;
-import java.util.Map;
-
-import javax.ws.rs.client.Invocation.Builder;
-
-import org.apache.cxf.common.util.Base64Utility;
-import org.knime.core.data.DataRow;
-import org.knime.core.node.NodeLogger;
-import org.knime.core.node.workflow.CredentialsProvider;
-import org.knime.core.node.workflow.FlowVariable;
-import org.knime.rest.generic.UsernamePasswordAuthentication;
+import java.util.Locale;
+import java.util.Optional;
 
 /**
- * Basic authentication.
+ * Type of protocol to use for the proxy connection, come with default ports.
  *
- * @author Gabor Bakos
+ * @author Leon Wenzler, KNIME AG, Konstanz, Germany
  */
-public class BasicAuthentication extends UsernamePasswordAuthentication {
-    /**
-     * Constructs with the empty defaults. (This constructor is called for the automatic instantiation.)
-     */
-    public BasicAuthentication() {
-        this("BASIC auth");
+public enum ProxyProtocol {
+        /**
+         * Uses the HTTP protocol to establish a proxy connection.
+         * Some also use 3128 as default port.
+         */
+        HTTP(8080),
+        /**
+         * Uses the HTTPS protocol to establish a proxy connection. More secure than HTTP, uses SSL additionally.
+         * Some also use 3128 as default port.
+         */
+        HTTPS(8080),
+        /**
+         * Uses the SOCKS protocol to establish a proxy connection. Defined in RFC 1928, can safely traverse a firewall
+         * both at the TCP and UDP level.
+         */
+        SOCKS(1080);
+
+    private final int m_defaultPort;
+
+    ProxyProtocol(final int defaultPort) {
+        m_defaultPort = defaultPort;
     }
 
     /**
-     * Constructs the basic authentication with a custom config name.
-     * @param configName String
+     * Returns the default port per protocol.
+     *
+     * @return int port
      */
-    public BasicAuthentication(final String configName) {
-        super(configName, "", "", "");
+    int getDefaultPort() {
+        return m_defaultPort;
+    }
+
+    Optional<String> getSystemProperty(final String key) {
+        if (key == null) {
+            return Optional.empty();
+        }
+
+        if (this == ProxyProtocol.SOCKS) {
+            // For the SOCKS protocol, keys do not contain a dot and are in camel-case.
+            final var protocolKey = asLowerString() + key.substring(0, 1).toUpperCase(Locale.ENGLISH) + key.substring(1);
+            return Optional.ofNullable(System.getProperty(protocolKey));
+        } else if (GlobalProxyConfigProvider.EXCLUDED_HOSTS_KEY.equals(key)) {
+            // According to https://docs.oracle.com/javase/6/docs/technotes/guides/net/proxies.html,
+            // the HTTP and HTTPS protocol use the same property for non-proxy-hosts.
+            return Optional.ofNullable(System.getProperty("http." + key));
+        }
+        return Optional.ofNullable(System.getProperty(asLowerString() + "." + key));
     }
 
     /**
-     * {@inheritDoc}
+     * String which can be used as a prefix for System properties.
+     *
+     * @return protocol string
      */
-    @Override
-    public Builder updateRequest(final Builder request, final DataRow row, final CredentialsProvider credProvider,
-        final Map<String, FlowVariable> flowVariables) {
-        final String username = isUseCredentials() ? credProvider.get(getCredential()).getLogin() : getUsername();
-        String password = isUseCredentials() ? credProvider.get(getCredential()).getPassword() : getPassword();
-        if (password == null) {
-            password = "";
-        }
-        try {
-            request.header("Authorization",
-                "Basic " + Base64Utility.encode((username + ":" + password).getBytes("UTF-8")));
-        } catch (UnsupportedEncodingException ex) {
-            // UTF-8 is supported for sure, but who knows...
-            NodeLogger.getLogger(getClass()).error("Unsupported charset: " + ex.getMessage(), ex);
-        }
-        return request;
+    String asLowerString() {
+        return name().toLowerCase(Locale.ENGLISH);
     }
 }

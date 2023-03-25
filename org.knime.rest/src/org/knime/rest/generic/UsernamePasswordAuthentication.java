@@ -110,9 +110,11 @@ public abstract class UsernamePasswordAuthentication extends EachRequestAuthenti
      */
     @Override
     public void updateSettings() {
-        NodeSettings nodeSettings = new NodeSettings("");
+        var nodeSettings = new NodeSettings("");
         try {
-            m_controls.saveSettingsTo(nodeSettings);
+            if (m_controls != null) {
+                m_controls.saveSettingsTo(nodeSettings);
+            }
             m_settings.loadSettingsFrom(nodeSettings);
         } catch (InvalidSettingsException e) {
             throw new IllegalStateException(e);
@@ -152,12 +154,14 @@ public abstract class UsernamePasswordAuthentication extends EachRequestAuthenti
      */
     @Override
     public void updateControls() {
-        NodeSettings nodeSettings = new NodeSettings("");
+        var nodeSettings = new NodeSettings("");
         m_settings.saveSettingsTo(nodeSettings);
-        try {
-            m_controls.loadSettingsFrom(nodeSettings, null, m_lastCredentialsProvider);
-        } catch (NotConfigurableException e) {
-            throw new IllegalStateException(e);
+        if (m_controls != null) {
+            try {
+                m_controls.loadSettingsFrom(nodeSettings, null, m_lastCredentialsProvider);
+            } catch (NotConfigurableException e) {
+                throw new IllegalStateException(e);
+            }
         }
     }
 
@@ -168,6 +172,17 @@ public abstract class UsernamePasswordAuthentication extends EachRequestAuthenti
     public void addControls(final JPanel panel) {
         initControls();
         panel.add(m_controls.getComponentPanel());
+    }
+
+    /**
+     * Enables or disables the underlying {@link DialogComponentAuthentication} panel.
+     *
+     * @param enabled Should the panel be enabled?
+     */
+    public void setEnabled(final boolean enabled) {
+        if (m_controls != null) {
+            m_controls.getModel().setEnabled(enabled);
+        }
     }
 
     /**

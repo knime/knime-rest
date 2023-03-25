@@ -22,7 +22,7 @@
         provided by additional extensions.</p>
         </intro>
         
-        <tab name="Connection Settings">
+        <tab name="Connection">
             <option name="URL">Select a constant URL or a column from the input table that contains the URLs that you
             want to request.</option>
             <option name="Delay (ms)">Here you specify a delay between two consecutive requests, e.g. in order to avoid
@@ -55,31 +55,43 @@
             <option name="Username">The username used for authentication.</option>
             <option name="Password">The corresponding password used for authentication.</option>
         </tab>
-        <tab name="Request Headers">
-            <option name="Merge">If you click this button the request headers from the selected template on the left are
-            merged with the already existing header definitions in the table below.</option>
-            <option name="Replace">If you click this button the request headers from the selected template on the left will
-            replace any existing header definitions in the table below.</option>
-			<option name="Header key">The HTTP header key, e.g. <tt>Accept</tt> or <tt>X-Custom-Key</tt>. Note that some
-			header keys such as <tt>Origin</tt> are silently ignored by default for security reasons. You can configure
-			KNIME AP to allow any header key by setting the <tt>sun.net.http.allowRestrictedHeaders</tt> system property in the
-			<i>knime.ini</i> configuration file to <tt>true</tt>.</option>
-            <option name="Header value">The value for the header which can be a constant value or a reference to a flow
-            variable, a column, a credential name, or a credential password (see the kind option).</option>
-            <option name="Header kind">The kind of the value specified, which is either a constant value or a reference
-            to a flow variable, a column, a credential name, or a credential password.</option>
-            <option name="Fail on missing header value">Setting this option makes the node fail once a header input value is not 
-            available anymore, e.g. due to a missing value. Is enabled by default.</option>
-        </tab>
-        <tab name="Request Body">
-        	<option name="Use column's content as body">Use the selected column's content as the body of the request.</option>
-        	<option name="Use constant body">Use the specified content below as the body of the request.</option>
-        </tab>
-        <tab name="Response Headers">
-            <option name="Extract all fields">If checked, all header fields present in the first response are extracted
-            into columns.</option>
-            <option name="Header key">The name of the header to extract.</option>
-            <option name="Header type">The KNIME data type the header should be converted into.</option>
+        <tab name="Proxy">
+            <option name="Direct connection (no proxy)">
+                This option disables the proxy for this POST node. This will bypass KNIME-wide proxies as well.
+            </option>
+            <option name="Use KNIME-wide proxy settings">
+                Uses the same proxy as the KNIME platform. In the KNIME Analytics Platform, this can be changed under 
+                <tt>File > Preferences > General > Network Connections</tt>.
+            </option>
+            <option name="Use node-specific proxy settings">
+                This option enables the configuration fields in the "Proxy" tab. 
+                The proxy settings apply only to this POST node.
+            </option>
+            <option name="Proxy Protocol">
+                This option describes the proxy protocol to use. HTTP, HTTPS and SOCKS can be selected.
+            </option>
+            <option name="Proxy Host">
+                Specifies the proxy host address.
+            </option>
+            <option name="Proxy Port">
+                Specifies the port that should be used at the proxy host.
+            </option>
+            <option name="Workflow Credentials">
+                If enabled, this option allows to select credentials stored in the workflow to be used for the username and password.
+                Filling the "Username" and "Password" fields is not needed then.
+            </option>
+            <option name="Username">
+                If the option "Proxy host needs authentication" is enabled, this field specifies the username to use. 
+                Always uses <tt>Basic</tt> authentication for proxy hosts.
+            </option>
+            <option name="Password">
+                If the option "Proxy host needs authentication" is enabled, this field specifies the password to use. 
+                Always uses <tt>Basic</tt> authentication for proxy hosts.
+            </option>
+            <option name="Excluded Hosts">
+                If the option "Exclude hosts from proxy" is enabled, this field specifies the hosts that will be ignored by the proxy connection.
+                Requests to excluded hosts will use a direct connection. If multiple hosts are specified, they should be separated using a vertical bar ('|').
+            </option>
         </tab>
         <tab name="Error Handling">
             <option name="Fail on connection problems (e.g. timeout, certificate errors, …)">
@@ -125,6 +137,32 @@
                 the request has failed, will provide a description of the error cause. If the request was successful, the
                 cell will contain a missing value.
             </option>
+        </tab>
+        <tab name="Request Headers">
+            <option name="Merge">If you click this button the request headers from the selected template on the left are
+            merged with the already existing header definitions in the table below.</option>
+            <option name="Replace">If you click this button the request headers from the selected template on the left will
+            replace any existing header definitions in the table below.</option>
+			<option name="Header key">The HTTP header key, e.g. <tt>Accept</tt> or <tt>X-Custom-Key</tt>. Note that some
+			header keys such as <tt>Origin</tt> are silently ignored by default for security reasons. You can configure
+			KNIME AP to allow any header key by setting the <tt>sun.net.http.allowRestrictedHeaders</tt> system property in the
+			<i>knime.ini</i> configuration file to <tt>true</tt>.</option>
+            <option name="Header value">The value for the header which can be a constant value or a reference to a flow
+            variable, a column, a credential name, or a credential password (see the kind option).</option>
+            <option name="Header kind">The kind of the value specified, which is either a constant value or a reference
+            to a flow variable, a column, a credential name, or a credential password.</option>
+            <option name="Fail on missing header value">Setting this option makes the node fail once a header input value is not 
+            available anymore, e.g. due to a missing value. Is enabled by default.</option>
+        </tab>
+        <tab name="Request Body">
+        	<option name="Use column's content as body">Use the selected column's content as the body of the request.</option>
+        	<option name="Use constant body">Use the specified content below as the body of the request.</option>
+        </tab>
+        <tab name="Response Headers">
+            <option name="Extract all fields">If checked, all header fields present in the first response are extracted
+            into columns.</option>
+            <option name="Header key">The name of the header to extract.</option>
+            <option name="Header type">The KNIME data type the header should be converted into.</option>
         </tab>
     </fullDescription>
     

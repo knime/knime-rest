@@ -80,17 +80,14 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.ext.RuntimeDelegate;
 
 import org.apache.commons.io.IOUtils;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.cxf.Bus;
 import org.apache.cxf.BusFactory;
-import org.apache.cxf.configuration.security.ProxyAuthorizationPolicy;
 import org.apache.cxf.jaxrs.client.WebClient;
 import org.apache.cxf.jaxrs.client.spec.ClientBuilderImpl;
 import org.apache.cxf.jaxrs.impl.RuntimeDelegateImpl;
 import org.apache.cxf.transport.http.asyncclient.AsyncHTTPConduit;
 import org.apache.cxf.transports.http.configuration.HTTPClientPolicy;
-import org.apache.cxf.transports.http.configuration.ProxyServerType;
 import org.eclipse.e4.core.di.annotations.Execute;
 import org.knime.base.data.xml.SvgCell;
 import org.knime.core.data.DataCell;
@@ -158,6 +155,7 @@ import org.knime.rest.generic.ResponseBodyParser.Missing;
 import org.knime.rest.nodes.common.RestSettings.ReferenceType;
 import org.knime.rest.nodes.common.RestSettings.RequestHeaderKeyItem;
 import org.knime.rest.nodes.common.RestSettings.ResponseHeaderItem;
+import org.knime.rest.nodes.common.proxy.RestProxyConfigManager;
 import org.knime.rest.util.CooldownContext;
 import org.knime.rest.util.DelayPolicy;
 import org.knime.rest.util.DelegatingX509TrustManager;
@@ -183,7 +181,8 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
      */
     protected DataColumnSpec[] m_newColumnsBasedOnFirstCalls;
 
-    private final List<DataCell[]> m_firstCallValues = new ArrayList<>();
+    // Package scope needed for tests.
+    final List<DataCell[]> m_firstCallValues = new ArrayList<>();
 
     private long m_consumedRows = 0L;
 
@@ -287,6 +286,13 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
      */
     protected final S getSettings() {
         return m_settings;
+    }
+
+    /**
+     * @return the proxy manager
+     */
+    protected RestProxyConfigManager getProxyManager() {
+        return m_settings.getProxyManager();
     }
 
     /**
@@ -1084,7 +1090,8 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         boolean allowChunking = m_settings.isAllowChunking().orElse(RestSettings.DEFAULT_ALLOW_CHUNKING);
         clientPolicy.setAllowChunking(allowChunking);
         // Configures the proxy credentials for the request builder if needed.
-        setProxyCredentialsIfNeeded(request);
+        m_settings.getProxyManager().configureRequest(m_settings.getCurrentProxyConfig(), request,
+            m_settings.isUsedAsyncClient(), getCredentialsProvider());
 
         if (!clientPolicy.isSetAutoRedirect()) {
             clientPolicy.setAutoRedirect(m_settings.isFollowRedirects());
@@ -1093,59 +1100,6 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
             clientPolicy.setMaxRetransmits(MAX_RETRANSITS);
         }
         return Pair.create(request, client);
-    }
-
-    /**
-     * Uses the System proxy properties to configure the request builder client if needed.
-     * Sets the server, port, user and password to a <code>HTTPClientPolicy</code> and
-     * <code>ProxyAuthorizationPolicy</code> and adds them to the client configuration.
-     *
-     * @param request Builder that creates the invocation.
-     */
-    protected void setProxyCredentialsIfNeeded(final Builder request) {
-        // Determine which http variant system property should be queried
-        var httpPresent = StringUtils.isNotBlank(System.getProperty("http.proxyHost"));
-        var httpsPresent = StringUtils.isNotBlank(System.getProperty("https.proxyHost"));
-
-        String protocol = null;
-        if (httpsPresent) {
-            protocol = "https";
-        } else if (httpPresent) {
-            protocol = "http";
-        }
-        if (protocol == null || !"true".equals(System.getProperty(protocol + ".proxySet"))) {
-            // If there is no entry as the proxy host, don't set the credentials.
-            return;
-        }
-
-        String username = System.getProperty(protocol + ".proxyUser");
-        String password = System.getProperty(protocol + ".proxyPassword");
-
-        // The synchronous client does not support proxy authentication because of not sending its credentials.
-        if (!m_settings.isUsedAsyncClient() && (username != null || password != null)) {
-            throw new ProcessingException("Please enable the asynchronous HTTP client setting in the node configuration");
-        }
-        var conduit = WebClient.getConfig(request).getHttpConduit();
-
-        // Setting proxy credentials.
-        String proxyServer = System.getProperty(protocol + ".proxyHost");
-        String proxyPort = System.getProperty(protocol + ".proxyPort");
-        String nonProxyHosts = System.getProperty(protocol + ".nonProxyHosts");
-
-        HTTPClientPolicy policy = Objects.requireNonNullElse(conduit.getClient(), new HTTPClientPolicy());
-        policy.setProxyServer(proxyServer);
-        policy.setProxyServerPort(proxyPort != null ? Integer.parseInt(proxyPort) : null);
-        policy.setProxyServerType(ProxyServerType.HTTP);
-        policy.setNonProxyHosts(StringUtils.defaultIfEmpty(nonProxyHosts, null));
-        conduit.setClient(policy);
-
-        // Setting authorization data.
-        ProxyAuthorizationPolicy authorization =
-            Objects.requireNonNullElse(conduit.getProxyAuthorization(), new ProxyAuthorizationPolicy());
-        authorization.setUserName(username);
-        authorization.setPassword(password);
-        authorization.setAuthorizationType("Basic");
-        conduit.setProxyAuthorization(authorization);
     }
 
     /**

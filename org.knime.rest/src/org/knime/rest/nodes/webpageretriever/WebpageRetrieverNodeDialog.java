@@ -88,7 +88,7 @@ final class WebpageRetrieverNodeDialog extends RestNodeDialog<WebpageRetrieverSe
     /** */
     WebpageRetrieverNodeDialog() {
         super();
-        renameTab("Connection Settings", "General Settings");
+        renameTab("Connection", "General");
         removeTab("Response Headers");
     }
 
@@ -109,9 +109,9 @@ final class WebpageRetrieverNodeDialog extends RestNodeDialog<WebpageRetrieverSe
         m_bodyColumnName.setVisible(false);
         m_labelBodyColumnName.setVisible(false);
 
-        superPanel.setBorder(BorderFactory.createTitledBorder("Connection Settings"));
+        superPanel.setBorder(BorderFactory.createTitledBorder("Connection"));
         final JPanel panel = new JPanel(new GridBagLayout());
-        panel.setBorder(BorderFactory.createTitledBorder("Output Settings"));
+        panel.setBorder(BorderFactory.createTitledBorder("Output"));
         final GridBagConstraints gbc = new GridBagConstraints();
         gbc.anchor = GridBagConstraints.FIRST_LINE_START;
         gbc.fill = GridBagConstraints.NONE;

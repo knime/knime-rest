@@ -44,61 +44,27 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   10. Febr. 2016. (Gabor Bakos): created
+ *   15 Mar 2023 (leon.wenzler): created
  */
-package org.knime.rest.internals;
+package org.knime.rest.nodes.common.proxy;
 
-import java.io.UnsupportedEncodingException;
-import java.util.Map;
+import java.util.Objects;
 
-import javax.ws.rs.client.Invocation.Builder;
-
-import org.apache.cxf.common.util.Base64Utility;
-import org.knime.core.data.DataRow;
-import org.knime.core.node.NodeLogger;
-import org.knime.core.node.workflow.CredentialsProvider;
-import org.knime.core.node.workflow.FlowVariable;
-import org.knime.rest.generic.UsernamePasswordAuthentication;
+import org.apache.cxf.transport.http.HTTPConduit;
+import org.apache.cxf.transports.http.configuration.HTTPClientPolicy;
 
 /**
- * Basic authentication.
+ * Represents a valid proxy server end-point.
  *
- * @author Gabor Bakos
+ * @author Leon Wenzler, KNIME AG, Konstanz, Germany
  */
-public class BasicAuthentication extends UsernamePasswordAuthentication {
-    /**
-     * Constructs with the empty defaults. (This constructor is called for the automatic instantiation.)
-     */
-    public BasicAuthentication() {
-        this("BASIC auth");
-    }
+public record ProxyTarget(String host, int port) implements RestRequestConfigurable {
 
-    /**
-     * Constructs the basic authentication with a custom config name.
-     * @param configName String
-     */
-    public BasicAuthentication(final String configName) {
-        super(configName, "", "", "");
-    }
-
-    /**
-     * {@inheritDoc}
-     */
     @Override
-    public Builder updateRequest(final Builder request, final DataRow row, final CredentialsProvider credProvider,
-        final Map<String, FlowVariable> flowVariables) {
-        final String username = isUseCredentials() ? credProvider.get(getCredential()).getLogin() : getUsername();
-        String password = isUseCredentials() ? credProvider.get(getCredential()).getPassword() : getPassword();
-        if (password == null) {
-            password = "";
-        }
-        try {
-            request.header("Authorization",
-                "Basic " + Base64Utility.encode((username + ":" + password).getBytes("UTF-8")));
-        } catch (UnsupportedEncodingException ex) {
-            // UTF-8 is supported for sure, but who knows...
-            NodeLogger.getLogger(getClass()).error("Unsupported charset: " + ex.getMessage(), ex);
-        }
-        return request;
+    public void configure(final HTTPConduit conduit) {
+        var policy = Objects.requireNonNullElse(conduit.getClient(), new HTTPClientPolicy());
+        policy.setProxyServer(host);
+        policy.setProxyServerPort(port);
+        conduit.setClient(policy);
     }
 }

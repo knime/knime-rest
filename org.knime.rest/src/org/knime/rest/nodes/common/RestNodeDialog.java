@@ -64,6 +64,7 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.FocusEvent;
 import java.awt.event.FocusListener;
+import java.awt.event.ItemEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -74,6 +75,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -82,6 +84,7 @@ import java.util.stream.StreamSupport;
 
 import javax.swing.AbstractAction;
 import javax.swing.ActionMap;
+import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.ButtonGroup;
@@ -98,6 +101,7 @@ import javax.swing.JList;
 import javax.swing.JPanel;
 import javax.swing.JRadioButton;
 import javax.swing.JScrollPane;
+import javax.swing.JSeparator;
 import javax.swing.JSpinner;
 import javax.swing.JTable;
 import javax.swing.JTextField;
@@ -125,20 +129,26 @@ import org.knime.core.node.NodeDialogPane;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.NotConfigurableException;
+import org.knime.core.node.defaultnodesettings.DialogComponentButtonGroup;
 import org.knime.core.node.util.ColumnSelectionPanel;
 import org.knime.core.node.util.StringHistoryPanel;
 import org.knime.core.util.Pair;
 import org.knime.rest.generic.EnablableUserConfiguration;
 import org.knime.rest.generic.UserConfiguration;
+import org.knime.rest.internals.BasicAuthentication;
 import org.knime.rest.nodes.common.RequestTableModel.Columns;
 import org.knime.rest.nodes.common.RestSettings.ReferenceType;
 import org.knime.rest.nodes.common.RestSettings.RequestHeaderKeyItem;
+import org.knime.rest.nodes.common.proxy.ProxyMode;
+import org.knime.rest.nodes.common.proxy.ProxyProtocol;
+import org.knime.rest.nodes.common.proxy.RestProxyConfig;
+import org.knime.rest.nodes.common.proxy.RestProxyConfigManager;
 import org.knime.rest.util.DelayPolicy;
 
 /**
  * Common dialog for the REST nodes. It adds the following tabs by default:
  * <ul>
- * <li>Connection Settings</li>
+ * <li>Connection</li>
  * <li>Authentication</li>
  * <li>Request Headers</li>
  * <li>Response Headers</li>
@@ -148,6 +158,7 @@ import org.knime.rest.util.DelayPolicy;
  * @param <S> Type of the {@link RestSettings}.
  */
 public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogPane {
+
     /** Extension id for the request header templates. */
     protected static final String EXTENSION_ID_FOR_REQUEST_HEADER_TEMPLATES = "org.knime.rest.header.template";
 
@@ -268,6 +279,29 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
 
     private DefaultCellEditor m_responseValueCellEditor;
 
+    // Proxy settings tab.
+
+    private final DialogComponentButtonGroup m_proxyModeSelector = new DialogComponentButtonGroup(
+        RestProxyConfigManager.createProxyModeSettingsModel(), null, false, ProxyMode.values());
+
+    private final JComboBox<ProxyProtocol> m_proxyProtocolCombo =
+        new JComboBox<>(ProxyProtocol.values());
+
+    private final StringHistoryPanel m_proxyHostPanel =
+        new StringHistoryPanel(RestProxyConfig.getProxyHostStringHistoryID());
+
+    private final StringHistoryPanel m_proxyPortPanel =
+        new StringHistoryPanel(RestProxyConfig.getProxyPortStringHistoryID());
+
+    private final JCheckBox m_useAuthenticationChecker = new JCheckBox("Proxy host needs authentication");
+
+    private final BasicAuthentication m_proxyAuthenticatorPanel = RestProxyConfigManager.createProxyAuthSettingsModel();
+
+    private final JCheckBox m_useExcludeHostsChecker = new JCheckBox("Exclude hosts from proxy");
+
+    private final StringHistoryPanel m_proxyExcludeHostsPanel =
+        new StringHistoryPanel(RestProxyConfig.getProxyExcludedHostsStringHistoryID());
+
     /**
      * Constructs the dialog.
      */
@@ -288,8 +322,9 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
             }
             m_requestTemplates.add(new SimpleImmutableEntry<>(element.getKey(), entryList));
         }
-        addTab("Connection Settings", createConnectionSettingsTab());
+        addTab("Connection", createConnectionSettingsTab());
         addTab("Authentication", createAuthenticationTab());
+        addTab("Proxy", createProxySettingsTab());
         addTab("Error Handling", createErrorHandlingTab());
         addTab("Request Headers", createRequestHeadersTab());
         addTab("Response Headers", createResponseHeadersTab());
@@ -704,6 +739,100 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         }
         ret.add(tabs);
         return ret;
+    }
+
+    private Component createProxySettingsTab() {
+        // - Creating outer layout (incl. radio button proxy selector).
+        final var container = new JPanel();
+        container.setLayout(new BoxLayout(container, BoxLayout.PAGE_AXIS));
+        container.add(m_proxyModeSelector.getComponentPanel());
+
+        // - Building node-specific proxy settings.
+        final var localProxyPanel = new JPanel(new GridBagLayout());
+        localProxyPanel.setVisible(false);
+        final var gbc = FramedPanel.initGridBagConstraints();
+        gbc.fill = GridBagConstraints.BOTH;
+        gbc.insets = new Insets(5, 5, 5, 5);
+        localProxyPanel.add(new JLabel("Proxy protocol: "), gbc);
+        gbc.gridx += 1;
+        gbc.weightx = 1.0;
+        localProxyPanel.add(m_proxyProtocolCombo, gbc);
+
+        gbc.gridx = 0;
+        gbc.gridy += 1;
+        gbc.weightx = 0.0;
+        localProxyPanel.add(new JLabel("Proxy host: "), gbc);
+        gbc.gridx += 1;
+        gbc.weightx = 1.0;
+        localProxyPanel.add(m_proxyHostPanel, gbc);
+
+        gbc.gridx = 0;
+        gbc.gridy += 1;
+        gbc.weightx = 0.0;
+        localProxyPanel.add(new JLabel("Proxy port: "), gbc);
+        gbc.gridx += 1;
+        gbc.weightx = 1.0;
+        localProxyPanel.add(m_proxyPortPanel, gbc);
+
+        gbc.gridx = 0;
+        gbc.gridy += 1;
+        gbc.gridwidth = 2;
+        gbc.weightx = 1.0;
+        localProxyPanel.add(new JSeparator(), gbc);
+
+        gbc.gridy += 1;
+        localProxyPanel.add(m_useAuthenticationChecker, gbc);
+
+        gbc.gridx = 0;
+        gbc.gridy += 1;
+        gbc.gridwidth = 2;
+        gbc.insets = new Insets(10, 5, 5, 5);
+        gbc.weightx = 1.0;
+        var authPanel = new JPanel();
+        m_proxyAuthenticatorPanel.addControls(authPanel);
+        localProxyPanel.add(authPanel, gbc);
+
+        // Setting enable/disable listeners for the auth field and explicitly set the state to update listeners
+        m_useAuthenticationChecker.addItemListener(e -> {
+            m_proxyAuthenticatorPanel.setEnabled(e.getStateChange() == ItemEvent.SELECTED);
+            m_proxyAuthenticatorPanel.updateControls();
+        });
+        m_useAuthenticationChecker.setSelected(false); // does not fire event...
+        m_proxyAuthenticatorPanel.setEnabled(false);
+
+        gbc.gridx = 0;
+        gbc.gridy += 1;
+        gbc.gridwidth = 2;
+        gbc.weightx = 1.0;
+        localProxyPanel.add(new JSeparator(), gbc);
+
+        gbc.gridy += 1;
+        localProxyPanel.add(m_useExcludeHostsChecker, gbc);
+
+        gbc.gridx = 0;
+        gbc.gridy += 1;
+        gbc.gridwidth = 2;
+        gbc.insets = new Insets(10, 5, 5, 5);
+        gbc.weightx = 1.0;
+        // stolen from SendMailNodeDialog
+        final var excludeHostsPanel = new JPanel();
+        excludeHostsPanel.setLayout(new BoxLayout(excludeHostsPanel, BoxLayout.Y_AXIS));
+        excludeHostsPanel.setBorder(BorderFactory.createTitledBorder(" Excluded hosts (separated by a semicolon) "));
+        excludeHostsPanel.add(m_proxyExcludeHostsPanel, BorderLayout.CENTER);
+        localProxyPanel.add(excludeHostsPanel, gbc);
+
+        // Setting enable/disable listeners for the exclude hosts field.
+        m_useExcludeHostsChecker.addItemListener(
+            e -> m_proxyExcludeHostsPanel.setEnabled(e.getStateChange() == ItemEvent.SELECTED));
+        m_useExcludeHostsChecker.setSelected(false); // does not fire event...
+        m_proxyExcludeHostsPanel.setEnabled(false);
+
+        // - Adding proxy mode button listener.
+        m_proxyModeSelector.getButton(ProxyMode.LOCAL.name()).addItemListener(
+            e -> localProxyPanel.setVisible(e.getStateChange() == ItemEvent.SELECTED));
+
+        container.add(new JScrollPane(localProxyPanel), BorderLayout.PAGE_START);
+        return container;
     }
 
     private Component createErrorHandlingTab() {
@@ -1215,7 +1344,39 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         m_settings.setFailOnServerErrors(m_serverErrorPanel.isFailOnError());
         m_settings.setOutputErrorCause(m_errorCausePanel.isSelected());
 
+        // Proxy settings.
+        final var proxyManager = m_settings.getProxyManager();
+        final var proxyMode = getProxyMode();
+        proxyManager.setProxyMode(proxyMode);
+        if (proxyMode == ProxyMode.LOCAL) {
+            m_settings.m_currentProxyConfig = Optional.of(RestProxyConfig.builder()//
+                .setProtocol((ProxyProtocol)m_proxyProtocolCombo.getSelectedItem())//
+                .setProxyHost(m_proxyHostPanel.getSelectedString())//
+                .setProxyPort(m_proxyPortPanel.getSelectedString())//
+                .setUseAuthentication(m_useAuthenticationChecker.isSelected())//
+                .setBasicAuthentication(m_proxyAuthenticatorPanel)//
+                .setUseExcludeHosts(m_useExcludeHostsChecker.isSelected())//
+                .setExcludedHosts(m_proxyExcludeHostsPanel.getSelectedString())//
+                .build());
+        } else {
+            // Don't save any node-specific proxy settings in case of GLOBAL or NONE mode.
+            m_settings.m_currentProxyConfig = Optional.empty();
+        }
+
+        m_proxyHostPanel.commitSelectedToHistory();
+        m_proxyPortPanel.commitSelectedToHistory();
+        m_proxyExcludeHostsPanel.commitSelectedToHistory();
+
         m_settings.saveSettings(settings);
+    }
+
+    private ProxyMode getProxyMode() {
+        for (var mode : ProxyMode.values()) {
+            if (m_proxyModeSelector.getButton(mode.name()).isSelected()) {
+                return mode;
+            }
+        }
+        throw new IllegalStateException("No proxy mode button was selected!");
     }
 
     /**
@@ -1224,6 +1385,7 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
     @Override
     protected void loadSettingsFrom(final NodeSettingsRO settings, final DataTableSpec[] specs)
         throws NotConfigurableException {
+        m_settings.getProxyManager().setAuthReference(m_proxyAuthenticatorPanel);
         try {
             m_settings.loadSettingsForDialog(settings, getCredentialsProvider(), specs);
         } catch (InvalidSettingsException e) {
@@ -1320,6 +1482,28 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
             }
         }
         updateResponseHeaderControls();
+
+        // Proxy settings.
+        m_proxyModeSelector.getButton(ProxyMode.fromSettings(settings).name()).doClick();
+        m_settings.getCurrentProxyConfig().ifPresent(this::configurePanelsWithProxy);
+        m_proxyAuthenticatorPanel.setEnabled(m_useAuthenticationChecker.isSelected());
+    }
+
+    private void configurePanelsWithProxy(final RestProxyConfig proxyConfig) {
+        m_proxyProtocolCombo.setSelectedItem(proxyConfig.getProtocol());
+        m_proxyHostPanel.updateHistory();
+        m_proxyHostPanel.setSelectedString(proxyConfig.getProxyTarget().host());
+        m_proxyPortPanel.updateHistory();
+        m_proxyPortPanel.setSelectedString(String.valueOf(proxyConfig.getProxyTarget().port()));
+
+        m_useAuthenticationChecker.setSelected(proxyConfig.isUseAuthentication());
+
+        final var excludeHosts = proxyConfig.isExcludeHosts();
+        m_useExcludeHostsChecker.setSelected(excludeHosts);
+        proxyConfig.getExcludeHosts().ifPresent(s -> {
+            m_proxyExcludeHostsPanel.updateHistory();
+            m_proxyExcludeHostsPanel.setSelectedString(s);
+        });
     }
 
     /**
@@ -1344,4 +1528,5 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         final Component focusOwner = KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner();
         return !(focusOwner instanceof JComboBox<?> || focusOwner instanceof JTextComponent);
     }
+
 }

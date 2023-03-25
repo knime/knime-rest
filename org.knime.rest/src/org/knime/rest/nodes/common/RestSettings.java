@@ -72,6 +72,8 @@ import org.knime.core.node.workflow.CredentialsProvider;
 import org.knime.rest.generic.EnablableUserConfiguration;
 import org.knime.rest.generic.UserConfiguration;
 import org.knime.rest.internals.NoAuthentication;
+import org.knime.rest.nodes.common.proxy.RestProxyConfig;
+import org.knime.rest.nodes.common.proxy.RestProxyConfigManager;
 import org.knime.rest.util.DelayPolicy;
 
 /**
@@ -226,6 +228,11 @@ public class RestSettings {
     private Optional<DelayPolicy> m_delayPolicy = Optional.empty();
 
     private boolean m_isFailOnMissingHeaders = DEFAULT_FAIL_MISSING_HEADERS;
+
+    private final RestProxyConfigManager m_proxyManager = RestProxyConfigManager.createDefaultProxyManager();
+
+    // Package scope needed for tests.
+    Optional<RestProxyConfig> m_currentProxyConfig = Optional.empty();
 
     /**
      * Whether the node should output a missing value or fail in execution when a response returns a HTTP status code
@@ -799,6 +806,25 @@ public class RestSettings {
     }
 
     /**
+     * Manager of the proxy state, either GLOBAL, LOCAL or NONE.
+     * Responsible for loading/saving, validating and configuring proxy settings.
+     *
+     * @return RestProxyConfigManager
+     */
+    protected RestProxyConfigManager getProxyManager() {
+        return m_proxyManager;
+    }
+
+    /**
+     * Holds the current proxy config, just a provider of proxy properties.
+     *
+     * @return RestProxyConfig, if present
+     */
+    protected Optional<RestProxyConfig> getCurrentProxyConfig() {
+        return m_currentProxyConfig;
+    }
+
+    /**
      * Saves the internal state to {@code settings}.
      *
      * @param settings A writable {@link NodeSettingsWO}.
@@ -842,6 +868,7 @@ public class RestSettings {
         m_outputErrorCause.ifPresent(value -> settings.addBoolean(OUTPUT_ERROR_CAUSE_KEY, value));
         m_allowChunking.ifPresent(allowChunking -> settings.addBoolean(ALLOW_CHUNKING_KEY, allowChunking));
         settings.addBoolean(FAIL_MISSING_HEADERS_KEY, m_isFailOnMissingHeaders);
+        m_proxyManager.saveSettings(m_currentProxyConfig.orElse(null), settings);
     }
 
     /**
@@ -925,6 +952,10 @@ public class RestSettings {
         /* Backwards compatibility: if not present, missing headers are ignored.
          * Otherwise, the new default (see DEFAULT_FAIL_MISSING_HEADERS) is to fail. */
         m_isFailOnMissingHeaders = settings.getBoolean(FAIL_MISSING_HEADERS_KEY, false);
+
+        if (settings.containsKey(RestProxyConfigManager.getProxyConfigIdentifier())) {
+            m_currentProxyConfig = m_proxyManager.loadConfigFrom(settings);
+        }
     }
 
     private void loadFailOnHttp(final NodeSettingsRO settings) {
@@ -1025,5 +1056,8 @@ public class RestSettings {
         /* Backwards compatibility: if not present, missing headers are ignored.
          * Otherwise, the new default (see DEFAULT_FAIL_MISSING_HEADERS) is to fail. */
         m_isFailOnMissingHeaders = settings.getBoolean(FAIL_MISSING_HEADERS_KEY, false);
+
+        // Even if settings do not yet contain proxy settings, loading for the dialog uses default values.
+        m_currentProxyConfig = m_proxyManager.loadConfigForDialog(settings, credentialNames, specs);
     }
 }
