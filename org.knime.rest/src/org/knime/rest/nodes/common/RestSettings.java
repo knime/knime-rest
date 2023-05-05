@@ -955,6 +955,13 @@ public class RestSettings {
 
         if (settings.containsKey(RestProxyConfigManager.getProxyConfigIdentifier())) {
             m_currentProxyConfig = m_proxyManager.loadConfigFrom(settings);
+            // the synchronous client does not support proxy authentication, request will always result in 407
+            // -> issue a warning when proxy authentication is configured and the sync client is used
+            if (m_currentProxyConfig.map(RestProxyConfig::isUseAuthentication).orElse(false) && !m_useAsyncClient) {
+                throw new InvalidSettingsException("In order to use proxy authentication, "
+                    + "enable the asynchronous HTTP client in the connection settings.\n"
+                    + "See node description for more details.");
+            }
         }
     }
 
