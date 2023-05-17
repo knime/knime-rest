@@ -57,15 +57,41 @@ import javax.ws.rs.client.Invocation.Builder;
 import org.knime.core.data.DataCell;
 import org.knime.core.data.DataRow;
 import org.knime.core.data.DataTableSpec;
+import org.knime.core.node.util.CheckUtils;
 import org.knime.rest.nodes.common.proxy.ProxyMode;
+import org.knime.rest.nodes.common.proxy.RestProxyConfig;
 
 /**
- * Dummy REST GET model which per default configures no proxy in its settings.
- * Also makes the request method available.
+ * REST model for testing which per default configures the specified proxy in its settings.
+ * Also makes the request method available (always uses GET).
  *
  * @author Leon Wenzler, KNIME AG, Konstanz, Germany
  */
-public final class NoProxyRestNodeModel extends RestNodeModel<RestSettings> {
+public final class ProxyRestNodeModel extends RestNodeModel<RestSettings> {
+
+    /**
+     * REST node model always using a GET request, but configurable on which proxy to use.
+     *
+     * @param proxyMode NONE, LOCAL, or GLOBAL
+     */
+    public ProxyRestNodeModel(final ProxyMode proxyMode) {
+        this(proxyMode, null);
+    }
+
+    /**
+     * REST node model always using a GET request, but configurable on which proxy to use.
+     *
+     * @param proxyMode NONE, LOCAL, or GLOBAL
+     * @param proxyConfig proxy config
+     */
+    public ProxyRestNodeModel(final ProxyMode proxyMode, final RestProxyConfig proxyConfig) {
+        CheckUtils.checkArgument((proxyMode == ProxyMode.NONE) == (proxyConfig == null),
+            "Either set proxy mode to NONE and don't specify a config object, or set a different proxy mode!");
+        m_settings.getProxyManager().setProxyMode(proxyMode);
+        m_settings.m_currentProxyConfig = Optional.ofNullable(proxyConfig);
+        // Useful for testing: extract all response headers.
+        m_settings.setExtractAllResponseFields(true);
+    }
 
     @Override
     protected RestSettings createSettings() {
@@ -74,19 +100,34 @@ public final class NoProxyRestNodeModel extends RestNodeModel<RestSettings> {
 
     @Override
     protected Invocation invocation(final Builder request, final DataRow row, final DataTableSpec spec) {
-        // Using a GET request as dummy.
+        // Using a GET request as default.
         return request.buildGet();
     }
 
     /**
+     * Sets the target of this REST request to the given URI string.
+     *
+     * @param targetURI
+     */
+    public void setRequestTarget(final String targetURI) {
+        m_settings.setUseConstantURI(true);
+        m_settings.setConstantURI(targetURI);
+    }
+
+    /**
+     * Performs a simple GET request without any context.
+     *
      * @throws Exception
      */
     public void makeRequest() throws Exception {
-        m_settings.getProxyManager().setProxyMode(ProxyMode.NONE);
-        m_settings.m_currentProxyConfig = Optional.empty();
         makeFirstCall(null, Collections.emptyList(), null, null);
     }
 
+    /**
+     * Returns an array of DataCells, encapsulating the HTTP response.
+     *
+     * @return array of DataCells
+     */
     public DataCell[] getResponses() {
         if (!m_firstCallValues.isEmpty()) {
             return m_firstCallValues.get(0);

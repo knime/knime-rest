@@ -44,60 +44,60 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   15 Mar 2023 (leon.wenzler): created
+ *   May 11, 2023 (Leon Wenzler, KNIME AG, Konstanz, Germany): created
  */
-package org.knime.rest.nodes.common.proxy;
-
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
-import static org.junit.jupiter.api.Assertions.assertFalse;
+package org.knime.rest.nodes.common;
 
 import java.util.Arrays;
 
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
-import org.knime.core.data.DataCell;
-import org.knime.rest.nodes.common.ProxyRestNodeModel;
-import org.knime.rest.nodes.common.proxy.SystemPropertyProvider.PropertyMode;
+import com.github.tomakehurst.wiremock.common.FileSource;
+import com.github.tomakehurst.wiremock.extension.Parameters;
+import com.github.tomakehurst.wiremock.extension.ResponseTransformer;
+import com.github.tomakehurst.wiremock.http.HttpHeader;
+import com.github.tomakehurst.wiremock.http.Request;
+import com.github.tomakehurst.wiremock.http.Response;
 
 /**
- * Test class for the proxy detection in {@link RestProxyConfigManager#configureRequest()}. Tests whether the
- * ProxyMode.NONE bypasses all configured proxies.
+ * Transforms a HTTP response by attaching a marker which can be used to detect a proxy presence.
  *
  * @author Leon Wenzler, KNIME AG, Konstanz, Germany
  */
-final class BypassGlobalProxyTest {
+public final class PassthroughMarker extends ResponseTransformer {
 
-    private static final String INVALID_PROXY_HOST = "dummyHost123";
-
-    private static ProxyRestNodeModel noProxyNodeModel;
-
-    @BeforeAll
-    public static void initializeModel() {
-        noProxyNodeModel = new ProxyRestNodeModel(ProxyMode.NONE);
-    }
+    private static final String VIA = "Via";
 
     /**
-     * Tests if all proxies are successfully bypassed by settings global *and* local proxy hosts to an invalid host (see
-     * INVALID_PROXY_HOST).
+     * The marker attached at responses - just the fully qualified class name.
      *
-     * The request should work just fine. Test fails if any proxy is used because a connection is not possible.
+     * @return marker string
      */
-    @SuppressWarnings("static-method")
-    @Test
-    void bypassAllProxies() {
-        var props = new String[]{"http.proxyHost"};
-        var values = SystemPropertyProvider.saveAndSetProperties(props, PropertyMode.DUMMY, INVALID_PROXY_HOST);
-        assertDoesNotThrow(() -> noProxyNodeModel.makeRequest(),
-            "Making a (dummy) GET request should not have thrown an exception.");
-        // If at least one response value is not missing, the request went through.
-        assertFalse(Arrays.stream(noProxyNodeModel.getResponses()).allMatch(DataCell::isMissing),
-            "GET request should have succeeded but got missing values as response.");
-        SystemPropertyProvider.restoreProperties(props, values);
+    private static String getMarkerString() {
+        return PassthroughMarker.class.getName();
     }
 
-    @AfterAll
-    public static void discardModel() {
-        noProxyNodeModel = null;
+    @Override
+    public String getName() {
+        return getMarkerString();
+    }
+
+    @Override
+    public Response transform(final Request request, final Response response, final FileSource files,
+        final Parameters parameters) {
+        // Same response, but with an added "Via" header.
+        return Response.response()//
+            .like(response)//
+            .headers(response.getHeaders().plus(new HttpHeader(VIA, getMarkerString())))//
+            .build();
+    }
+    
+    /**
+     * Checks if the marker is present in the given array,
+     * which represents the parsed response contents.
+     *
+     * @param responseArray
+     * @return whether the parsed response content contains a marker
+     */
+    public static boolean isPresentIn(final Object[] responseArray) {
+        return Arrays.stream(responseArray).map(Object::toString).anyMatch(getMarkerString()::equals);
     }
 }
