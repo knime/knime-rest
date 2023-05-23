@@ -51,7 +51,6 @@ package org.knime.rest.internals.kerberos;
 import java.util.Map;
 
 import javax.swing.JPanel;
-import javax.ws.rs.client.Invocation.Builder;
 
 import org.apache.cxf.jaxrs.client.WebClient;
 import org.knime.core.data.DataRow;
@@ -63,6 +62,8 @@ import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.node.workflow.CredentialsProvider;
 import org.knime.core.node.workflow.FlowVariable;
 import org.knime.rest.generic.EachRequestAuthentication;
+
+import jakarta.ws.rs.client.Invocation.Builder;
 
 /**
  * {@link EachRequestAuthentication} implementation that performs Kerberos authentication via the

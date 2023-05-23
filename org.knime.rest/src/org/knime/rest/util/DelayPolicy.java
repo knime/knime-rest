@@ -51,13 +51,13 @@ package org.knime.rest.util;
 import java.util.Optional;
 import java.util.concurrent.Callable;
 
-import javax.ws.rs.core.Response;
-
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.util.CheckUtils;
 import org.knime.rest.nodes.common.RestNodeModel;
+
+import jakarta.ws.rs.core.Response;
 
 /**
  * Utility class for retrying a task that returns a {@link Response}. Makes a distinction between "server errors" and

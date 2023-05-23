@@ -57,11 +57,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import javax.ws.rs.client.Invocation;
-import javax.ws.rs.client.Invocation.Builder;
-import javax.ws.rs.core.NewCookie;
-import javax.ws.rs.core.Response;
-
 import org.apache.cxf.jaxrs.client.spec.InvocationBuilderImpl;
 import org.jsoup.Jsoup;
 import org.jsoup.helper.W3CDom;
@@ -86,6 +81,11 @@ import org.knime.core.util.UniqueNameGenerator;
 import org.knime.rest.generic.EachRequestAuthentication;
 import org.knime.rest.nodes.common.RestNodeModel;
 import org.w3c.dom.NodeList;
+
+import jakarta.ws.rs.client.Invocation;
+import jakarta.ws.rs.client.Invocation.Builder;
+import jakarta.ws.rs.core.NewCookie;
+import jakarta.ws.rs.core.Response;
 
 /**
  * Node model of the Webpage Retriever node.

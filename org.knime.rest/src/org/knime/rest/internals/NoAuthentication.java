@@ -51,7 +51,6 @@ package org.knime.rest.internals;
 import java.util.Map;
 
 import javax.swing.JPanel;
-import javax.ws.rs.client.Invocation.Builder;
 
 import org.knime.core.data.DataRow;
 import org.knime.core.node.InvalidSettingsException;
@@ -61,6 +60,8 @@ import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.node.workflow.CredentialsProvider;
 import org.knime.core.node.workflow.FlowVariable;
 import org.knime.rest.generic.EachRequestAuthentication;
+
+import jakarta.ws.rs.client.Invocation.Builder;
 
 /**
  * No authentication.

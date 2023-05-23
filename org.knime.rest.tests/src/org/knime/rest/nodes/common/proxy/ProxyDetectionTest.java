@@ -54,13 +54,13 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.Optional;
 
-import javax.ws.rs.client.ClientBuilder;
-
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.rest.nodes.common.proxy.SystemPropertyProvider.PropertyMode;
+
+import jakarta.ws.rs.client.ClientBuilder;
 
 /**
  * Test class for the proxy detection in {@link RestProxyConfigManager#configureRequest()}. Tests the proxy detection by

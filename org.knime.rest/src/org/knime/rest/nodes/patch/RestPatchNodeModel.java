@@ -48,12 +48,12 @@
  */
 package org.knime.rest.nodes.patch;
 
-import javax.ws.rs.HttpMethod;
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.client.Invocation;
-import javax.ws.rs.client.Invocation.Builder;
-
 import org.knime.rest.nodes.common.RestWithBodyNodeModel;
+
+import jakarta.ws.rs.HttpMethod;
+import jakarta.ws.rs.client.Entity;
+import jakarta.ws.rs.client.Invocation;
+import jakarta.ws.rs.client.Invocation.Builder;
 
 /**
  * Node model of the PATCH http method.

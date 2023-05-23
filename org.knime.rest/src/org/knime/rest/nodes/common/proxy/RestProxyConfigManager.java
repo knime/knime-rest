@@ -51,8 +51,6 @@ package org.knime.rest.nodes.common.proxy;
 import java.util.Objects;
 import java.util.Optional;
 
-import javax.ws.rs.client.Invocation.Builder;
-
 import org.apache.cxf.jaxrs.client.WebClient;
 import org.apache.cxf.transports.http.configuration.HTTPClientPolicy;
 import org.apache.cxf.transports.http.configuration.ProxyServerType;
@@ -66,6 +64,8 @@ import org.knime.core.node.workflow.CredentialsProvider;
 import org.knime.rest.internals.BasicAuthentication;
 import org.knime.rest.nodes.common.RestNodeDialog;
 import org.knime.rest.nodes.common.proxy.RestProxyConfig.RestProxyConfigBuilder;
+
+import jakarta.ws.rs.client.Invocation.Builder;
 
 /**
  * Class managing proxy settings. Depending on the proxy mode, GLOBAL or LOCAL, proxy settings are taken from the System

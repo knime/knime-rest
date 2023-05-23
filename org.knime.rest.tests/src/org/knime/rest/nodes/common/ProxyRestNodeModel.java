@@ -51,15 +51,15 @@ package org.knime.rest.nodes.common;
 import java.util.Collections;
 import java.util.Optional;
 
-import javax.ws.rs.client.Invocation;
-import javax.ws.rs.client.Invocation.Builder;
-
 import org.knime.core.data.DataCell;
 import org.knime.core.data.DataRow;
 import org.knime.core.data.DataTableSpec;
 import org.knime.core.node.util.CheckUtils;
 import org.knime.rest.nodes.common.proxy.ProxyMode;
 import org.knime.rest.nodes.common.proxy.RestProxyConfig;
+
+import jakarta.ws.rs.client.Invocation;
+import jakarta.ws.rs.client.Invocation.Builder;
 
 /**
  * REST model for testing which per default configures the specified proxy in its settings.

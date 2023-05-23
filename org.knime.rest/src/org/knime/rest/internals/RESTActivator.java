@@ -48,11 +48,7 @@
  */
 package org.knime.rest.internals;
 
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
-import javax.ws.rs.ext.RuntimeDelegate;
-
+import org.knime.cxf.CXFUtil;
 import org.osgi.framework.BundleActivator;
 import org.osgi.framework.BundleContext;
 
@@ -69,7 +65,7 @@ public class RESTActivator implements BundleActivator {
      */
     @Override
     public void start(final BundleContext context) throws Exception {
-        initializeJaxRSRuntime();
+        CXFUtil.initializeJAXRSRuntime(getClass());
     }
 
     /**
@@ -78,20 +74,5 @@ public class RESTActivator implements BundleActivator {
     @Override
     public void stop(final BundleContext context) throws Exception {
         // nothing to do
-    }
-
-    private void initializeJaxRSRuntime() {
-        // The JAX-RS interface is in a different plug-in than the CXF implementation. Therefore the interface classes
-        // won't find the implementation via the default ContextFinder classloader. We set the current classes's
-        // classloader as context classloader and then it will find the service definition from this plug-in.
-        ClassLoader cl = Thread.currentThread().getContextClassLoader();
-        try {
-            Thread.currentThread().setContextClassLoader(getClass().getClassLoader());
-            // silence the missing Aries Blueprint warnings
-            Logger.getLogger("org.apache.cxf.bus.blueprint.NamespaceHandlerRegisterer").setLevel(Level.SEVERE);
-            RuntimeDelegate.getInstance();
-        } finally {
-            Thread.currentThread().setContextClassLoader(cl);
-        }
     }
 }

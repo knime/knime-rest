@@ -50,11 +50,11 @@ package org.knime.rest.generic;
 
 import java.util.Map;
 
-import javax.ws.rs.client.Invocation.Builder;
-
 import org.knime.core.data.DataRow;
 import org.knime.core.node.workflow.CredentialsProvider;
 import org.knime.core.node.workflow.FlowVariable;
+
+import jakarta.ws.rs.client.Invocation.Builder;
 
 /**
  * Each request should use the same information for authentication (like

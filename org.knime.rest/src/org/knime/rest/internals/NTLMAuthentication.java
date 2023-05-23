@@ -55,7 +55,6 @@ import java.util.Map;
 
 import javax.swing.JLabel;
 import javax.swing.JPanel;
-import javax.ws.rs.client.Invocation.Builder;
 
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -84,6 +83,8 @@ import org.knime.core.node.workflow.CredentialsProvider;
 import org.knime.core.node.workflow.FlowVariable;
 import org.knime.core.node.workflow.ICredentials;
 import org.knime.rest.generic.UsernamePasswordAuthentication;
+
+import jakarta.ws.rs.client.Invocation.Builder;
 
 /**
  * NTLM authentication. Most of the logic was discovered trial and error and using a debugger. There doesn't seem to be

@@ -48,12 +48,12 @@
  */
 package org.knime.rest.nodes.delete;
 
-import javax.ws.rs.client.Invocation;
-import javax.ws.rs.client.Invocation.Builder;
-
 import org.knime.core.data.DataRow;
 import org.knime.core.data.DataTableSpec;
 import org.knime.rest.nodes.common.RestNodeModel;
+
+import jakarta.ws.rs.client.Invocation;
+import jakarta.ws.rs.client.Invocation.Builder;
 
 /**
  * Node model for the node of DELETE http method.

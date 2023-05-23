@@ -58,9 +58,6 @@ import java.text.ParseException;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.InflaterInputStream;
 
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
-
 import org.apache.commons.io.ByteOrderMark;
 import org.apache.commons.io.input.BOMInputStream;
 import org.apache.commons.lang3.StringUtils;
@@ -73,6 +70,9 @@ import org.knime.core.data.MissingCell;
 import org.knime.core.data.MissingValue;
 import org.knime.core.data.StringValue;
 import org.knime.core.node.ExecutionContext;
+
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 
 /**
  * Interface for parsing different response bodies.

@@ -50,8 +50,6 @@ package org.knime.rest.internals;
 
 import java.util.Map;
 
-import javax.ws.rs.client.Invocation.Builder;
-
 import org.apache.cxf.jaxrs.client.ClientConfiguration;
 import org.apache.cxf.jaxrs.client.WebClient;
 import org.apache.cxf.transport.http.asyncclient.AsyncHTTPConduit;
@@ -62,6 +60,8 @@ import org.knime.core.data.DataRow;
 import org.knime.core.node.workflow.CredentialsProvider;
 import org.knime.core.node.workflow.FlowVariable;
 import org.knime.rest.generic.UsernamePasswordAuthentication;
+
+import jakarta.ws.rs.client.Invocation.Builder;
 
 /**
  * Digest authentication.
