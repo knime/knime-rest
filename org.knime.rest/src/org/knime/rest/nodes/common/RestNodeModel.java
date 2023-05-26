@@ -1088,8 +1088,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         }
 
         HTTPClientPolicy clientPolicy = WebClient.getConfig(request).getHttpConduit().getClient();
-        boolean allowChunking = m_settings.isAllowChunking().orElse(RestSettings.DEFAULT_ALLOW_CHUNKING);
-        clientPolicy.setAllowChunking(allowChunking);
+
         // Configures the proxy credentials for the request builder if needed.
         m_settings.getProxyManager().configureRequest(m_settings.getCurrentProxyConfig(), request,
             m_settings.isUsedAsyncClient(), getCredentialsProvider());

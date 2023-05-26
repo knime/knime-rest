@@ -50,6 +50,8 @@ package org.knime.rest.nodes.common;
 
 import java.io.IOException;
 
+import org.apache.cxf.jaxrs.client.WebClient;
+import org.apache.cxf.transports.http.configuration.HTTPClientPolicy;
 import org.knime.base.data.xml.SvgValue;
 import org.knime.core.data.BooleanValue;
 import org.knime.core.data.DataCell;
@@ -247,9 +249,34 @@ public abstract class RestWithBodyNodeModel<S extends RestWithBodySettings> exte
                 .orElse(new RequestHeaderKeyItem("Content-Type", "application/json", ReferenceType.Constant))));
 
         Variant variant = new Variant(mediaType, (String)null, null);
-        Entity<?> entity = Entity.entity(settings.isUseConstantRequestBody()
-            ? createObjectFromString(settings.getConstantRequestBody()) : createObjectFromCell(row.getCell(bodyColumn)),
-            variant);
+        Object o = settings.isUseConstantRequestBody()
+                ? createObjectFromString(settings.getConstantRequestBody()) : createObjectFromCell(row.getCell(bodyColumn));
+        Entity<?> entity = Entity.entity(o, variant);
+
+        HTTPClientPolicy clientPolicy = WebClient.getConfig(request).getHttpConduit().getClient();
+
+        // We always have to allow chunking because otherwise the content length cannot be determined. If chunking
+        // should be disabled we have to set the buffer large enough so that it can hold the complete body. Then the
+        // Content-Length header will be set accordingly.
+        clientPolicy.setAllowChunking(true);
+
+        int bufferSize;
+        if (m_settings.isAllowChunking().orElse(RestSettings.DEFAULT_ALLOW_CHUNKING)) {
+            // chunk allowed => use a moderately sized buffer of 1 MB.
+            bufferSize = 1 << 20;
+        } else {
+            // chunking should not happen, try to guess the size of the body
+            if (o instanceof byte[]) {
+                bufferSize = ((byte[]) o).length;
+            } else if (o instanceof String) {
+                // we don't know the string's encoding, if it's UTF it can be larger than the string length
+                bufferSize = ((String) o).length() * 2;
+            } else {
+                // use 16 MB in all other cases
+                bufferSize = 16 << 20;
+            }
+        }
+        clientPolicy.setChunkingThreshold(bufferSize);
 
         return invocationWithEntity(request, entity);
     }
