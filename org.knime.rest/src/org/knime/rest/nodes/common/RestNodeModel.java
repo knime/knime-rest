@@ -51,6 +51,7 @@ package org.knime.rest.nodes.common;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.http.HttpTimeoutException;
 import java.nio.charset.Charset;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
@@ -422,11 +423,20 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
             missing = null;
         } catch (ProcessingException procEx) {
             LOGGER.warn("Call #" + (m_consumedRows + 1) + " failed: " + procEx.getMessage(), procEx);
-            Throwable cause = ExceptionUtils.getRootCause(procEx);
+
+            var throwables = ExceptionUtils.getThrowableList(procEx);
+            var rootCause = throwables.get(throwables.size() - 1);
+            for (var t : throwables) {
+                if (t instanceof IOException) {
+                    rootCause = t;
+                    break;
+                }
+            }
+
             if (m_settings.isFailOnConnectionProblems()) {
-                throw (cause instanceof Exception) ? (Exception) cause : new ProcessingException(cause);
+                throw (rootCause instanceof Exception) ? (Exception) rootCause : new ProcessingException(rootCause);
             } else {
-                missing = new MissingCell(cause.getMessage());
+                missing = new MissingCell(rootCause.getMessage());
                 response = null;
             }
         } finally {
@@ -723,11 +733,20 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
                         response = DelayPolicy.doWithDelays(m_settings.getDelayPolicy(), m_cooldownContext, () -> invoke(invocation));
                     } catch (ProcessingException e) {
                         LOGGER.debug("Call failed: " + e.getMessage(), e);
-                        Throwable cause = ExceptionUtils.getRootCause(e);
+
+                        var throwables = ExceptionUtils.getThrowableList(e);
+                        Throwable rootCause = throwables.get(throwables.size() - 1);
+                        for (Throwable t : throwables) {
+                            if (t instanceof IOException) {
+                                rootCause = t;
+                                break;
+                            }
+                        }
+
                         if (m_settings.isFailOnConnectionProblems()) {
-                            throw new RuntimeException(cause);
+                            throw new RuntimeException(rootCause);
                         } else {
-                            missing = new MissingCell(cause.getMessage());
+                            missing = new MissingCell(rootCause.getMessage());
                             response = null;
                         }
                     } catch (Exception e) {
@@ -1088,6 +1107,9 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         }
 
         HTTPClientPolicy clientPolicy = WebClient.getConfig(request).getHttpConduit().getClient();
+        // Set HTTP version to 1.1 because by default HTTP/2 will be used. It's a) not supported by some sites
+        // and b) doesn't make sense in our context.
+        clientPolicy.setVersion("1.1");
 
         // Configures the proxy credentials for the request builder if needed.
         m_settings.getProxyManager().configureRequest(m_settings.getCurrentProxyConfig(), request,
