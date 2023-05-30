@@ -50,12 +50,10 @@ package org.knime.rest.internals;
 
 import java.util.Map;
 
+import org.apache.cxf.configuration.security.AuthorizationPolicy;
 import org.apache.cxf.jaxrs.client.ClientConfiguration;
 import org.apache.cxf.jaxrs.client.WebClient;
-import org.apache.cxf.transport.http.asyncclient.AsyncHTTPConduit;
 import org.apache.cxf.transport.http.auth.DigestAuthSupplier;
-import org.apache.http.auth.Credentials;
-import org.apache.http.auth.UsernamePasswordCredentials;
 import org.knime.core.data.DataRow;
 import org.knime.core.node.workflow.CredentialsProvider;
 import org.knime.core.node.workflow.FlowVariable;
@@ -85,15 +83,13 @@ public class DigestAuthentication extends UsernamePasswordAuthentication {
 
         // Digest authentication will fail when a request is made through a proxy (see below).
         // Deliberately not checking for an AP-configured proxy here, host might be on the proxy's exclusion list.
-
         final ClientConfiguration conf = WebClient.getConfig(request);
-        final Map<String, Object> requestContext = conf.getRequestContext();
 
-        // Setting credentials specifically *not* with the HTTPConduit#authorizationPolicy, but via the requestContext.
-        // Note: this method of setting credentials will also try to authenticate at proxy!
-        var creds = new UsernamePasswordCredentials(getUsername(), getPassword());
-        requestContext.put(Credentials.class.getName(), creds);
-        requestContext.put(AsyncHTTPConduit.USE_ASYNC, Boolean.TRUE);
+        var authPolicy = new AuthorizationPolicy();
+        authPolicy.setUserName(getUsername());
+        authPolicy.setPassword(getPassword());
+        conf.getHttpConduit().setAuthorization(authPolicy);
+
         conf.getHttpConduit().setAuthSupplier(new DigestAuthSupplier());
         conf.getHttpConduit().getClient().setAutoRedirect(true);
         return request;
