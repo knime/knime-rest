@@ -539,8 +539,15 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
             m_firstCallValues.add(cells.toArray(new DataCell[cells.size()]));
             m_newColumnsBasedOnFirstCalls = specs.toArray(new DataColumnSpec[specs.size()]);
         } finally {
-            if (response != null) {
+            if (response == null) {
+                // if the response is alredy null, don't touch
+                return;
+            }
+            try {
+                // try to close, but there is a known NPE from within CXF that we catch here
                 response.close();
+            } catch (NullPointerException e) {
+                LOGGER.warn("Closing the HTTP response failed with exception: " + e.getMessage(), e);
             }
         }
     }
@@ -936,27 +943,38 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
     private boolean checkResponse(final Response response) {
         boolean isServerError = isServerError(response);
         boolean isClientError = isClientError(response);
-        if (response != null) {
-            if ((m_settings.isFailOnClientErrors() && isClientError)
-                || (m_settings.isFailOnServerErrors() && isServerError)) {
-                // throw exception, will not be caught in callee and cause node to fail (i think)
-                Object entity = response.getEntity();
-                if (entity instanceof InputStream) {
-                    final InputStream is = (InputStream)entity;
-                    try {
-                        getLogger().debug("Failed location: " + response.getLocation());
-                        getLogger().debug(IOUtils.toString(is,
-                            Charset.isSupported("UTF-8") ? Charset.forName("UTF-8") : Charset.defaultCharset()));
-                    } catch (final IOException e) {
-                        getLogger().debug(e.getMessage(), e);
-                    }
-                } else {
-                    getLogger().debug(entity);
+        // a null response means something went wrong, return an error being detected
+        if (response == null) {
+            return true;
+        }
+        // check whether to fail on error and extract cause
+        if ((m_settings.isFailOnClientErrors() && isClientError)
+            || (m_settings.isFailOnServerErrors() && isServerError)) {
+            // throw exception, will not be caught in callee and cause node to fail (i think)
+            Object entity = response.getEntity();
+            if (entity instanceof InputStream) {
+                final InputStream is = (InputStream)entity;
+                try {
+                    getLogger().debug("Failed location: " + response.getLocation());
+                    getLogger().debug(IOUtils.toString(is,
+                        Charset.isSupported("UTF-8") ? Charset.forName("UTF-8") : Charset.defaultCharset()));
+                } catch (final IOException | NullPointerException e) {
+                    getLogger().debug(e.getMessage(), e);
                 }
-                // only thrown if m_settings.isFailOnHttpError
-                throw new IllegalStateException(
-                    "Wrong status: " + response.getStatus() + " " + response.getStatusInfo().getReasonPhrase());
+            } else {
+                getLogger().debug(entity);
             }
+            // only thrown if m_settings.isFailOnHttpError
+            throw new IllegalStateException(
+                "Wrong status: " + response.getStatus() + " " + response.getStatusInfo().getReasonPhrase());
+        }
+        // check if a needed System property is missing
+        if (response.getStatus() == Response.Status.PROXY_AUTHENTICATION_REQUIRED.getStatusCode()
+                && "Basic".equals(System.getProperty(RestProxyConfigManager.DISABLED_SCHEMES, "Basic"))) {
+            // a 407 response and BASIC auth being disabled points indicates the missing property
+            // to resolve it, jdk.http.auth.tunneling.disabledSchemes="" needs to be set
+            setWarningMessage("Basic authentication on proxies is currently disabled. "
+                + "To enable it, see our FAQ for more information: https://www.knime.com/faq#q42");
         }
         return isServerError || isClientError;
     }
@@ -1125,8 +1143,9 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         final Builder request = target.request();
 
         Bus bus = CXFUtil.getThreadDefaultBus(getClass());
-        // Per default, the sync client is used. Proxy authorization credentials are only sent with the async client.
-        bus.setProperty(AsyncHTTPConduit.USE_ASYNC, m_settings.isUsedAsyncClient());
+        // Per default, the sync client is used. With AP-17297 it was assumed that the async client
+        // needs to be used due to a bug, but a CXF bump to v4 fixed this.
+        bus.setProperty(AsyncHTTPConduit.USE_ASYNC, false);
 
         for (final RequestHeaderKeyItem headerItem : m_settings.getRequestHeaders()) {
             var value = extractHeaderValue(row, spec, headerItem);
@@ -1149,7 +1168,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
 
         // Configures the proxy credentials for the request builder if needed.
         m_settings.getProxyManager().configureRequest(m_settings.getCurrentProxyConfig(), request,
-            m_settings.isUsedAsyncClient(), getCredentialsProvider());
+            getCredentialsProvider());
 
         if (!clientPolicy.isSetAutoRedirect()) {
             clientPolicy.setAutoRedirect(m_settings.isFollowRedirects());

@@ -49,12 +49,14 @@
 package org.knime.rest.nodes.common;
 
 import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 
 import org.knime.core.data.DataCell;
 import org.knime.core.data.DataRow;
 import org.knime.core.data.DataTableSpec;
 import org.knime.core.node.util.CheckUtils;
+import org.knime.rest.generic.EachRequestAuthentication;
 import org.knime.rest.nodes.common.proxy.ProxyMode;
 import org.knime.rest.nodes.common.proxy.RestProxyConfig;
 
@@ -120,7 +122,19 @@ public final class ProxyRestNodeModel extends RestNodeModel<RestSettings> {
      * @throws Exception
      */
     public void makeRequest() throws Exception {
-        makeFirstCall(null, Collections.emptyList(), null, null);
+        makeRequest(null);
+    }
+
+    /**
+     * Performs a simple GET request with a given authentication method.
+     *
+     * @throws Exception
+     */
+    public void makeRequest(final EachRequestAuthentication auth) throws Exception {
+        reset();
+        final List<EachRequestAuthentication> enabledAuthentications =
+            auth != null ? List.of(auth) : Collections.emptyList();
+        makeFirstCall(null, enabledAuthentications, null, null);
     }
 
     /**

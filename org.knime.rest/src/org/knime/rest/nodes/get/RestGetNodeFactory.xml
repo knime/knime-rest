@@ -48,15 +48,6 @@
                 Specifies whether HTTP Chunked Transfer Encoding is allowed to be used by the node. If enabled, messages
                 with a large body size are being sent to the server in a series of chunks.
             </option>
-            <option name="Use asynchronous HTTP client implementation">
-                If checked, the node will use an asynchronous HTTP client implementation to
-                perform the request (dedicated implementation of the web service client
-                library, Apache CXF). If unchecked, a default client implementation is used,
-                which is part of the Java Runtime Library. The latter tends to be a little
-                faster but has certain limitations, e.g. proxy authentication is not supported.
-                If unsure, leave unchecked. The asynchronous client cannot be used in
-                conjunction with digest server authentication.                 
-            </option>
             <option name="Timeout (s)">Timeout for a single request in seconds</option>
             <option name="Body">Name of the response body column in the output table</option>
         </tab>

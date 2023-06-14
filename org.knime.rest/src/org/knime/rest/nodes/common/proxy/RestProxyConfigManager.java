@@ -76,6 +76,12 @@ import jakarta.ws.rs.client.Invocation.Builder;
  */
 public final class RestProxyConfigManager {
 
+    /*
+     * Property that was introduced with Java 8u111 to disabled authentication schemes on HTTPS.
+     * Disables BASIC per default. See https://www.oracle.com/java/technologies/javase/8u111-relnotes.html.
+     */
+    public static final String DISABLED_SCHEMES = "jdk.http.auth.tunneling.disabledSchemes";
+
     private static final NodeLogger LOGGER = NodeLogger.getLogger(RestProxyConfigManager.class);
 
     static final String USE_PROXY_KEY = "Proxy_enabled";
@@ -215,12 +221,11 @@ public final class RestProxyConfigManager {
      *
      * @param maybeConfig
      * @param request Builder that creates the invocation.
-     * @param isUsedAsyncClient
      * @param credsProvider
      * @throws InvalidSettingsException
      */
     public void configureRequest(final Optional<RestProxyConfig> maybeConfig, final Builder request, // NOSONAR
-        final boolean isUsedAsyncClient, final CredentialsProvider credsProvider) throws InvalidSettingsException {
+        final CredentialsProvider credsProvider) throws InvalidSettingsException {
         var conduit = WebClient.getConfig(request).getHttpConduit();
 
         if (maybeConfig.isEmpty()) {
@@ -256,11 +261,6 @@ public final class RestProxyConfigManager {
 
         // Setting authentication data.
         if (config.isUseAuthentication()) {
-            if (!isUsedAsyncClient) {
-                // The synchronous client does not support proxy authentication because of not sending its credentials.
-                throw new InvalidSettingsException("In order to use proxy authentication,"
-                    + " enable the asynchronous HTTP client setting in the node configuration.");
-            }
             final var authentication = config.getAuthentication().orElseThrow(); // must be present
             authentication.configure(conduit, credsProvider);
             // We currently only support basic authorization.

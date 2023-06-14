@@ -50,7 +50,7 @@ package org.knime.rest.nodes.common.proxy;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 
 import java.util.Optional;
 
@@ -122,10 +122,8 @@ final class ProxyDetectionTest {
         var proxyConfig = RestProxyConfigManager.getGlobalConfig();
         var dummyRequest = ClientBuilder.newBuilder().build().target("http://localhost").request();
         assertThat("Proxy port must be set to dummy value 1234", 1234, is(proxyConfig.getProxyTarget().port()));
-        assertThrows(InvalidSettingsException.class,
-            () -> proxyManager.configureRequest(Optional.of(proxyConfig), dummyRequest, false, null),
-            "Proxy detection should have thrown an error message because authentication is needed"
-                + " although synchronous client is used.");
+        assertDoesNotThrow(() -> proxyManager.configureRequest(Optional.of(proxyConfig), dummyRequest, null),
+            "Proxy detection should not have thrown an ISE message when configuring the REST request");
         SystemPropertyProvider.restoreProperties(props, values);
     }
 

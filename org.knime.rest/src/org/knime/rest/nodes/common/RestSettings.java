@@ -179,11 +179,7 @@ public class RestSettings {
 
     private static final String FOLLOW_REDIRECTS = "follow redirects";
 
-    private static final String USE_ASYNC_CLIENT = "use async client";
-
     private static final boolean DEFAULT_FOLLOW_REDIRECTS = true;
-
-    private static final boolean DEFAULT_USE_ASYNC_CLIENT = false;
 
     private static final String TIMEOUT = "timeout";
 
@@ -220,8 +216,6 @@ public class RestSettings {
     private boolean m_failOnConnectionProblems = DEFAULT_FAIL_ON_CONNECTION_PROBLEMS;
 
     private boolean m_followRedirects = DEFAULT_FOLLOW_REDIRECTS;
-
-    private boolean m_useAsyncClient = DEFAULT_USE_ASYNC_CLIENT;
 
     private int m_timeoutInSeconds = DEFAULT_TIMEOUT;
 
@@ -759,20 +753,6 @@ public class RestSettings {
     }
 
     /**
-     * @return the useAsyncClient
-     */
-    protected boolean isUsedAsyncClient() {
-        return m_useAsyncClient;
-    }
-
-    /**
-     * @param followRedirects the followRedirects to set
-     */
-    protected void setUseAsyncClient(final boolean useAsyncClient) {
-        m_useAsyncClient = useAsyncClient;
-    }
-
-    /**
      * @return the timeoutInSeconds
      */
     protected int getTimeoutInSeconds() {
@@ -860,7 +840,6 @@ public class RestSettings {
             settings.addBoolean(euc.getName() + ENABLED_SUFFIX, euc.isEnabled());
         }
         settings.addBoolean(FOLLOW_REDIRECTS, m_followRedirects);
-        settings.addBoolean(USE_ASYNC_CLIENT, m_useAsyncClient);
         settings.addInt(TIMEOUT, m_timeoutInSeconds);
         m_delayPolicy.ifPresent(v -> v.saveToSettings(settings));
         settings.addBoolean(FAIL_ON_SERVER_ERRORS, m_failOnServerErrors);
@@ -932,10 +911,6 @@ public class RestSettings {
             }
         }
         m_followRedirects = settings.getBoolean(FOLLOW_REDIRECTS);
-        // Provide backwards-compatibility for newer USE_ASYNC_CLIENT setting.
-        if (settings.containsKey(USE_ASYNC_CLIENT)) {
-            m_useAsyncClient = settings.getBoolean(USE_ASYNC_CLIENT);
-        }
         m_timeoutInSeconds = settings.getInt(TIMEOUT);
         m_delayPolicy = DelayPolicy.loadFromSettings(settings);
         loadFailOnHttp(settings);
@@ -955,13 +930,6 @@ public class RestSettings {
 
         if (settings.containsKey(RestProxyConfigManager.getProxyConfigIdentifier())) {
             m_currentProxyConfig = m_proxyManager.loadConfigFrom(settings);
-            // the synchronous client does not support proxy authentication, request will always result in 407
-            // -> issue a warning when proxy authentication is configured and the sync client is used
-            if (m_currentProxyConfig.map(RestProxyConfig::isUseAuthentication).orElse(false) && !m_useAsyncClient) {
-                throw new InvalidSettingsException("In order to use proxy authentication, "
-                    + "enable the asynchronous HTTP client in the connection settings.\n"
-                    + "See node description for more details.");
-            }
         }
     }
 
@@ -1046,7 +1014,6 @@ public class RestSettings {
             }
         }
         m_followRedirects = settings.getBoolean(FOLLOW_REDIRECTS, DEFAULT_FOLLOW_REDIRECTS);
-        m_useAsyncClient = settings.getBoolean(USE_ASYNC_CLIENT, DEFAULT_USE_ASYNC_CLIENT);
         m_timeoutInSeconds = settings.getInt(TIMEOUT, DEFAULT_TIMEOUT);
         m_delayPolicy = DelayPolicy.loadFromSettings(settings);
         loadFailOnHttp(settings);
