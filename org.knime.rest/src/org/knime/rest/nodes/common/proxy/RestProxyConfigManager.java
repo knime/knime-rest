@@ -76,7 +76,7 @@ import jakarta.ws.rs.client.Invocation.Builder;
  */
 public final class RestProxyConfigManager {
 
-    /*
+    /**
      * Property that was introduced with Java 8u111 to disabled authentication schemes on HTTPS.
      * Disables BASIC per default. See https://www.oracle.com/java/technologies/javase/8u111-relnotes.html.
      */

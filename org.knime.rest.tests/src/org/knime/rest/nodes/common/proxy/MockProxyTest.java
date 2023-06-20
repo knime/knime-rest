@@ -77,10 +77,6 @@ final class MockProxyTest {
 
     // -- SERVERS --
 
-    private static final int PROXY_PORT = 48087;
-
-    private static final int SERVER_PORT = 48089;
-
     private static WireMockServer mockRequestProxy;
 
     private static WireMockServer mockRequestServer;
@@ -94,9 +90,9 @@ final class MockProxyTest {
     @BeforeAll
     public static void initializeMockObjects() throws InvalidSettingsException {
         // Setting up the forwarding proxy and mocked server target.
-        mockRequestProxy = HttpMockServiceFactory.createForwardingProxy(PROXY_PORT);
+        mockRequestProxy = HttpMockServiceFactory.createForwardingProxy();
         mockRequestProxy.start();
-        mockRequestServer = HttpMockServiceFactory.createMockServer(SERVER_PORT);
+        mockRequestServer = HttpMockServiceFactory.createMockServer();
         mockRequestServer.start();
         final var serverAdress = HttpMockServiceFactory.getBaseUri(mockRequestServer).toString();
 

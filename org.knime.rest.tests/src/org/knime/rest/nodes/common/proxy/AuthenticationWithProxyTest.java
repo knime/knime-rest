@@ -75,8 +75,6 @@ import com.github.tomakehurst.wiremock.WireMockServer;
  */
 public class AuthenticationWithProxyTest {
 
-    private static final int PROXY_PORT = 48187;
-
     private static WireMockServer forwardingProxy;
 
     private static ProxyRestNodeModel proxyNodeModel;
@@ -89,7 +87,7 @@ public class AuthenticationWithProxyTest {
     @BeforeAll
     public static void initializeHttpParties() throws InvalidSettingsException {
         // Setting up the forwarding proxy.
-        forwardingProxy = HttpMockServiceFactory.createForwardingProxy(PROXY_PORT);
+        forwardingProxy = HttpMockServiceFactory.createForwardingProxy();
         forwardingProxy.start();
 
         // Configuring our REST client.

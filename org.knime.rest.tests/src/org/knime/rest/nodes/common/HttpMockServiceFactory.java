@@ -55,6 +55,7 @@ import java.net.URISyntaxException;
 import java.util.function.Supplier;
 
 import com.github.tomakehurst.wiremock.WireMockServer;
+import com.github.tomakehurst.wiremock.client.WireMock;
 
 /**
  * Mock HTTP service factory, can create a server for mocking direct responses or forwarding proxies.
@@ -63,31 +64,32 @@ import com.github.tomakehurst.wiremock.WireMockServer;
  */
 public abstract class HttpMockServiceFactory {
 
-    private static final ClassLoader WIREMOCK_CLASSLOADER = WireMockServer.class.getClassLoader();
+    private static final ClassLoader WIREMOCK_CLASSLOADER = WireMock.class.getClassLoader();
 
     /**
      * Creates a server that simulates mock HTTP server. Returns mock responses.
+     * Uses dynamic port allocation.
      *
-     * @param port to serve at
      * @return mock server(WireMockServer)
      */
-    public static WireMockServer createMockServer(final int port) {
+    public static WireMockServer createMockServer() {
         return loadInWireMockContext(() -> new WireMockServer(//
             wireMockConfig()//
-                .port(port)));
+                .dynamicPort()));
     }
 
     /**
      * Creates a server that acts as a mock HTTP proxy. Just forwards the incoming request to the target host.
      * Forwarding proxy will attach a "Via" header as marker to the response.
+     * Uses dynamic port allocation.
      *
-     * @param port to serve at
      * @return forwarding proxy (WireMockServer)
      */
-    public static WireMockServer createForwardingProxy(final int port) {
+    @SuppressWarnings("unchecked")
+    public static WireMockServer createForwardingProxy() {
         return loadInWireMockContext(() -> new WireMockServer(//
             wireMockConfig()//
-                .port(port)//
+                .dynamicPort()//
                 .enableBrowserProxying(true)//
                 .trustAllProxyTargets(true)//
                 .extensions(PassthroughMarker.class)));

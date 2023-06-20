@@ -52,6 +52,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
@@ -539,15 +540,13 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
             m_firstCallValues.add(cells.toArray(new DataCell[cells.size()]));
             m_newColumnsBasedOnFirstCalls = specs.toArray(new DataColumnSpec[specs.size()]);
         } finally {
-            if (response == null) {
-                // if the response is alredy null, don't touch
-                return;
-            }
-            try {
-                // try to close, but there is a known NPE from within CXF that we catch here
-                response.close();
-            } catch (NullPointerException e) {
-                LOGGER.warn("Closing the HTTP response failed with exception: " + e.getMessage(), e);
+            if (response != null) {
+                try {
+                    // try to close, but there is a known NPE from within CXF that we catch here
+                    response.close();
+                } catch (NullPointerException e) { // NOSONAR avoid CXF bug
+                    LOGGER.warn("Closing the HTTP response failed with exception: " + e.getMessage(), e);
+                }
             }
         }
     }
@@ -941,12 +940,12 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
      * @throws IllegalStateExcetion When the http status code is {@code 4xx} or {@code 5xx} and we have to check it.
      */
     private boolean checkResponse(final Response response) {
-        boolean isServerError = isServerError(response);
-        boolean isClientError = isClientError(response);
         // a null response means something went wrong, return an error being detected
         if (response == null) {
             return true;
         }
+        boolean isServerError = isServerError(response);
+        boolean isClientError = isClientError(response);
         // check whether to fail on error and extract cause
         if ((m_settings.isFailOnClientErrors() && isClientError)
             || (m_settings.isFailOnServerErrors() && isServerError)) {
@@ -957,8 +956,8 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
                 try {
                     getLogger().debug("Failed location: " + response.getLocation());
                     getLogger().debug(IOUtils.toString(is,
-                        Charset.isSupported("UTF-8") ? Charset.forName("UTF-8") : Charset.defaultCharset()));
-                } catch (final IOException | NullPointerException e) {
+                        Charset.isSupported("UTF-8") ? StandardCharsets.UTF_8 : Charset.defaultCharset()));
+                } catch (final IOException | NullPointerException e) { // NOSONAR - NPE in IOUtils#toString (CXF bug)
                     getLogger().debug(e.getMessage(), e);
                 }
             } else {
@@ -968,13 +967,13 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
             throw new IllegalStateException(
                 "Wrong status: " + response.getStatus() + " " + response.getStatusInfo().getReasonPhrase());
         }
-        // check if a needed System property is missing
+        // check if a needed System property is missing, added as part of AP-20585
         if (response.getStatus() == Response.Status.PROXY_AUTHENTICATION_REQUIRED.getStatusCode()
                 && "Basic".equals(System.getProperty(RestProxyConfigManager.DISABLED_SCHEMES, "Basic"))) {
             // a 407 response and BASIC auth being disabled points indicates the missing property
             // to resolve it, jdk.http.auth.tunneling.disabledSchemes="" needs to be set
             setWarningMessage("Basic authentication on proxies is currently disabled. "
-                + "To enable it, see our FAQ for more information: https://www.knime.com/faq#q42");
+                + "To enable it, see FAQ: https://www.knime.com/faq#q42");
         }
         return isServerError || isClientError;
     }
@@ -1145,12 +1144,15 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         Bus bus = CXFUtil.getThreadDefaultBus(getClass());
         // Per default, the sync client is used. With AP-17297 it was assumed that the async client
         // needs to be used due to a bug, but a CXF bump to v4 fixed this.
+        // (this can be overwritten by system property 'org.apache.cxf.transport.http.async.usePolicy'
+        // (see CXF documentation)
         bus.setProperty(AsyncHTTPConduit.USE_ASYNC, false);
 
         for (final RequestHeaderKeyItem headerItem : m_settings.getRequestHeaders()) {
             var value = extractHeaderValue(row, spec, headerItem);
             // If a specified request header has no value, the REST node execution fails with an ISE.
             if (Objects.isNull(value) && m_settings.isFailOnMissingHeaders()) {
+                client.close();
                 throw new InvalidSettingsException("The value of request header \"" + headerItem.getKey()
                     + "\" is not available. Enter a non-empty value.");
             }
