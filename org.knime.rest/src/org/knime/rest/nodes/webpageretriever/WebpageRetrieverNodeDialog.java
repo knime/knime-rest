@@ -64,6 +64,7 @@ import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.NotConfigurableException;
+import org.knime.core.node.context.NodeCreationConfiguration;
 import org.knime.rest.nodes.common.RestNodeDialog;
 
 /**
@@ -86,8 +87,8 @@ final class WebpageRetrieverNodeDialog extends RestNodeDialog<WebpageRetrieverSe
     private JLabel m_cookieOutputColumnNameLabel;
 
     /** */
-    WebpageRetrieverNodeDialog() {
-        super();
+    WebpageRetrieverNodeDialog(final NodeCreationConfiguration cfg) {
+        super(cfg);
         renameTab("Connection", "General");
         removeTab("Response Headers");
     }

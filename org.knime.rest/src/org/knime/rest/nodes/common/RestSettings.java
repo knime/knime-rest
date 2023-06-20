@@ -58,7 +58,6 @@ import java.util.Optional;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IConfigurationElement;
 import org.eclipse.core.runtime.Platform;
-import org.knime.core.data.DataTableSpec;
 import org.knime.core.data.DataType;
 import org.knime.core.data.def.IntCell;
 import org.knime.core.data.def.StringCell;
@@ -67,6 +66,7 @@ import org.knime.core.node.NodeLogger;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.NotConfigurableException;
+import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.node.util.CheckUtils;
 import org.knime.core.node.workflow.CredentialsProvider;
 import org.knime.rest.generic.EnablableUserConfiguration;
@@ -982,7 +982,7 @@ public class RestSettings {
      * @throws InvalidSettingsException When the state is inconsistent.
      */
     protected void loadSettingsForDialog(final NodeSettingsRO settings, final CredentialsProvider credentialNames,
-        final DataTableSpec... specs) throws InvalidSettingsException {
+        final PortObjectSpec... specs) throws InvalidSettingsException {
         m_isUseConstantURI = settings.getBoolean(USE_CONSTANT_URI, DEFAULT_USE_CONSTANT_URI);
         m_constantURI = settings.getString(CONSTANT_URI, DEFAULT_CONSTANT_URI);
         m_uriColumn = settings.getString(URI_COLUMN, DEFAULT_URI_COLUMN);

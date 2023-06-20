@@ -50,6 +50,7 @@ package org.knime.rest.nodes.get;
 
 import org.knime.core.data.DataRow;
 import org.knime.core.data.DataTableSpec;
+import org.knime.core.node.context.NodeCreationConfiguration;
 import org.knime.rest.nodes.common.RestNodeModel;
 
 import jakarta.ws.rs.client.Invocation;
@@ -63,9 +64,10 @@ import jakarta.ws.rs.client.Invocation.Builder;
 class RestGetNodeModel extends RestNodeModel<RestGetSettings> {
     /**
      * Constructor
+     * @param cfg The node creation configuration.
      */
-    public RestGetNodeModel() {
-        super();
+    public RestGetNodeModel(final NodeCreationConfiguration cfg) {
+        super(cfg);
     }
 
     /**

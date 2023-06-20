@@ -48,6 +48,7 @@
  */
 package org.knime.rest.nodes.post;
 
+import org.knime.core.node.context.NodeCreationConfiguration;
 import org.knime.rest.nodes.common.RestWithBodyNodeDialog;
 
 /**
@@ -60,8 +61,8 @@ final class RestPostNodeDialog extends RestWithBodyNodeDialog<RestPostSettings> 
     /**
      * Constructs the dialog.
      */
-    RestPostNodeDialog() {
-        super();
+    RestPostNodeDialog(final NodeCreationConfiguration cfg) {
+        super(cfg);
     }
 
     /**

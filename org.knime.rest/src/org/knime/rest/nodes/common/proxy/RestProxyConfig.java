@@ -53,12 +53,12 @@ import java.util.Objects;
 import java.util.Optional;
 
 import org.apache.commons.lang3.StringUtils;
-import org.knime.core.data.DataTableSpec;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeLogger;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.NotConfigurableException;
+import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.node.util.ConvenienceMethods;
 import org.knime.core.node.workflow.CredentialsProvider;
 import org.knime.rest.internals.BasicAuthentication;
@@ -243,7 +243,7 @@ public final class RestProxyConfig {
 
         private CredentialsProvider m_builderCredentialsProvider;
 
-        private DataTableSpec[] m_builderSpecs;
+        private PortObjectSpec[] m_builderSpecs;
 
         private boolean m_useDefaultSettingsValues;
 
@@ -388,7 +388,7 @@ public final class RestProxyConfig {
          * @return builder
          */
         public RestProxyConfigBuilder useNodeSettings(final NodeSettingsRO settings,
-            final CredentialsProvider credentialNames, final DataTableSpec... specs) {
+            final CredentialsProvider credentialNames, final PortObjectSpec... specs) {
             m_builderNodeSettings = settings;
             m_builderCredentialsProvider = credentialNames;
             m_builderSpecs = specs;
@@ -453,7 +453,7 @@ public final class RestProxyConfig {
         }
 
         static BasicAuthentication loadAuthenticationFromSettings(BasicAuthentication auth,
-            final NodeSettingsRO settings, final CredentialsProvider credentialNames, final DataTableSpec[] specs)
+            final NodeSettingsRO settings, final CredentialsProvider credentialNames, final PortObjectSpec[] specs)
             throws InvalidSettingsException {
             if (!settings.containsKey(RestProxyConfigManager.PROXY_AUTH_KEY)) {
                 return null;

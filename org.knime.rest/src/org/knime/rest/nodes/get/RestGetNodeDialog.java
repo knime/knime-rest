@@ -48,6 +48,7 @@
  */
 package org.knime.rest.nodes.get;
 
+import org.knime.core.node.context.NodeCreationConfiguration;
 import org.knime.rest.nodes.common.RestNodeDialog;
 
 /**
@@ -58,9 +59,10 @@ import org.knime.rest.nodes.common.RestNodeDialog;
 final class RestGetNodeDialog extends RestNodeDialog<RestGetSettings> {
     /**
      * Constructor
+     * @param cfg The node creation configuration.
      */
-    public RestGetNodeDialog() {
-        super();
+    public RestGetNodeDialog(final NodeCreationConfiguration cfg) {
+        super(cfg);
     }
 
     /**

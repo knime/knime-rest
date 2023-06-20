@@ -48,6 +48,7 @@
  */
 package org.knime.rest.nodes.patch;
 
+import org.knime.core.node.context.NodeCreationConfiguration;
 import org.knime.rest.nodes.common.RestWithBodyNodeModel;
 
 import jakarta.ws.rs.HttpMethod;
@@ -61,6 +62,10 @@ import jakarta.ws.rs.client.Invocation.Builder;
  * @author Mark Ortmann, KNIME GmbH, Berlin, Germany
  */
 final class RestPatchNodeModel extends RestWithBodyNodeModel<RestPatchSettings> {
+
+    public RestPatchNodeModel(final NodeCreationConfiguration cfg) {
+        super(cfg);
+    }
 
     @Override
     protected RestPatchSettings createSettings() {

@@ -48,6 +48,7 @@
  */
 package org.knime.rest.nodes.delete;
 
+import org.knime.core.node.context.NodeCreationConfiguration;
 import org.knime.rest.nodes.common.RestNodeDialog;
 
 /**
@@ -58,9 +59,10 @@ import org.knime.rest.nodes.common.RestNodeDialog;
 final class RestDeleteNodeDialog extends RestNodeDialog<RestDeleteSettings> {
     /**
      * Constructor.
+     * @param cfg The node creation configuration.
      */
-    public RestDeleteNodeDialog() {
-        super();
+    public RestDeleteNodeDialog(final NodeCreationConfiguration cfg) {
+        super(cfg);
     }
 
     /**

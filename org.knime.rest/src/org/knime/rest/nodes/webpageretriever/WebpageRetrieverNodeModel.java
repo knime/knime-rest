@@ -77,6 +77,7 @@ import org.knime.core.data.def.StringCell;
 import org.knime.core.data.xml.XMLCell;
 import org.knime.core.data.xml.XMLCellFactory;
 import org.knime.core.node.ExecutionContext;
+import org.knime.core.node.context.NodeCreationConfiguration;
 import org.knime.core.util.UniqueNameGenerator;
 import org.knime.rest.generic.EachRequestAuthentication;
 import org.knime.rest.nodes.common.RestNodeModel;
@@ -101,9 +102,10 @@ final class WebpageRetrieverNodeModel extends RestNodeModel<WebpageRetrieverSett
 
     /**
      * Constructor for a WebPageRetrieverNodeModel.
+     * @param cfg The node creation configuration.
      */
-    protected WebpageRetrieverNodeModel() {
-        super();
+    protected WebpageRetrieverNodeModel(final NodeCreationConfiguration cfg) {
+        super(cfg);
     }
 
     @Override

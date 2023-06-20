@@ -50,10 +50,10 @@ package org.knime.rest.nodes.webpageretriever;
 
 import java.util.Collections;
 
-import org.knime.core.data.DataTableSpec;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
+import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.node.workflow.CredentialsProvider;
 import org.knime.rest.nodes.common.RestSettings;
 
@@ -196,7 +196,7 @@ final class WebpageRetrieverSettings extends RestSettings {
      */
     @Override
     protected void loadSettingsForDialog(final NodeSettingsRO settings, final CredentialsProvider credentialNames,
-        final DataTableSpec... specs) throws InvalidSettingsException {
+        final PortObjectSpec... specs) throws InvalidSettingsException {
         super.loadSettingsForDialog(settings, credentialNames, specs);
         m_outputColumnName = settings.getString(OUTPUT_COL_NAME, DEFAULT_OUTPUT_COL_NAME);
         m_replaceRelativeURLS = settings.getBoolean(REPLACE_RELATIVE_URLS, DEFAULT_REPLACE_RELATIVE_URLS);

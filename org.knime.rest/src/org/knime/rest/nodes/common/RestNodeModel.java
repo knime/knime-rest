@@ -51,7 +51,6 @@ package org.knime.rest.nodes.common;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.http.HttpTimeoutException;
 import java.nio.charset.Charset;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
@@ -114,6 +113,7 @@ import org.knime.core.node.NodeLogger;
 import org.knime.core.node.NodeModel;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
+import org.knime.core.node.context.NodeCreationConfiguration;
 import org.knime.core.node.port.PortObject;
 import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.node.port.PortType;
@@ -121,6 +121,7 @@ import org.knime.core.node.streamable.InputPortRole;
 import org.knime.core.node.streamable.OutputPortRole;
 import org.knime.core.node.streamable.PartitionInfo;
 import org.knime.core.node.streamable.PortInput;
+import org.knime.core.node.streamable.PortObjectInput;
 import org.knime.core.node.streamable.PortOutput;
 import org.knime.core.node.streamable.RowInput;
 import org.knime.core.node.streamable.RowOutput;
@@ -139,11 +140,16 @@ import org.knime.core.util.Pair;
 import org.knime.core.util.ThreadLocalHTTPAuthenticator;
 import org.knime.core.util.ThreadLocalHTTPAuthenticator.AuthenticationCloseable;
 import org.knime.core.util.UniqueNameGenerator;
+import org.knime.credentials.base.Credential;
+import org.knime.credentials.base.CredentialPortObject;
+import org.knime.credentials.base.CredentialPortObjectSpec;
+import org.knime.credentials.base.oauth.api.HttpAuthorizationHeaderCredentialValue;
 import org.knime.cxf.CXFUtil;
 import org.knime.rest.generic.EachRequestAuthentication;
 import org.knime.rest.generic.ResponseBodyParser;
 import org.knime.rest.generic.ResponseBodyParser.Default;
 import org.knime.rest.generic.ResponseBodyParser.Missing;
+import org.knime.rest.internals.HttpAuthorizationHeaderAuthentication;
 import org.knime.rest.nodes.common.RestSettings.ReferenceType;
 import org.knime.rest.nodes.common.RestSettings.RequestHeaderKeyItem;
 import org.knime.rest.nodes.common.RestSettings.ResponseHeaderItem;
@@ -202,6 +208,8 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
 
     private final List<ResponseBodyParser> m_errorBodyParsers = new ArrayList<>();
 
+    private final int m_credentialPortIdx;
+
     static final String STATUS = "Status";
 
     /** Fallback for the {@link FromString} creating missing cells. */
@@ -225,32 +233,26 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
     private CooldownContext m_cooldownContext;
 
     /**
-     * Constructor with {@link BufferedDataTable}s in input/output ports.
-     *
-     * @param nrInDataPorts Number of input data ports.
-     * @param nrOutDataPorts Number of output data ports.
-     */
-    protected RestNodeModel(final int nrInDataPorts, final int nrOutDataPorts) {
-        super(nrInDataPorts, nrOutDataPorts);
-        init();
-    }
-
-    /**
-     * Constructor with {@link PortObject}s in input/output ports.
-     *
-     * @param inPortTypes The input port types.
-     * @param outPortTypes The output port types.
-     */
-    protected RestNodeModel(final PortType[] inPortTypes, final PortType[] outPortTypes) {
-        super(inPortTypes, outPortTypes);
-        init();
-    }
-
-    /**
      * Common constructor for descendent classes with the default optional input table and a single output table.
+     * @param cfg The node creating configuration
+     */
+    protected RestNodeModel(final NodeCreationConfiguration cfg) {
+        super(cfg.getPortConfig().orElseThrow(IllegalStateException::new).getInputPorts(),
+            cfg.getPortConfig().orElseThrow(IllegalStateException::new).getOutputPorts());
+
+        m_credentialPortIdx = cfg.getPortConfig().orElseThrow(IllegalStateException::new).getInputPortLocation()
+            .getOrDefault(RestNodeFactory.CREDENTIAL_GROUP_ID, new int[]{-1})[0];
+        init();
+    }
+
+    /**
+     * Default constructor for proxy test..
      */
     protected RestNodeModel() {
-        this(new PortType[]{BufferedDataTable.TYPE_OPTIONAL}, new PortType[]{BufferedDataTable.TYPE});
+        super(new PortType[]{BufferedDataTable.TYPE_OPTIONAL}, new PortType[]{BufferedDataTable.TYPE});
+
+        m_credentialPortIdx = -1;
+        init();
     }
 
     /**
@@ -300,7 +302,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
     /**
      * Inits JAX-RS to use CXF, only called in constructors.
      */
-    protected void init() {
+    protected static final void init() {
         System.setProperty(ClientBuilder.JAXRS_DEFAULT_CLIENT_BUILDER_PROPERTY, ClientBuilderImpl.class.getName());
         System.setProperty(RuntimeDelegate.JAXRS_RUNTIME_DELEGATE_PROPERTY, RuntimeDelegateImpl.class.getName());
     }
@@ -309,8 +311,8 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
      * {@inheritDoc}
      */
     @Override
-    protected DataTableSpec[] configure(final DataTableSpec[] inSpecs) throws InvalidSettingsException {
-        final DataTableSpec inputSpec = inSpecs[0];
+    protected DataTableSpec[] configure(final PortObjectSpec[] inSpecs) throws InvalidSettingsException {
+        final DataTableSpec inputSpec = (DataTableSpec)inSpecs[0];
         if (!m_settings.isUseConstantURI()) {
             String uriColumn = m_settings.getUriColumn();
             if (inputSpec == null) {
@@ -354,6 +356,15 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
             }
         }
 
+        if (m_credentialPortIdx != -1) {
+            var type = ((CredentialPortObjectSpec)inSpecs[m_credentialPortIdx]).getCredentialType().orElse(null);
+            if (type != null
+                && !HttpAuthorizationHeaderCredentialValue.class.isAssignableFrom(type.getCredentialClass())) {
+                throw new InvalidSettingsException("Unsupported credential type: " + type.getName());
+
+            }
+        }
+
         // we do not know the exact columns (like type of body) without making a REST call, so return no table spec.
         return new DataTableSpec[]{null};
     }
@@ -365,28 +376,43 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
      */
     @Execute
     @Override
-    protected BufferedDataTable[] execute(final BufferedDataTable[] inData, final ExecutionContext exec)
+    protected PortObject[] execute(final PortObject[] inData, final ExecutionContext exec)
         throws Exception {
-        final List<EachRequestAuthentication> enabledEachRequestAuthentications = enabledAuthConfigs();
+        BufferedDataTable inTable = (BufferedDataTable)inData[0];
+        final List<EachRequestAuthentication> enabledEachRequestAuthentications =
+            getAuthentications(getCredential(inData));
         createResponseBodyParsers(exec);
         if (inData.length > 0 && inData[0] != null) {
-            if (inData[0].size() == 0) {
+            if (inTable.size() == 0) {
                 //No calls to make.
                 return inData;
             }
-            final DataTableSpec spec = inData[0].getDataTableSpec();
-            try (final CloseableRowIterator iterator = inData[0].iterator()) {
+            final DataTableSpec spec = inTable.getDataTableSpec();
+            try (final CloseableRowIterator iterator = inTable.iterator()) {
                 while (!m_readNonError && iterator.hasNext()) {
                     makeFirstCall(iterator.next(), enabledEachRequestAuthentications, spec, exec);
                     m_consumedRows++;
                 }
             }
             final ColumnRearranger rearranger =
-                createColumnRearranger(enabledEachRequestAuthentications, spec, exec, inData[0].size());
-            return new BufferedDataTable[]{exec.createColumnRearrangeTable(inData[0], rearranger, exec)};
+                createColumnRearranger(enabledEachRequestAuthentications, spec, exec, inTable.size());
+            return new BufferedDataTable[]{exec.createColumnRearrangeTable(inTable, rearranger, exec)};
         }
         makeFirstCall(null/*row*/, enabledEachRequestAuthentications, null/*spec*/, exec);
         return createTableFromFirstCallData(exec);
+    }
+
+    private HttpAuthorizationHeaderCredentialValue getCredential(final PortObject[] portObjects) {
+        if (m_credentialPortIdx > -1) {
+            return getCredential((CredentialPortObject)portObjects[m_credentialPortIdx]);
+        } else {
+            return null;
+        }
+    }
+
+    private static HttpAuthorizationHeaderCredentialValue getCredential(final CredentialPortObject portObject) {
+        return (HttpAuthorizationHeaderCredentialValue)portObject.getCredential(Credential.class).orElseThrow(
+            () -> new IllegalStateException("Credential is not available. Please re-execute the authenticator node."));
     }
 
     /**
@@ -856,16 +882,17 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
             public void runIntermediate(final PortInput[] inputs, final ExecutionContext exec) throws Exception {
                 createResponseBodyParsers(exec);
                 DataTableSpec inputSpec = null;
+                var authentications = getAuthentications(getCredential(inputs));
                 if (inputs.length > 0 && inputs[0] != null && inputs[0] instanceof RowInput) {
                     final RowInput input = (RowInput)inputs[0];
                     inputSpec = input.getDataTableSpec();
                     DataRow row;
                     while (!m_readNonError && (row = input.poll()) != null) {
-                        makeFirstCall(row, enabledAuthConfigs(), inputSpec, exec);
+                        makeFirstCall(row, authentications, inputSpec, exec);
                         m_consumedRows++;
                     }
                 } else {
-                    makeFirstCall(null/*row*/, enabledAuthConfigs(), null/*spec*/, exec);
+                    makeFirstCall(null/*row*/, authentications, null/*spec*/, exec);
                 }
                 updateFirstCallColumnsOnHttpError(inputSpec);
                 //No more rows, so even if there are errors, m_readError should be true:
@@ -883,11 +910,20 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
                     rowOutput.push(new DefaultRow(RowKey.createRowKey(0L), m_firstCallValues.get(0)));
                     rowOutput.close();
                 } else {
-                    createColumnRearranger(enabledAuthConfigs(), inSpecs.length > 0 ? (DataTableSpec)inSpecs[0] : null,
-                        exec, -1L).createStreamableFunction().runFinal(inputs, outputs, exec);
+                    createColumnRearranger(getAuthentications(getCredential(inputs)),
+                        inSpecs.length > 0 ? (DataTableSpec)inSpecs[0] : null, exec, -1L).createStreamableFunction()
+                            .runFinal(inputs, outputs, exec);
                 }
             }
         };
+    }
+
+    private HttpAuthorizationHeaderCredentialValue getCredential(final PortInput[] inputs) {
+        if (m_credentialPortIdx > -1) {
+            return getCredential((CredentialPortObject)((PortObjectInput)inputs[m_credentialPortIdx]).getPortObject());
+        } else {
+            return null;
+        }
     }
 
     /**
@@ -1183,6 +1219,15 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
             case CredentialName -> getCredentialsProvider().get(ref).getLogin();
             case CredentialPassword -> getCredentialsProvider().get(ref).getPassword();
         };
+    }
+
+    private List<EachRequestAuthentication>
+        getAuthentications(final HttpAuthorizationHeaderCredentialValue credential) {
+        if (credential != null) {
+            return List.of(new HttpAuthorizationHeaderAuthentication(credential));
+        } else {
+            return enabledAuthConfigs();
+        }
     }
 
     /**

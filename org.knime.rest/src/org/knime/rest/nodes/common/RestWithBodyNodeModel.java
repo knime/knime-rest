@@ -68,10 +68,8 @@ import org.knime.core.data.json.JSONValue;
 import org.knime.core.data.vector.bitvector.BitVectorValue;
 import org.knime.core.data.vector.bytevector.ByteVectorValue;
 import org.knime.core.data.xml.XMLValue;
-import org.knime.core.node.BufferedDataTable;
 import org.knime.core.node.InvalidSettingsException;
-import org.knime.core.node.port.PortObject;
-import org.knime.core.node.port.PortType;
+import org.knime.core.node.context.NodeCreationConfiguration;
 import org.knime.rest.nodes.common.RestSettings.ReferenceType;
 import org.knime.rest.nodes.common.RestSettings.RequestHeaderKeyItem;
 import org.w3c.dom.Document;
@@ -91,30 +89,10 @@ import jakarta.ws.rs.core.Variant;
 public abstract class RestWithBodyNodeModel<S extends RestWithBodySettings> extends RestNodeModel<S> {
 
     /**
-     * Constructor with {@link BufferedDataTable}s in input/output ports.
-     *
-     * @param nrInDataPorts Number of input data ports.
-     * @param nrOutDataPorts Number of output data ports.
+     * @param cfg The node creation configuration.
      */
-    public RestWithBodyNodeModel(final int nrInDataPorts, final int nrOutDataPorts) {
-        super(nrInDataPorts, nrOutDataPorts);
-    }
-
-    /**
-     * Constructor with {@link PortObject}s in input/output ports.
-     *
-     * @param inPortTypes The input port types.
-     * @param outPortTypes The output port types.
-     */
-    public RestWithBodyNodeModel(final PortType[] inPortTypes, final PortType[] outPortTypes) {
-        super(inPortTypes, outPortTypes);
-    }
-
-    /**
-     * Constructs the node model with optional {@link BufferedDataTable} and a {@link BufferedDataTable} output.
-     */
-    public RestWithBodyNodeModel() {
-        super();
+    protected RestWithBodyNodeModel(final NodeCreationConfiguration cfg) {
+        super(cfg);
     }
 
     @Override

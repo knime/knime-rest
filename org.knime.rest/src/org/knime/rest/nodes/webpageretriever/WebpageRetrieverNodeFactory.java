@@ -49,55 +49,24 @@
 package org.knime.rest.nodes.webpageretriever;
 
 import org.knime.core.node.NodeDialogPane;
-import org.knime.core.node.NodeFactory;
-import org.knime.core.node.NodeView;
+import org.knime.core.node.context.NodeCreationConfiguration;
+import org.knime.rest.nodes.common.RestNodeFactory;
 
 /**
  * Node factory of the Webpage Retriever node.
  *
  * @author Simon Schmid, KNIME GmbH, Konstanz, Germany
  */
-public final class WebpageRetrieverNodeFactory extends NodeFactory<WebpageRetrieverNodeModel> {
+public final class WebpageRetrieverNodeFactory extends RestNodeFactory<WebpageRetrieverNodeModel> {
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
-    public WebpageRetrieverNodeModel createNodeModel() {
-        return new WebpageRetrieverNodeModel();
+    public WebpageRetrieverNodeModel createNodeModel(final NodeCreationConfiguration cfg) {
+        return new WebpageRetrieverNodeModel(cfg);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
-    protected int getNrNodeViews() {
-        return 0;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public NodeView<WebpageRetrieverNodeModel> createNodeView(final int viewIndex,
-        final WebpageRetrieverNodeModel nodeModel) {
-        return null;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    protected boolean hasDialog() {
-        return true;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    protected NodeDialogPane createNodeDialogPane() {
-        return new WebpageRetrieverNodeDialog();
+    protected NodeDialogPane createNodeDialogPane(final NodeCreationConfiguration cfg) {
+        return new WebpageRetrieverNodeDialog(cfg);
     }
 
 }

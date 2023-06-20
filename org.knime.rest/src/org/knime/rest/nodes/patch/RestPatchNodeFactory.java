@@ -49,38 +49,23 @@
 package org.knime.rest.nodes.patch;
 
 import org.knime.core.node.NodeDialogPane;
-import org.knime.core.node.NodeFactory;
-import org.knime.core.node.NodeView;
+import org.knime.core.node.context.NodeCreationConfiguration;
+import org.knime.rest.nodes.common.RestNodeFactory;
 
 /**
  * Node factory of the PATCH REST node.
  *
  * @author Mark Ortmann, KNIME GmbH, Berlin, Germany
  */
-public final class RestPatchNodeFactory extends NodeFactory<RestPatchNodeModel> {
+public final class RestPatchNodeFactory extends RestNodeFactory<RestPatchNodeModel> {
 
     @Override
-    public RestPatchNodeModel createNodeModel() {
-        return new RestPatchNodeModel();
+    public RestPatchNodeModel createNodeModel(final NodeCreationConfiguration cfg) {
+        return new RestPatchNodeModel(cfg);
     }
 
     @Override
-    protected int getNrNodeViews() {
-        return 0;
-    }
-
-    @Override
-    public NodeView<RestPatchNodeModel> createNodeView(final int viewIndex, final RestPatchNodeModel nodeModel) {
-        throw new IllegalStateException("No views: " + viewIndex);
-    }
-
-    @Override
-    protected boolean hasDialog() {
-        return true;
-    }
-
-    @Override
-    protected NodeDialogPane createNodeDialogPane() {
-        return new RestPatchNodeDialog();
+    protected NodeDialogPane createNodeDialogPane(final NodeCreationConfiguration cfg) {
+        return new RestPatchNodeDialog(cfg);
     }
 }

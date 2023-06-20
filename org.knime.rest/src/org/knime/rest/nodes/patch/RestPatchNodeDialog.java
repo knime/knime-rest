@@ -48,6 +48,7 @@
  */
 package org.knime.rest.nodes.patch;
 
+import org.knime.core.node.context.NodeCreationConfiguration;
 import org.knime.rest.nodes.common.RestWithBodyNodeDialog;
 
 /**
@@ -60,8 +61,8 @@ final class RestPatchNodeDialog extends RestWithBodyNodeDialog<RestPatchSettings
     /**
      * Constructs the dialog.
      */
-    RestPatchNodeDialog() {
-        super();
+    RestPatchNodeDialog(final NodeCreationConfiguration cfg) {
+        super(cfg);
     }
 
     @Override

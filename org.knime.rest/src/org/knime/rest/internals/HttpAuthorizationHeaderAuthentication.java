@@ -44,47 +44,94 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   23. Jan. 2016. (Gabor Bakos): created
+ *   Jun 15, 2023 (Alexander Bondaletov, Redfield SE): created
  */
-package org.knime.rest.nodes.delete;
+package org.knime.rest.internals;
+
+import java.io.IOException;
+import java.util.Map;
+
+import javax.swing.JPanel;
 
 import org.knime.core.data.DataRow;
-import org.knime.core.data.DataTableSpec;
-import org.knime.core.node.context.NodeCreationConfiguration;
-import org.knime.rest.nodes.common.RestNodeModel;
+import org.knime.core.node.InvalidSettingsException;
+import org.knime.core.node.NodeLogger;
+import org.knime.core.node.NodeSettingsRO;
+import org.knime.core.node.NodeSettingsWO;
+import org.knime.core.node.NotConfigurableException;
+import org.knime.core.node.port.PortObjectSpec;
+import org.knime.core.node.workflow.CredentialsProvider;
+import org.knime.core.node.workflow.FlowVariable;
+import org.knime.credentials.base.oauth.api.HttpAuthorizationHeaderCredentialValue;
+import org.knime.rest.generic.EachRequestAuthentication;
 
-import jakarta.ws.rs.client.Invocation;
 import jakarta.ws.rs.client.Invocation.Builder;
 
 /**
- * Node model for the node of DELETE http method.
+ * {@link EachRequestAuthentication} implementation that uses {@link HttpAuthorizationHeaderCredentialValue} credential
+ * from the credential port.
  *
- * @author Gabor Bakos
+ * @author Alexander Bondaletov, Redfield SE
  */
-class RestDeleteNodeModel extends RestNodeModel<RestDeleteSettings> {
+public class HttpAuthorizationHeaderAuthentication extends EachRequestAuthentication {
+
+    private final HttpAuthorizationHeaderCredentialValue m_credential;
 
     /**
-     * Constructor
-     * @param cfg The node creation configuration.
+     * @param credential The credential.
+     *
      */
-    public RestDeleteNodeModel(final NodeCreationConfiguration cfg) {
-        super(cfg);
+    public HttpAuthorizationHeaderAuthentication(final HttpAuthorizationHeaderCredentialValue credential) {
+        m_credential = credential;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
-    protected RestDeleteSettings createSettings() {
-        return new RestDeleteSettings();
+    public Builder updateRequest(final Builder request, final DataRow row, final CredentialsProvider credProvider,
+        final Map<String, FlowVariable> flowVariables) {
+
+        try {
+            request.header("Authorization", m_credential.getAuthScheme() + " " + m_credential.getAuthParameters());
+        } catch (IOException e) {
+            NodeLogger.getLogger(getClass()).error(e.getMessage(), e);
+        }
+
+        return request;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
-    protected Invocation invocation(final Builder request, final DataRow row, final DataTableSpec spec) {
-        //No need to add the entity, so row and spec are not used.
-        return request.buildDelete();
+    public boolean hasUserConfiguration() {
+        return false;
     }
+
+    @Override
+    public void saveUserConfiguration(final NodeSettingsWO userSettings) {
+        //no user configuration
+    }
+
+    @Override
+    public void loadUserConfiguration(final NodeSettingsRO userSettings) throws InvalidSettingsException {
+        //no user configuration
+    }
+
+    @Override
+    public void loadUserConfigurationForDialog(final NodeSettingsRO userSettings, final PortObjectSpec[] specs,
+        final CredentialsProvider credentialNames) throws NotConfigurableException {
+        //no user configuration
+    }
+
+    @Override
+    public void addControls(final JPanel panel) {
+        //no user configuration
+    }
+
+    @Override
+    public void updateControls() throws NotConfigurableException {
+        //no user configuration
+    }
+
+    @Override
+    public void updateSettings() {
+        //no user configuration
+    }
+
 }

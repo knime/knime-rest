@@ -44,47 +44,52 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   23. Jan. 2016. (Gabor Bakos): created
+ *   Jun 15, 2023 (Alexander Bondaletov, Redfield SE): created
  */
-package org.knime.rest.nodes.delete;
+package org.knime.rest.nodes.common;
 
-import org.knime.core.data.DataRow;
-import org.knime.core.data.DataTableSpec;
-import org.knime.core.node.context.NodeCreationConfiguration;
-import org.knime.rest.nodes.common.RestNodeModel;
+import java.util.Optional;
 
-import jakarta.ws.rs.client.Invocation;
-import jakarta.ws.rs.client.Invocation.Builder;
+import org.knime.core.node.BufferedDataTable;
+import org.knime.core.node.ConfigurableNodeFactory;
+import org.knime.core.node.NodeView;
+import org.knime.credentials.base.CredentialPortObject;
 
 /**
- * Node model for the node of DELETE http method.
+ * Base node factory for the REST nodes.
  *
- * @author Gabor Bakos
+ * @author Alexander Bondaletov, Redfield SE
+ * @param <T> The node model class.
  */
-class RestDeleteNodeModel extends RestNodeModel<RestDeleteSettings> {
+public abstract class RestNodeFactory<T extends RestNodeModel<?>> extends ConfigurableNodeFactory<T> {
 
-    /**
-     * Constructor
-     * @param cfg The node creation configuration.
-     */
-    public RestDeleteNodeModel(final NodeCreationConfiguration cfg) {
-        super(cfg);
-    }
+    static final String CREDENTIAL_GROUP_ID = "Credential";
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
-    protected RestDeleteSettings createSettings() {
-        return new RestDeleteSettings();
+    protected Optional<PortsConfigurationBuilder> createPortsConfigBuilder() {
+        var builder = new PortsConfigurationBuilder();
+
+        builder.addFixedInputPortGroup("Table", BufferedDataTable.TYPE_OPTIONAL);
+        builder.addOptionalInputPortGroup(CREDENTIAL_GROUP_ID, CredentialPortObject.TYPE);
+
+        builder.addFixedOutputPortGroup("GET results", BufferedDataTable.TYPE);
+
+        return Optional.of(builder);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
-    protected Invocation invocation(final Builder request, final DataRow row, final DataTableSpec spec) {
-        //No need to add the entity, so row and spec are not used.
-        return request.buildDelete();
+    protected int getNrNodeViews() {
+        return 0;
     }
+
+    @Override
+    public NodeView<T> createNodeView(final int viewIndex, final T nodeModel) {
+        return null;
+    }
+
+    @Override
+    protected boolean hasDialog() {
+        return true;
+    }
+
 }

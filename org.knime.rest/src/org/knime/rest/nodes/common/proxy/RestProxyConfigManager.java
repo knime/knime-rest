@@ -60,6 +60,7 @@ import org.knime.core.node.NodeLogger;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.defaultnodesettings.SettingsModelString;
+import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.node.workflow.CredentialsProvider;
 import org.knime.rest.internals.BasicAuthentication;
 import org.knime.rest.nodes.common.RestNodeDialog;
@@ -312,7 +313,7 @@ public final class RestProxyConfigManager {
      * @throws InvalidSettingsException
      */
     public Optional<RestProxyConfig> loadConfigForDialog(final NodeSettingsRO settings,
-        final CredentialsProvider credentialNames, final DataTableSpec... specs) throws InvalidSettingsException {
+        final CredentialsProvider credentialNames, final PortObjectSpec... specs) throws InvalidSettingsException {
         m_proxyMode = ProxyMode.fromSettings(settings);
         if (m_proxyMode != ProxyMode.LOCAL) {
             // Despite the non-local proxy mode, the auth panel needs to be loaded to update the credentials chooser.
@@ -363,7 +364,7 @@ public final class RestProxyConfigManager {
      * @throws InvalidSettingsException
      */
     private RestProxyConfig getLocalConfig(final NodeSettingsRO settings, final CredentialsProvider credentialNames,
-        final DataTableSpec... specs) throws InvalidSettingsException {
+        final PortObjectSpec... specs) throws InvalidSettingsException {
         return RestProxyConfig.builder()//
             .setBasicAuthentication(m_authReference.orElse(null))//
             .useNodeSettings(settings, credentialNames, specs)//

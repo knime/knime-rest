@@ -48,6 +48,7 @@
  */
 package org.knime.rest.nodes.post;
 
+import org.knime.core.node.context.NodeCreationConfiguration;
 import org.knime.rest.nodes.common.RestWithBodyNodeModel;
 
 import jakarta.ws.rs.client.Entity;
@@ -62,9 +63,10 @@ import jakarta.ws.rs.client.Invocation.Builder;
 class RestPostNodeModel extends RestWithBodyNodeModel<RestPostSettings> {
     /**
      * Constructor
+     * @param cfg The node creation configuration.
      */
-    public RestPostNodeModel() {
-        super();
+    public RestPostNodeModel(final NodeCreationConfiguration cfg) {
+        super(cfg);
     }
 
     /**

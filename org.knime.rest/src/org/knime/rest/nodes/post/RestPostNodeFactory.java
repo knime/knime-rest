@@ -49,68 +49,23 @@
 package org.knime.rest.nodes.post;
 
 import org.knime.core.node.NodeDialogPane;
-import org.knime.core.node.NodeFactory;
-import org.knime.core.node.NodeView;
+import org.knime.core.node.context.NodeCreationConfiguration;
+import org.knime.rest.nodes.common.RestNodeFactory;
 
 /**
  * Node factory for the node of POST http method.
  *
  * @author Gabor Bakos
  */
-public class RestPostNodeFactory extends NodeFactory<RestPostNodeModel> {
+public class RestPostNodeFactory extends RestNodeFactory<RestPostNodeModel> {
 
-    /**
-     * Constructs the factory.
-     */
-    public RestPostNodeFactory() {
-    }
-
-    /**
-     * Constructs the factory.
-     *
-     * @param lazyInitialization if set {@code true}, the full initialization is postponed till the call of {@link #init()} method.
-     */
-    public RestPostNodeFactory(final boolean lazyInitialization) {
-        super(lazyInitialization);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
     @Override
-    public RestPostNodeModel createNodeModel() {
-        return new RestPostNodeModel();
+    public RestPostNodeModel createNodeModel(final NodeCreationConfiguration cfg) {
+        return new RestPostNodeModel(cfg);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
-    protected int getNrNodeViews() {
-        return 0;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public NodeView<RestPostNodeModel> createNodeView(final int viewIndex, final RestPostNodeModel nodeModel) {
-        throw new IllegalStateException("No views: " + viewIndex);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    protected boolean hasDialog() {
-        return true;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    protected NodeDialogPane createNodeDialogPane() {
-        return new RestPostNodeDialog();
+    protected NodeDialogPane createNodeDialogPane(final NodeCreationConfiguration cfg) {
+        return new RestPostNodeDialog(cfg);
     }
 }

@@ -48,10 +48,10 @@
  */
 package org.knime.rest.nodes.common;
 
-import org.knime.core.data.DataTableSpec;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
+import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.node.workflow.CredentialsProvider;
 
 /**
@@ -155,7 +155,7 @@ public class RestWithBodySettings extends RestSettings {
      */
     @Override
     protected void loadSettingsForDialog(final NodeSettingsRO settings, final CredentialsProvider credentialNames,
-        final DataTableSpec... specs) throws InvalidSettingsException {
+        final PortObjectSpec... specs) throws InvalidSettingsException {
         super.loadSettingsForDialog(settings, credentialNames, specs);
         m_useConstantRequestBody = settings.getBoolean(USE_CONSTANT_REQUEST_BODY, DEFAULT_USE_CONSTANT_REQUEST_BODY);
         m_constantRequestBody = settings.getString(CONSTANT_REQUEST_BODY, DEFAULT_CONSTANT_REQUEST_BODY);

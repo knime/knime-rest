@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<knimeNode icon="webpage_retriever.png" type="Manipulator"
-	xmlns="http://knime.org/node/v3.6"
-	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://knime.org/node/v3.6 http://knime.org/node/v3.6.xsd">
+<knimeNode icon="webpage_retriever.png"
+        type="Manipulator"
+        xmlns="http://knime.org/node/v4.1"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://knime.org/node/v4.1 http://knime.org/node/v4.1.xsd">
+
 	<name>Webpage Retriever</name>
 
 	<shortDescription>
@@ -42,6 +44,14 @@
 			Cookies can be send to the server via the Request Header tab by setting the "Cookie" header.
 			In order to receive cookies, set the "Extract cookies" option. Any cookies sent by the server
 			are then extracted and appended as a List Cell in the output.
+			
+            <p>
+            The node supports the Credential port as input (see dynamic input ports). If the port is added, it must supply a
+            Credential that can be embedded into the HTTP Authorization header, and all request done by the node will
+            use the Credential from the port, regardless of other node settings. The OAuth2 Authenticator nodes provide
+            such a Credential for example.
+            </p>
+
 		</intro>
 
 		<tab name="General Settings">
@@ -238,6 +248,12 @@
 		<inPort index="0" name="Table">Optional data table containing the
 			variable parameters of the requests.
 		</inPort>
+        <dynInPort insert-before="0" name="Credential"
+            group-identifier="Credential">
+            A Credential, that can be embedded into the HTTP Authorization header. If this port is added,
+            then all request done by the node will always use the Credential from the port, regardless of other
+            node settings. The OAuth2 Authenticator nodes provide such a Credential for example.
+        </dynInPort>
 		<outPort index="0" name="Webpage Retriever results">Data table containing the parsed HTML
 			either as string or as XHTML and optionally the cookies as list of strings.
 		</outPort>

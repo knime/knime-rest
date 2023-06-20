@@ -62,6 +62,7 @@ import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.NotConfigurableException;
+import org.knime.core.node.context.NodeCreationConfiguration;
 import org.knime.core.node.util.ColumnSelectionPanel;
 
 /**
@@ -88,9 +89,10 @@ public abstract class RestWithBodyNodeDialog<S extends RestWithBodySettings> ext
 
     /**
      * Constructs the dialog with the request body tab.
+     * @param cfg The node creation configuration.
      */
-    public RestWithBodyNodeDialog() {
-        super();
+    protected RestWithBodyNodeDialog(final NodeCreationConfiguration cfg) {
+        super(cfg);
         addRequestBodyTab();
         m_requestBodyColumn.setRequired(false);
     }
@@ -98,7 +100,7 @@ public abstract class RestWithBodyNodeDialog<S extends RestWithBodySettings> ext
     /**
      * The request body tab configuration (only if the method requires it).
      */
-    protected void addRequestBodyTab() {
+    protected final void addRequestBodyTab() {
         addTabAt(3, "Request Body", createRequestBodyPanel());
     }
 

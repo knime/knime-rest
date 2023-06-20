@@ -49,15 +49,15 @@
 package org.knime.rest.nodes.delete;
 
 import org.knime.core.node.NodeDialogPane;
-import org.knime.core.node.NodeFactory;
-import org.knime.core.node.NodeView;
+import org.knime.core.node.context.NodeCreationConfiguration;
+import org.knime.rest.nodes.common.RestNodeFactory;
 
 /**
  * Node factory for the node of DELETE http method.
  *
  * @author Gabor Bakos
  */
-public class RestDeleteNodeFactory extends NodeFactory<RestDeleteNodeModel> {
+public class RestDeleteNodeFactory extends RestNodeFactory<RestDeleteNodeModel> {
 
     /**
      * Constructor
@@ -66,53 +66,13 @@ public class RestDeleteNodeFactory extends NodeFactory<RestDeleteNodeModel> {
         super();
     }
 
-    /**
-     * Constructor
-     *
-     * @param lazyInitialization if set to {@code true} the full initialization is postponed until the {@link #init()}
-     *            method is called.
-     */
-    public RestDeleteNodeFactory(final boolean lazyInitialization) {
-        super(lazyInitialization);
+    @Override
+    public RestDeleteNodeModel createNodeModel(final NodeCreationConfiguration cfg) {
+        return new RestDeleteNodeModel(cfg);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
-    public RestDeleteNodeModel createNodeModel() {
-        return new RestDeleteNodeModel();
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    protected int getNrNodeViews() {
-        return 0;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public NodeView<RestDeleteNodeModel> createNodeView(final int viewIndex, final RestDeleteNodeModel nodeModel) {
-        throw new IllegalStateException("No views: " + viewIndex);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    protected boolean hasDialog() {
-        return true;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    protected NodeDialogPane createNodeDialogPane() {
-        return new RestDeleteNodeDialog();
+    protected NodeDialogPane createNodeDialogPane(final NodeCreationConfiguration cfg) {
+        return new RestDeleteNodeDialog(cfg);
     }
 }

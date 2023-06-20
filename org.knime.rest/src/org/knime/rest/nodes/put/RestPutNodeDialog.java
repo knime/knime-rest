@@ -48,6 +48,7 @@
  */
 package org.knime.rest.nodes.put;
 
+import org.knime.core.node.context.NodeCreationConfiguration;
 import org.knime.rest.nodes.common.RestWithBodyNodeDialog;
 
 /**
@@ -60,8 +61,8 @@ final class RestPutNodeDialog extends RestWithBodyNodeDialog<RestPutSettings> {
     /**
      * Constructor
      */
-    RestPutNodeDialog() {
-        super();
+    RestPutNodeDialog(final NodeCreationConfiguration cfg) {
+        super(cfg);
     }
 
     /**

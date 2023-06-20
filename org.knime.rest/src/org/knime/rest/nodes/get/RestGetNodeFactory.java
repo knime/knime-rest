@@ -49,15 +49,15 @@
 package org.knime.rest.nodes.get;
 
 import org.knime.core.node.NodeDialogPane;
-import org.knime.core.node.NodeFactory;
-import org.knime.core.node.NodeView;
+import org.knime.core.node.context.NodeCreationConfiguration;
+import org.knime.rest.nodes.common.RestNodeFactory;
 
 /**
  * Node factory for the node of GET http method.
  *
  * @author Gabor Bakos
  */
-public class RestGetNodeFactory extends NodeFactory<RestGetNodeModel> {
+public class RestGetNodeFactory extends RestNodeFactory<RestGetNodeModel> {
 
     /**
      * Constructor
@@ -66,54 +66,14 @@ public class RestGetNodeFactory extends NodeFactory<RestGetNodeModel> {
         super();
     }
 
-    /**
-     * Constructor
-     *
-     * @param lazyInitialization if set to {@code true} the full initialization is postponed until the {@link #init()}
-     *            method is called.
-     */
-    public RestGetNodeFactory(final boolean lazyInitialization) {
-        super(lazyInitialization);
+    @Override
+    public RestGetNodeModel createNodeModel(final NodeCreationConfiguration cfg) {
+        return new RestGetNodeModel(cfg);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
-    public RestGetNodeModel createNodeModel() {
-        return new RestGetNodeModel();
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    protected int getNrNodeViews() {
-        return 0;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public NodeView<RestGetNodeModel> createNodeView(final int viewIndex, final RestGetNodeModel nodeModel) {
-        throw new IllegalStateException("No views: " + viewIndex);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    protected boolean hasDialog() {
-        return true;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    protected NodeDialogPane createNodeDialogPane() {
-        return new RestGetNodeDialog();
+    protected NodeDialogPane createNodeDialogPane(final NodeCreationConfiguration cfg) {
+        return new RestGetNodeDialog(cfg);
     }
 
 }

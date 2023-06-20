@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<knimeNode icon="./rest-get.png" type="Manipulator" xmlns="http://knime.org/node/v3.6" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://knime.org/node/v3.6 http://knime.org/node/v3.6.xsd">
+<knimeNode icon="./rest-get.png"
+        type="Manipulator"
+        xmlns="http://knime.org/node/v4.1"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://knime.org/node/v4.1 http://knime.org/node/v4.1.xsd">
     <name>GET Request</name>
     
     <shortDescription>
@@ -20,6 +24,13 @@
         You can extract additional response headers into column by defining them in the dialog.</p>
         <p>The node supports several authentication methods, e.g. BASIC and DIGEST. Other authentication methods may be
         provided by additional extensions.</p>
+        
+        <p>
+        The node supports the Credential port as input (see dynamic input ports). If the port is added, it must supply a
+        Credential that can be embedded into the HTTP Authorization header, and all request done by the node will
+        use the Credential from the port, regardless of other node settings. The OAuth2 Authenticator nodes provide
+        such a Credential for example.
+        </p>
         </intro>
         
         <tab name="Connection">
@@ -167,6 +178,12 @@
     
     <ports>
         <inPort index="0" name="Table">Optional data table containing the variable parameters of the requests.</inPort>
+        <dynInPort insert-before="0" name="Credential"
+            group-identifier="Credential">
+            A Credential, that can be embedded into the HTTP Authorization header. If this port is added,
+            then all request done by the node will always use the Credential from the port, regardless of other
+            node settings. The OAuth2 Authenticator nodes provide such a Credential for example.
+        </dynInPort>
         <outPort index="0" name="GET results">Data table containing columns from the responses.</outPort>
     </ports>    
 </knimeNode>

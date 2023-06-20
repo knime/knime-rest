@@ -71,8 +71,10 @@ import java.awt.event.MouseEvent;
 import java.util.AbstractMap.SimpleImmutableEntry;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Optional;
@@ -129,7 +131,9 @@ import org.knime.core.node.NodeDialogPane;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.NotConfigurableException;
+import org.knime.core.node.context.NodeCreationConfiguration;
 import org.knime.core.node.defaultnodesettings.DialogComponentButtonGroup;
+import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.node.util.ColumnSelectionPanel;
 import org.knime.core.node.util.StringHistoryPanel;
 import org.knime.core.util.Pair;
@@ -260,7 +264,7 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
     private final JComboBox<DataType> m_responseValueType =
         new JComboBox<>(new DataType[]{StringCell.TYPE, IntCell.TYPE});
 
-    private final List<JRadioButton> m_authenticationTabTitles = new ArrayList<>();
+    private final Map<String, JRadioButton> m_authenticationTabTitles = new HashMap<>();
 
     private final JComboBox<String> m_requestHeaderTemplate = new JComboBox<>();
 
@@ -302,10 +306,13 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
     private final StringHistoryPanel m_proxyExcludeHostsPanel =
         new StringHistoryPanel(RestProxyConfig.getProxyExcludedHostsStringHistoryID());
 
+    private final boolean m_hasCredentialPort;
+
     /**
      * Constructs the dialog.
+     * @param cfg The node creation config.
      */
-    protected RestNodeDialog() {
+    protected RestNodeDialog(final NodeCreationConfiguration cfg) {
         super();
         m_requestTemplates.add(new SimpleImmutableEntry<>("", new ArrayList<>()));
         final IConfigurationElement[] elements =
@@ -322,6 +329,10 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
             }
             m_requestTemplates.add(new SimpleImmutableEntry<>(element.getKey(), entryList));
         }
+
+        m_hasCredentialPort = cfg.getPortConfig().orElseThrow(IllegalStateException::new).getInputPortLocation()
+            .get(RestNodeFactory.CREDENTIAL_GROUP_ID) != null;
+
         addTab("Connection", createConnectionSettingsTab());
         addTab("Authentication", createAuthenticationTab());
         addTab("Proxy", createProxySettingsTab());
@@ -734,9 +745,28 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
                 }
             });
             radioButton.setName(euc.getName());
-            m_authenticationTabTitles.add(radioButton);
+            m_authenticationTabTitles.put(euc.getName(), radioButton);
             userConfiguration.addControls(tabPanel);
         }
+
+        var credentialRbName = "Credential (input port)";
+        var rbCredential = new JRadioButton(credentialRbName);
+        radioButtons.add(rbCredential);
+        buttonGroup.add(rbCredential);
+
+        if (m_hasCredentialPort) {
+            rbCredential.setSelected(true);
+
+            tabs.add(credentialRbName, new JPanel());
+            ((CardLayout)tabs.getLayout()).show(tabs, credentialRbName);
+
+            for (JRadioButton rb : m_authenticationTabTitles.values()) {
+                rb.setEnabled(false);
+            }
+        } else {
+            rbCredential.setEnabled(false);
+        }
+
         ret.add(tabs);
         return ret;
     }
@@ -1299,12 +1329,10 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
      */
     @Override
     protected void saveSettingsTo(final NodeSettingsWO settings) throws InvalidSettingsException {
-        for (final JRadioButton radioButton : m_authenticationTabTitles) {
+        if (!m_hasCredentialPort) {
             for (final EnablableUserConfiguration<UserConfiguration> euc : m_settings
                 .getAuthorizationConfigurations()) {
-                if (radioButton.getName().equals(euc.getName())) {
-                    euc.setEnabled(radioButton.isSelected());
-                }
+                euc.setEnabled(m_authenticationTabTitles.get(euc.getName()).isSelected());
             }
         }
         m_settings.setUseConstantURI(m_constantUriOption.isSelected());
@@ -1383,7 +1411,7 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
      * {@inheritDoc}
      */
     @Override
-    protected void loadSettingsFrom(final NodeSettingsRO settings, final DataTableSpec[] specs)
+    protected void loadSettingsFrom(final NodeSettingsRO settings, final PortObjectSpec[] specs)
         throws NotConfigurableException {
         m_settings.getProxyManager().setAuthReference(m_proxyAuthenticatorPanel);
         try {
@@ -1394,7 +1422,7 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         m_bodyColumnName.updateHistory();
         m_columns.clear();
         if (specs[0] != null) {
-            m_columns.addAll(Arrays.asList(specs[0].getColumnNames()));
+            m_columns.addAll(Arrays.asList(((DataTableSpec)specs[0]).getColumnNames()));
         }
         m_flowVariables.clear();
         m_flowVariables.addAll(getAvailableFlowVariables().keySet());
@@ -1405,7 +1433,7 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         m_constantUri.setSelectedString(m_settings.getConstantURI());
         m_constantUri.setEnabled(m_settings.isUseConstantURI());
         if (specs[0] != null) {
-            int inSpecSize = specs[0].getNumColumns();
+            int inSpecSize = ((DataTableSpec)specs[0]).getNumColumns();
             if (inSpecSize == 0 && m_settings.getUriColumn() == null) {
                 m_uriColumnOption.setEnabled(false);
                 m_uriColumn.setEnabled(false);
@@ -1414,7 +1442,7 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
                 m_uriColumnOption.setSelected(!m_settings.isUseConstantURI());
                 m_uriColumn.setEnabled(m_uriColumnOption.isSelected());
                 try {
-                    m_uriColumn.update(specs[0], m_settings.getUriColumn(), false, true);
+                    m_uriColumn.update((DataTableSpec)specs[0], m_settings.getUriColumn(), false, true);
                 } catch (final NotConfigurableException e) {
                     m_uriColumn.setEnabled(false);
                     m_uriColumnOption.setEnabled(false);
@@ -1472,15 +1500,17 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         m_settings.isAllowChunking().ifPresent(m_allowChunking::setSelected);
 
         m_bodyColumnName.setSelectedString(m_settings.getResponseBodyColumn());
-        for (final EnablableUserConfiguration<UserConfiguration> euc : m_settings.getAuthorizationConfigurations()) {
-            for (final JRadioButton radioButton : m_authenticationTabTitles) {
+
+        if (!m_hasCredentialPort) {
+            for (final EnablableUserConfiguration<UserConfiguration> euc : m_settings
+                .getAuthorizationConfigurations()) {
                 euc.getUserConfiguration().updateControls();
-                if (radioButton.getName().equals(euc.getName())) {
-                    radioButton.setSelected(euc.isEnabled());
-                    radioButton.getAction().actionPerformed(null);
-                }
+                JRadioButton radioButton = m_authenticationTabTitles.get(euc.getName());
+                radioButton.setSelected(euc.isEnabled());
+                radioButton.getAction().actionPerformed(null);
             }
         }
+
         updateResponseHeaderControls();
 
         // Proxy settings.
