@@ -70,6 +70,7 @@ import org.knime.core.data.vector.bytevector.ByteVectorValue;
 import org.knime.core.data.xml.XMLValue;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.context.NodeCreationConfiguration;
+import org.knime.core.node.port.PortObjectSpec;
 import org.knime.rest.nodes.common.RestSettings.ReferenceType;
 import org.knime.rest.nodes.common.RestSettings.RequestHeaderKeyItem;
 import org.w3c.dom.Document;
@@ -96,7 +97,7 @@ public abstract class RestWithBodyNodeModel<S extends RestWithBodySettings> exte
     }
 
     @Override
-    protected DataTableSpec[] configure(final DataTableSpec[] inSpecs) throws InvalidSettingsException {
+    protected DataTableSpec[] configure(final PortObjectSpec[] inSpecs) throws InvalidSettingsException {
         final String requestBodyColumn = m_settings.getRequestBodyColumn();
 
         if (!m_settings.isUseConstantRequestBody()) {
@@ -104,7 +105,7 @@ public abstract class RestWithBodyNodeModel<S extends RestWithBodySettings> exte
                 throw new InvalidSettingsException(
                     "The node is configured to use an empty request body column. Please change the configuration.");
             } else {
-                final DataTableSpec dataTableSpec = inSpecs[0];
+                final DataTableSpec dataTableSpec = (DataTableSpec)inSpecs[0];
                 if (dataTableSpec != null) {
                     if (!dataTableSpec.containsName(requestBodyColumn)) {
                         throw new InvalidSettingsException("The configured request body column '" + requestBodyColumn

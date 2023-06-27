@@ -63,6 +63,7 @@ import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.NotConfigurableException;
 import org.knime.core.node.context.NodeCreationConfiguration;
+import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.node.util.ColumnSelectionPanel;
 
 /**
@@ -158,22 +159,22 @@ public abstract class RestWithBodyNodeDialog<S extends RestWithBodySettings> ext
      * {@inheritDoc}
      */
     @Override
-    protected void loadSettingsFrom(final NodeSettingsRO settings, final DataTableSpec[] specs)
+    protected void loadSettingsFrom(final NodeSettingsRO settings, final PortObjectSpec[] specs)
         throws NotConfigurableException {
         super.loadSettingsFrom(settings, specs);
         m_useConstantRequestBody.setSelected(getSettings().isUseConstantRequestBody());
         m_useRequestBodyColumn.setSelected(!getSettings().isUseConstantRequestBody());
         m_constantRequestBody.setText(getSettings().getConstantRequestBody());
-        if (specs.length > 0 && specs[0] != null && specs[0].getNumColumns() > 0) {
+        // if present, first spec must be the table spec - otherwise create an empty spec
+        final var tableSpec = specs.length > 0 && specs[0] != null ? (DataTableSpec)specs[0] : new DataTableSpec();
+        if (tableSpec.getNumColumns() > 0) {
             m_useRequestBodyColumn.setEnabled(true);
             m_requestBodyColumn.setEnabled(m_useRequestBodyColumn.isSelected());
-            m_requestBodyColumn.update(specs[0], getSettings().getRequestBodyColumn(), false, true);
         } else {
-            final DataTableSpec dummySpec = new DataTableSpec();
-            m_requestBodyColumn.update(dummySpec, getSettings().getRequestBodyColumn(), false, true);
             int nrItemsInList = m_requestBodyColumn.getNrItemsInList();
             m_useRequestBodyColumn.setEnabled(nrItemsInList > 0);
             m_requestBodyColumn.setEnabled(nrItemsInList > 0);
         }
+        m_requestBodyColumn.update(tableSpec, getSettings().getRequestBodyColumn(), false, true);
     }
 }

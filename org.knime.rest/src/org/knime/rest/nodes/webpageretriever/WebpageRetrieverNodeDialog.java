@@ -59,12 +59,12 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
 
-import org.knime.core.data.DataTableSpec;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.NotConfigurableException;
 import org.knime.core.node.context.NodeCreationConfiguration;
+import org.knime.core.node.port.PortObjectSpec;
 import org.knime.rest.nodes.common.RestNodeDialog;
 
 /**
@@ -197,7 +197,7 @@ final class WebpageRetrieverNodeDialog extends RestNodeDialog<WebpageRetrieverSe
      * {@inheritDoc}
      */
     @Override
-    protected void loadSettingsFrom(final NodeSettingsRO settings, final DataTableSpec[] specs)
+    protected void loadSettingsFrom(final NodeSettingsRO settings, final PortObjectSpec[] specs)
         throws NotConfigurableException {
         final WebpageRetrieverSettings nodeSettings = getSettings();
         super.loadSettingsFrom(settings, specs);
