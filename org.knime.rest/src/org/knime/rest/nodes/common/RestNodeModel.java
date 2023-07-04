@@ -1120,6 +1120,17 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
     private Pair<Builder, Client> createRequest(final int uriColumn,
         final List<EachRequestAuthentication> enabledEachRequestAuthentications, final DataRow row,
         final DataTableSpec spec) throws InvalidSettingsException {
+
+        // We need to initialize the bus before creating the client, otherwise
+        // we run into issues if the bus has been closed after use.
+        // (e.g. by the NTLMAuthentication)
+        final Bus bus = CXFUtil.getThreadDefaultBus(getClass());
+        // Per default, the sync client is used. With AP-17297 it was assumed that the async client
+        // needs to be used due to a bug, but a CXF bump to v4 fixed this.
+        // (this can be overwritten by system property 'org.apache.cxf.transport.http.async.usePolicy'
+        // (see CXF documentation)
+        bus.setProperty(AsyncHTTPConduit.USE_ASYNC, false);
+
         final Client client = createClient();
         CheckUtils.checkState(m_settings.isUseConstantURI() || row != null,
             "Without the constant uri and input, it is not possible to call a REST service!");
@@ -1140,13 +1151,6 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         // Some implementations (e.g. NTLM) must configure the conduit but they cannot after it has been accessed.
 
         final Builder request = target.request();
-
-        Bus bus = CXFUtil.getThreadDefaultBus(getClass());
-        // Per default, the sync client is used. With AP-17297 it was assumed that the async client
-        // needs to be used due to a bug, but a CXF bump to v4 fixed this.
-        // (this can be overwritten by system property 'org.apache.cxf.transport.http.async.usePolicy'
-        // (see CXF documentation)
-        bus.setProperty(AsyncHTTPConduit.USE_ASYNC, false);
 
         for (final RequestHeaderKeyItem headerItem : m_settings.getRequestHeaders()) {
             var value = extractHeaderValue(row, spec, headerItem);
