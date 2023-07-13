@@ -39,7 +39,7 @@ try {
                 'knime-js-base',
                 'knime-expressions',
                 'knime-python-legacy',
-                'knime-core-arrow',
+                'knime-core-columnar',
                 'knime-conda'
             ]
         ]
