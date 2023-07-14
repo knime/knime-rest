@@ -151,6 +151,7 @@ import org.knime.rest.generic.ResponseBodyParser;
 import org.knime.rest.generic.ResponseBodyParser.Default;
 import org.knime.rest.generic.ResponseBodyParser.Missing;
 import org.knime.rest.internals.HttpAuthorizationHeaderAuthentication;
+import org.knime.rest.internals.NTLMAuthentication;
 import org.knime.rest.nodes.common.RestSettings.ReferenceType;
 import org.knime.rest.nodes.common.RestSettings.RequestHeaderKeyItem;
 import org.knime.rest.nodes.common.RestSettings.ResponseHeaderItem;
@@ -397,7 +398,10 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
             }
             final ColumnRearranger rearranger =
                 createColumnRearranger(enabledEachRequestAuthentications, spec, exec, inTable.size());
-            return new BufferedDataTable[]{exec.createColumnRearrangeTable(inTable, rearranger, exec)};
+            var out = new BufferedDataTable[]{exec.createColumnRearrangeTable(inTable, rearranger, exec)};
+            // Ensure that the current Thread has a valid Bus (the NTLM auth might have closed it, see AP-20595)
+            CXFUtil.getThreadDefaultBus(getClass());
+            return out;
         }
         makeFirstCall(null/*row*/, enabledEachRequestAuthentications, null/*spec*/, exec);
         return createTableFromFirstCallData(exec);
@@ -683,6 +687,8 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
             container.addRowToTable(new DefaultRow(RowKey.createRowKey((long)i), m_firstCallValues.get(i)));
         }
         container.close();
+        // Ensure that the current Thread has a valid Bus (the NTLM auth might have closed it, see AP-20595)
+        CXFUtil.getThreadDefaultBus(getClass());
         return new BufferedDataTable[]{container.getTable()};
     }
 
@@ -745,6 +751,11 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         final ColumnRearranger rearranger = new ColumnRearranger(spec);
         final DataColumnSpec[] newColumns = createNewColumnsSpec(spec);
         final int uriColumn = spec.findColumnIndex(m_settings.getUriColumn());
+
+        // Check if NTLMAuthentication is enabled, as this requires an additional cleanup step
+        boolean ntlmEnabled =
+            enabledEachRequestAuthentications.stream().anyMatch(p -> p.getClass().equals(NTLMAuthentication.class));
+
         final AbstractCellFactory factory = new AbstractCellFactory(newColumns) {
             @Override
             public DataCell[] getCells(final DataRow row) {
@@ -831,6 +842,10 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
                     m_consumedRows++;
                     if (requestBuilder != null) {
                         requestBuilder.getSecond().close();
+                    }
+                    if (ntlmEnabled) {
+                        // If NTLM Authentication is enabled, restore the bus after closing the client.
+                        CXFUtil.getThreadDefaultBus(RestNodeModel.class);
                     }
                 }
                 if (exec != null) {
