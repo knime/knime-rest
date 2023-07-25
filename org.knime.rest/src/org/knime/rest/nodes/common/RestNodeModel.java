@@ -159,6 +159,7 @@ import org.knime.rest.internals.NTLMAuthentication;
 import org.knime.rest.nodes.common.RestSettings.ReferenceType;
 import org.knime.rest.nodes.common.RestSettings.RequestHeaderKeyItem;
 import org.knime.rest.nodes.common.RestSettings.ResponseHeaderItem;
+import org.knime.rest.nodes.common.proxy.ProxyMode;
 import org.knime.rest.nodes.common.proxy.RestProxyConfigManager;
 import org.knime.rest.util.CooldownContext;
 import org.knime.rest.util.DelayPolicy;
@@ -391,6 +392,12 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         final List<EachRequestAuthentication> enabledEachRequestAuthentications =
             getAuthentications(getCredential(inData));
         createResponseBodyParsers(exec);
+        // Issue a warning if no proxy config came in from the global settings.
+        if (m_settings.getProxyManager().getProxyMode() == ProxyMode.GLOBAL
+            && m_settings.getCurrentProxyConfig().isEmpty()) {
+            LOGGER.warn("The KNIME-wide proxy settings are activated but none were specified. "
+                + "Defaulting to using no proxy.");
+        }
         if (inData.length > 0 && inData[0] != null) {
             if (inTable.size() == 0) {
                 //No calls to make.

@@ -232,8 +232,7 @@ public final class RestProxyConfigManager {
                         "The proxy host name is blank. If node-specific proxy settings are activated, "
                             + "a host name must be specified.");
                 case GLOBAL:
-                    LOGGER.warn("The KNIME-wide proxy settings are activated but none were specified. "
-                        + "Defaulting to using no proxy.");
+                    // A warning appears once per node execution, see RestNodeModel#execute().
                     return;
                 case NONE:
                     // If proxy is inactive, because it is disabled, set bypass policy.
