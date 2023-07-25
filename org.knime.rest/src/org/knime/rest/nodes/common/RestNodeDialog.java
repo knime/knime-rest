@@ -144,7 +144,7 @@ import org.knime.rest.nodes.common.RequestTableModel.Columns;
 import org.knime.rest.nodes.common.RestSettings.ReferenceType;
 import org.knime.rest.nodes.common.RestSettings.RequestHeaderKeyItem;
 import org.knime.rest.nodes.common.proxy.ProxyMode;
-import org.knime.rest.nodes.common.proxy.ProxyProtocol;
+import org.knime.core.util.proxy.ProxyProtocol;
 import org.knime.rest.nodes.common.proxy.RestProxyConfig;
 import org.knime.rest.nodes.common.proxy.RestProxyConfigManager;
 import org.knime.rest.util.DelayPolicy;

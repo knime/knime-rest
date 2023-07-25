@@ -142,6 +142,7 @@ import org.knime.core.util.Pair;
 import org.knime.core.util.ThreadLocalHTTPAuthenticator;
 import org.knime.core.util.ThreadLocalHTTPAuthenticator.AuthenticationCloseable;
 import org.knime.core.util.UniqueNameGenerator;
+import org.knime.core.util.proxy.DisabledSchemesChecker;
 import org.knime.credentials.base.Credential;
 import org.knime.credentials.base.CredentialPortObject;
 import org.knime.credentials.base.CredentialPortObjectSpec;
@@ -990,7 +991,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         }
         // check if a needed System property is missing, added as part of AP-20585
         if (response.getStatus() == Response.Status.PROXY_AUTHENTICATION_REQUIRED.getStatusCode()
-                && "Basic".equals(System.getProperty(RestProxyConfigManager.DISABLED_SCHEMES, "Basic"))) {
+            && DisabledSchemesChecker.isBasicDisabled()) {
             // a 407 response and BASIC auth being disabled points indicates the missing property
             // to resolve it, jdk.http.auth.tunneling.disabledSchemes="" needs to be set
             setWarningMessage("Basic authentication on proxies is currently disabled. "

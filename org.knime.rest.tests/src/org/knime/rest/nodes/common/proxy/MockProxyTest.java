@@ -62,6 +62,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.knime.core.data.DataCell;
 import org.knime.core.node.InvalidSettingsException;
+import org.knime.core.util.proxy.ProxyProtocol;
 import org.knime.rest.nodes.common.HttpMockServiceFactory;
 import org.knime.rest.nodes.common.PassthroughMarker;
 import org.knime.rest.nodes.common.ProxyRestNodeModel;

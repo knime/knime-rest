@@ -61,6 +61,7 @@ import org.knime.core.node.NotConfigurableException;
 import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.node.util.ConvenienceMethods;
 import org.knime.core.node.workflow.CredentialsProvider;
+import org.knime.core.util.proxy.ProxyProtocol;
 import org.knime.rest.internals.BasicAuthentication;
 
 /**

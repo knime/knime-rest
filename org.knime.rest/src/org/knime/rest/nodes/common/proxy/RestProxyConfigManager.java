@@ -62,6 +62,8 @@ import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.defaultnodesettings.SettingsModelString;
 import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.node.workflow.CredentialsProvider;
+import org.knime.core.util.proxy.GlobalProxyConfigProvider;
+import org.knime.core.util.proxy.ProxyProtocol;
 import org.knime.rest.internals.BasicAuthentication;
 import org.knime.rest.nodes.common.RestNodeDialog;
 import org.knime.rest.nodes.common.proxy.RestProxyConfig.RestProxyConfigBuilder;
@@ -75,12 +77,6 @@ import jakarta.ws.rs.client.Invocation.Builder;
  * @author Leon Wenzler, KNIME AG, Konstanz, Germany
  */
 public final class RestProxyConfigManager {
-
-    /**
-     * Property that was introduced with Java 8u111 to disabled authentication schemes on HTTPS.
-     * Disables BASIC per default. See https://www.oracle.com/java/technologies/javase/8u111-relnotes.html.
-     */
-    public static final String DISABLED_SCHEMES = "jdk.http.auth.tunneling.disabledSchemes";
 
     private static final NodeLogger LOGGER = NodeLogger.getLogger(RestProxyConfigManager.class);
 
@@ -341,14 +337,22 @@ public final class RestProxyConfigManager {
     static RestProxyConfig getGlobalConfig() throws InvalidSettingsException {
         try {
             final var b = RestProxyConfig.builder();
-            GlobalProxyConfigProvider.getProtocol().ifPresent(b::setProtocol);
-            GlobalProxyConfigProvider.getHost().ifPresent(b::setProxyHost);
-            GlobalProxyConfigProvider.getPort().ifPresent(b::setProxyPort);
-            b.setUseAuthentication(GlobalProxyConfigProvider.useAuthentication());
-            GlobalProxyConfigProvider.getUsername().ifPresent(b::setUsername);
-            GlobalProxyConfigProvider.getPassword().ifPresent(b::setPassword);
-            b.setUseExcludeHosts(GlobalProxyConfigProvider.useExcludedHosts());
-            GlobalProxyConfigProvider.getExcludedHosts().ifPresent(b::setExcludedHosts);
+            final var maybeProxyConfig = GlobalProxyConfigProvider.getCurrent();
+            if (maybeProxyConfig.isPresent()) {
+                final var proxyConfig = maybeProxyConfig.orElseThrow();
+                b.setProtocol(proxyConfig.protocol());
+                b.setProxyHost(proxyConfig.host());
+                b.setProxyPort(proxyConfig.port());
+                b.setUseAuthentication(proxyConfig.useAuthentication());
+                if (proxyConfig.useAuthentication()) {
+                    b.setUsername(proxyConfig.username());
+                    b.setPassword(proxyConfig.password());
+                }
+                b.setUseExcludeHosts(proxyConfig.useExcludedHosts());
+                if (proxyConfig.useExcludedHosts()) {
+                    b.setExcludedHosts(proxyConfig.excludedHosts());
+                }
+            }
             return b.build();
         } catch (InvalidSettingsException e) { // NOSONAR
             return null;

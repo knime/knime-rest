@@ -59,6 +59,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.knime.core.data.DataCell;
 import org.knime.core.node.InvalidSettingsException;
+import org.knime.core.util.proxy.ProxyProtocol;
 import org.knime.rest.generic.EachRequestAuthentication;
 import org.knime.rest.internals.BasicAuthentication;
 import org.knime.rest.internals.DigestAuthentication;

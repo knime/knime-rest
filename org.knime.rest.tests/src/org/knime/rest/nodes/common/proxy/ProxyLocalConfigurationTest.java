@@ -59,6 +59,7 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.knime.core.node.InvalidSettingsException;
+import org.knime.core.util.proxy.ProxyProtocol;
 
 import jakarta.ws.rs.client.ClientBuilder;
 
