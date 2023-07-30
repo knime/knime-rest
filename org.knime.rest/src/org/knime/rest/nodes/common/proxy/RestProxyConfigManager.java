@@ -241,7 +241,7 @@ public final class RestProxyConfigManager {
                     return;
             }
         }
-        final var config = maybeConfig.orElseThrow(); // must be present
+        final var config = maybeConfig.get(); // must be present
 
         // Setting proxy credentials.
         config.getProxyTarget().configure(conduit);
@@ -257,7 +257,7 @@ public final class RestProxyConfigManager {
 
         // Setting authentication data.
         if (config.isUseAuthentication()) {
-            final var authentication = config.getAuthentication().orElseThrow(); // must be present
+            final var authentication = config.getAuthentication().get(); // must be present
             authentication.configure(conduit, credsProvider);
             // We currently only support basic authorization.
             conduit.getProxyAuthorization().setAuthorizationType("Basic");
@@ -339,7 +339,7 @@ public final class RestProxyConfigManager {
             final var b = RestProxyConfig.builder();
             final var maybeProxyConfig = GlobalProxyConfigProvider.getCurrent();
             if (maybeProxyConfig.isPresent()) {
-                final var proxyConfig = maybeProxyConfig.orElseThrow();
+                final var proxyConfig = maybeProxyConfig.get();
                 b.setProtocol(proxyConfig.protocol());
                 b.setProxyHost(proxyConfig.host());
                 b.setProxyPort(proxyConfig.port());

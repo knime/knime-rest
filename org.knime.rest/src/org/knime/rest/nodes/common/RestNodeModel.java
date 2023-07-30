@@ -991,11 +991,10 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         }
         // check if a needed System property is missing, added as part of AP-20585
         if (response.getStatus() == Response.Status.PROXY_AUTHENTICATION_REQUIRED.getStatusCode()
-            && DisabledSchemesChecker.isBasicDisabled()) {
+            && DisabledSchemesChecker.AuthenticationScheme.BASIC.isDisabled()) {
             // a 407 response and BASIC auth being disabled points indicates the missing property
             // to resolve it, jdk.http.auth.tunneling.disabledSchemes="" needs to be set
-            setWarningMessage("Basic authentication on proxies is currently disabled. "
-                + "To enable it, see FAQ: https://www.knime.com/faq#q42");
+            setWarningMessage(DisabledSchemesChecker.FAQ_MESSAGE);
         }
         return isServerError || isClientError;
     }
