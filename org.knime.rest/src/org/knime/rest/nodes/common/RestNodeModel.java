@@ -56,6 +56,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -145,7 +146,9 @@ import org.knime.credentials.base.Credential;
 import org.knime.credentials.base.CredentialPortObject;
 import org.knime.credentials.base.CredentialPortObjectSpec;
 import org.knime.credentials.base.oauth.api.HttpAuthorizationHeaderCredentialValue;
+import org.knime.cxf.CXFBusExtension;
 import org.knime.cxf.CXFUtil;
+import org.knime.cxf.KNIMEClientLifeCycleListener;
 import org.knime.rest.generic.EachRequestAuthentication;
 import org.knime.rest.generic.ResponseBodyParser;
 import org.knime.rest.generic.ResponseBodyParser.Default;
@@ -177,9 +180,12 @@ import jakarta.ws.rs.ext.RuntimeDelegate;
  * @param <S> The actual type of the {@link RestSettings}.
  */
 public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
-    private static final int MAX_RETRANSITS = 4;
+    private static final int MAX_RETRANSMITS = 4;
 
     private static final NodeLogger LOGGER = NodeLogger.getLogger(RestNodeModel.class);
+
+    private static final Collection<CXFBusExtension<?>> CXF_BUS_EXTENSIONS =
+            List.of(new KNIMEClientLifeCycleListener());
 
     /**
      * The settings of this node model.
@@ -1145,6 +1151,9 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         // (this can be overwritten by system property 'org.apache.cxf.transport.http.async.usePolicy'
         // (see CXF documentation)
         bus.setProperty(AsyncHTTPConduit.USE_ASYNC, false);
+        // Using CXF bus extensions, we configure KNIME-specific behavior for the CXF clients.
+        // The only extension currently used is a client life cycle listener that resolves the bug CXF-8885.
+        CXF_BUS_EXTENSIONS.forEach(ext -> ext.setOnBus(bus));
 
         final Client client = createClient();
         CheckUtils.checkState(m_settings.isUseConstantURI() || row != null,
@@ -1195,7 +1204,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
             clientPolicy.setAutoRedirect(m_settings.isFollowRedirects());
         }
         if (!clientPolicy.isSetMaxRetransmits()) {
-            clientPolicy.setMaxRetransmits(MAX_RETRANSITS);
+            clientPolicy.setMaxRetransmits(MAX_RETRANSMITS);
         }
         return Pair.create(request, client);
     }
