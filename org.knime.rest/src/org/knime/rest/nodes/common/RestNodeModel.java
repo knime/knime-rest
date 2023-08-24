@@ -1106,7 +1106,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         if (m_settings.isSslTrustAll()) {
             final SSLContext context;
             try {
-                final var config = clientBuilder.getConfiguration();
+                clientBuilder.getConfiguration();
                 context = SSLContext.getInstance(/*"Default"*/"TLS");
                 context.init(null, new TrustManager[]{new DelegatingX509TrustManager()}, null);
                 clientBuilder.sslContext(context);
@@ -1137,7 +1137,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
      * @return
      * @throws InvalidSettingsException
      */
-    @SuppressWarnings({"null", "resource"})
+    @SuppressWarnings("null")
     private Pair<Builder, Client> createRequest(final int uriColumn,
         final List<EachRequestAuthentication> enabledEachRequestAuthentications, final DataRow row,
         final DataTableSpec spec) throws InvalidSettingsException {
@@ -1151,15 +1151,11 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         // (this can be overwritten by system property 'org.apache.cxf.transport.http.async.usePolicy'
         // (see CXF documentation)
         bus.setProperty(AsyncHTTPConduit.USE_ASYNC, false);
-
-        // AP-20749: this prevents long living SelectorManager threads that can lead to out of memory errors
-        bus.setProperty("force.urlconnection.http.conduit", true);
-
         // Using CXF bus extensions, we configure KNIME-specific behavior for the CXF clients.
         // The only extension currently used is a client life cycle listener that resolves the bug CXF-8885.
         CXF_BUS_EXTENSIONS.forEach(ext -> ext.setOnBus(bus));
 
-        final var client = createClient();
+        final Client client = createClient();
         CheckUtils.checkState(m_settings.isUseConstantURI() || row != null,
             "Without the constant uri and input, it is not possible to call a REST service!");
         if (!m_settings.isUseConstantURI()) {
@@ -1195,12 +1191,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
             era.updateRequest(request, row, getCredentialsProvider(), getAvailableFlowVariables());
         }
 
-        final var clientConfig = WebClient.getConfig(request);
-
-        // AP-20749: Always shut down the bus when closing the client, otherwise Apache CXF "default-workqueue" threads are never closed.
-        clientConfig.setShutdownBusOnClose(true);
-
-        HTTPClientPolicy clientPolicy = clientConfig.getHttpConduit().getClient();
+        HTTPClientPolicy clientPolicy = WebClient.getConfig(request).getHttpConduit().getClient();
         // Set HTTP version to 1.1 because by default HTTP/2 will be used. It's a) not supported by some sites
         // and b) doesn't make sense in our context.
         clientPolicy.setVersion("1.1");
