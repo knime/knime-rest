@@ -1144,7 +1144,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
      * @return
      * @throws InvalidSettingsException
      */
-    @SuppressWarnings("null")
+    @SuppressWarnings({"null", "resource"})
     private Pair<Builder, Client> createRequest(final int uriColumn,
         final List<EachRequestAuthentication> enabledEachRequestAuthentications, final DataRow row,
         final DataTableSpec spec) throws InvalidSettingsException {
@@ -1162,7 +1162,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         // The only extension currently used is a client life cycle listener that resolves the bug CXF-8885.
         CXF_BUS_EXTENSIONS.forEach(ext -> ext.setOnBus(bus));
 
-        final Client client = createClient();
+        final var client = createClient();
         CheckUtils.checkState(m_settings.isUseConstantURI() || row != null,
             "Without the constant uri and input, it is not possible to call a REST service!");
         if (!m_settings.isUseConstantURI()) {
@@ -1198,7 +1198,12 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
             era.updateRequest(request, row, getCredentialsProvider(), getAvailableFlowVariables());
         }
 
-        HTTPClientPolicy clientPolicy = WebClient.getConfig(request).getHttpConduit().getClient();
+        final var clientConfig = WebClient.getConfig(request);
+
+        // Always shut down the bus when closing the client, otherwise "default-workqueue" threads are never closed.
+        clientConfig.setShutdownBusOnClose(true);
+
+        HTTPClientPolicy clientPolicy = clientConfig.getHttpConduit().getClient();
         // Set HTTP version to 1.1 because by default HTTP/2 will be used. It's a) not supported by some sites
         // and b) doesn't make sense in our context.
         clientPolicy.setVersion("1.1");
