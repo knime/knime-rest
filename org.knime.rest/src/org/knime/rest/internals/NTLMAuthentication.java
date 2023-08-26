@@ -58,12 +58,8 @@ import javax.swing.JPanel;
 
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.cxf.interceptor.Fault;
-import org.apache.cxf.interceptor.Interceptor;
 import org.apache.cxf.jaxrs.client.ClientConfiguration;
 import org.apache.cxf.jaxrs.client.WebClient;
-import org.apache.cxf.message.Message;
-import org.apache.cxf.transport.http.HTTPConduit;
 import org.apache.cxf.transport.http.HTTPConduitFactory;
 import org.apache.cxf.transport.http.asyncclient.AsyncHTTPConduitFactory;
 import org.apache.cxf.transports.http.configuration.HTTPClientPolicy;
@@ -121,29 +117,18 @@ public class NTLMAuthentication extends UsernamePasswordAuthentication {
         requestContext.put("use.async.http.conduit", Boolean.TRUE);
         requestContext.put(Credentials.class.getName(), getNTCredentials(credProvider));
 
-        // can't explain this part... but: if no (no-op) fault interceptor is added any 401 auth error will
-        // error out with "Authorization loop detected on Conduit" -- output columns in KNIME will be all missing;
-        // with this interceptor added the error code and error message are available in KNIME
-        conf.getInFaultInterceptors().add(new Interceptor<Message>() {
-            @Override
-            public void handleFault(final Message message) {
-            }
-            @Override
-            public void handleMessage(final Message message) throws Fault {
-            }
-        });
         // otherwise there are _a lot_ staling IO reactor threads lurking around (probably due to the async exec)
         conf.setShutdownBusOnClose(true);
 
         // this must happen _after_ the 'bus' is set to use an async conduit above
         // (and you would think that I know what a 'bus' or a 'conduit' is ... but I don't know)
-        final HTTPConduit httpConduit = conf.getHttpConduit();
+        final var httpConduit = conf.getHttpConduit();
         NodeLogger.getLogger(getClass()).debugWithFormat("Using \"%s\" conduit", httpConduit.getClass().getName());
 
         // the more you read about CXF and NTLM/Kerberos... the more you are convinced this line is needed but it's not:
         // SpnegoAuthSupplier supplier = new SpnegoAuthSupplier();
         // httpConduit.setAuthSupplier(supplier);
-        HTTPClientPolicy httpClientPolicy = new HTTPClientPolicy();
+        final var httpClientPolicy = new HTTPClientPolicy();
         httpClientPolicy.setAllowChunking(false);
         httpConduit.setAuthorization(null);
 
