@@ -51,6 +51,7 @@ package org.knime.rest.nodes.common;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyManagementException;
@@ -78,6 +79,8 @@ import org.apache.cxf.Bus;
 import org.apache.cxf.jaxrs.client.WebClient;
 import org.apache.cxf.jaxrs.client.spec.ClientBuilderImpl;
 import org.apache.cxf.jaxrs.impl.RuntimeDelegateImpl;
+import org.apache.cxf.transport.http.HTTPConduit;
+import org.apache.cxf.transport.http.PatternBuilder;
 import org.apache.cxf.transport.http.asyncclient.AsyncHTTPConduit;
 import org.apache.cxf.transports.http.configuration.HTTPClientPolicy;
 import org.eclipse.e4.core.di.annotations.Execute;
@@ -160,6 +163,7 @@ import org.knime.rest.nodes.common.RestSettings.ReferenceType;
 import org.knime.rest.nodes.common.RestSettings.RequestHeaderKeyItem;
 import org.knime.rest.nodes.common.RestSettings.ResponseHeaderItem;
 import org.knime.rest.nodes.common.proxy.ProxyMode;
+import org.knime.rest.nodes.common.proxy.RestProxyConfig;
 import org.knime.rest.nodes.common.proxy.RestProxyConfigManager;
 import org.knime.rest.util.CooldownContext;
 import org.knime.rest.util.DelayPolicy;
@@ -479,7 +483,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
             }
 
             if (m_settings.isFailOnConnectionProblems()) {
-                throw (rootCause instanceof Exception) ? (Exception) rootCause : new ProcessingException(rootCause);
+                throw (rootCause instanceof Exception ex) ? ex : new ProcessingException(rootCause);
             } else {
                 missing = new MissingCell(rootCause.getMessage());
                 response = null;
@@ -1158,6 +1162,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         // (this can be overwritten by system property 'org.apache.cxf.transport.http.async.usePolicy'
         // (see CXF documentation)
         bus.setProperty(AsyncHTTPConduit.USE_ASYNC, false);
+
         // Using CXF bus extensions, we configure KNIME-specific behavior for the CXF clients.
         // The only extension currently used is a client life cycle listener that resolves the bug CXF-8885.
         CXF_BUS_EXTENSIONS.forEach(ext -> ext.setOnBus(bus));
@@ -1165,18 +1170,29 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         final var client = createClient();
         CheckUtils.checkState(m_settings.isUseConstantURI() || row != null,
             "Without the constant uri and input, it is not possible to call a REST service!");
-        if (!m_settings.isUseConstantURI()) {
+
+        final String targetUri;
+        if (m_settings.isUseConstantURI()) {
+            targetUri = m_settings.getConstantURI();
+        } else {
             CheckUtils.checkArgument(row != null && uriColumn >= 0,
                 "The URI column is not present: " + m_settings.getUriColumn());
-            CheckUtils.checkArgument(row != null && !row.getCell(uriColumn).isMissing(),
-                "The URI cannot be missing, but it is in row: " + row.getKey());
+            final var cell = row.getCell(uriColumn);
+            CheckUtils.checkArgument(!cell.isMissing(), "The URI cannot be missing, but it is in row: " + row.getKey());
+            targetUri = cell instanceof URIDataValue uriValue ? uriValue.getURIContent().getURI().toString()
+                : ((StringValue)cell).getStringValue();
         }
-        WebTarget target = client.target(m_settings.isUseConstantURI() ? m_settings.getConstantURI()
-            : row.getCell(uriColumn) instanceof URIDataValue
-                ? ((URIDataValue)row.getCell(uriColumn)).getURIContent().getURI().toString()
-                : ((StringValue)row.getCell(uriColumn)).getStringValue());
+
+        WebTarget target = client.target(targetUri);
         //Support relative redirects too, see https://tools.ietf.org/html/rfc7231#section-3.1.4.2
         target = target.property("http.redirect.relative.uri", true);
+
+        // AP-20749: this prevents long living SelectorManager threads that can lead to out of memory errors
+        final var proxyManager = m_settings.getProxyManager();
+        final var optProxyConfig = m_settings.getCurrentProxyConfig();
+        if (!usesHttpsThroughAuthenticatedProxy(target.getUri(), proxyManager, optProxyConfig.orElse(null))) {
+            bus.setProperty("force.urlconnection.http.conduit", true);
+        }
 
         // IMPORTANT: don't access the HttpConduit before the request has been updated by an EachRequestAuthentication!
         // Some implementations (e.g. NTLM) must configure the conduit but they cannot after it has been accessed.
@@ -1209,8 +1225,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         clientPolicy.setVersion("1.1");
 
         // Configures the proxy credentials for the request builder if needed.
-        m_settings.getProxyManager().configureRequest(m_settings.getCurrentProxyConfig(), request,
-            getCredentialsProvider());
+        proxyManager.configureRequest(optProxyConfig, request, getCredentialsProvider());
 
         if (!clientPolicy.isSetAutoRedirect()) {
             clientPolicy.setAutoRedirect(m_settings.isFollowRedirects());
@@ -1219,6 +1234,37 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
             clientPolicy.setMaxRetransmits(MAX_RETRANSMITS);
         }
         return Pair.create(request, client);
+    }
+
+    /**
+     * Checks whether the current request needs HTTPS tunneling over an authenticated proxy. This usecase is not covered
+     * by the old {@link java.net.HttpURLConnection}-based {@link HTTPConduit}, so we absolutely have to use the new one
+     * that leads to memory problems (see AP-20749).
+     *
+     * @param uri request URI
+     * @param proxyManager proxy manager
+     * @param proxyConfig proxy configuration
+     * @return {@code true} if new conduit has to be used, {@code false} otherwise
+     */
+    private static boolean usesHttpsThroughAuthenticatedProxy(final URI uri, final RestProxyConfigManager proxyManager,
+            final RestProxyConfig proxyConfig) {
+        if (!uri.getScheme().equals("https")                     // not HTTPS
+                || proxyManager.getProxyMode() == ProxyMode.NONE // proxy bypassed
+                || proxyConfig == null                           // no proxy settings available
+                || !proxyConfig.isUseAuthentication()) {         // proxy not authenticated
+            return false;
+        }
+
+        // taken from https://github.com/apache/cxf/blob/7e088f4a/rt/transports/http/src/main/java/org/apache/cxf/transport/http/ProxyFactory.java#L130-L138 // NOSONAR
+        if (proxyConfig.isExcludeHosts()) {
+            // Try to match the URL hostname with the exclusion pattern
+            final var pattern = PatternBuilder.build(proxyConfig.getExcludeHosts().orElseThrow());
+            if (pattern.matcher(uri.getHost()).matches()) {
+                // Excluded hostname -> no proxy
+                return false;
+            }
+        }
+        return true;
     }
 
     /**
