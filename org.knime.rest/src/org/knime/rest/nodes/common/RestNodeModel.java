@@ -1210,10 +1210,6 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
 
         final var clientConfig = WebClient.getConfig(request);
 
-        // AP-20749: Always shut down the bus when closing the client, otherwise Apache CXF "default-workqueue" threads
-        // are never closed.
-        clientConfig.setShutdownBusOnClose(true);
-
         HTTPClientPolicy clientPolicy = clientConfig.getHttpConduit().getClient();
         // Set HTTP version to 1.1 because by default HTTP/2 will be used. It's a) not supported by some sites
         // and b) doesn't make sense in our context.
