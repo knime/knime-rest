@@ -52,8 +52,10 @@ import java.util.Objects;
 import java.util.Optional;
 
 import org.apache.cxf.jaxrs.client.WebClient;
+import org.apache.cxf.transport.http.HTTPConduit;
 import org.apache.cxf.transports.http.configuration.HTTPClientPolicy;
 import org.apache.cxf.transports.http.configuration.ProxyServerType;
+import org.eclipse.core.internal.net.ProxyManager;
 import org.knime.core.data.DataTableSpec;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeLogger;
@@ -150,10 +152,11 @@ public final class RestProxyConfigManager {
     /**
      * Creates a policy which bypasses proxies for all hosts.
      *
+     * @param conduit existing {@link HTTPConduit}, used if non-null
      * @return HTTPClientPolicy
      */
-    private static HTTPClientPolicy createProxyBypassPolicy() {
-        var policy = new HTTPClientPolicy();
+    private static HTTPClientPolicy createProxyBypassPolicy(final HTTPConduit conduit) {
+        final var policy = Objects.requireNonNullElseGet(conduit.getClient(), HTTPClientPolicy::new);
         // This policy needs a non-empty host for it to be considered by the web client.
         policy.setProxyServer("non-empty-host");
         // Ignore connections for all hosts.
@@ -188,7 +191,14 @@ public final class RestProxyConfigManager {
      *
      * @return ProxyMode
      */
+    @SuppressWarnings("restriction")
     public ProxyMode getProxyMode() {
+        // If we use proxy settings from the KNIME platform,
+        // check whether proxies are enabled (not set to DIRECT).
+        if (m_proxyMode == ProxyMode.GLOBAL &&
+                !ProxyManager.getProxyManager().isProxiesEnabled()) {
+            return ProxyMode.NONE;
+        }
         return m_proxyMode;
     }
 
@@ -236,7 +246,7 @@ public final class RestProxyConfigManager {
                     return;
                 case NONE:
                     // If proxy is inactive, because it is disabled, set bypass policy.
-                    conduit.setClient(createProxyBypassPolicy());
+                    conduit.setClient(createProxyBypassPolicy(conduit));
                     return;
             }
         }
