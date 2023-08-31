@@ -52,6 +52,7 @@ import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.util.Map;
+import java.util.Objects;
 
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -60,8 +61,6 @@ import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.cxf.jaxrs.client.ClientConfiguration;
 import org.apache.cxf.jaxrs.client.WebClient;
-import org.apache.cxf.transport.http.HTTPConduitFactory;
-import org.apache.cxf.transport.http.asyncclient.AsyncHTTPConduitFactory;
 import org.apache.cxf.transports.http.configuration.HTTPClientPolicy;
 import org.apache.http.auth.Credentials;
 import org.apache.http.auth.NTCredentials;
@@ -112,13 +111,9 @@ public class NTLMAuthentication extends UsernamePasswordAuthentication {
         final Map<String, FlowVariable> flowVariables) {
         final ClientConfiguration conf = WebClient.getConfig(request);
         final Map<String, Object> requestContext = conf.getRequestContext();
-        conf.getBus().setExtension(new AsyncHTTPConduitFactory(conf.getBus()), HTTPConduitFactory.class);
 
         requestContext.put("use.async.http.conduit", Boolean.TRUE);
         requestContext.put(Credentials.class.getName(), getNTCredentials(credProvider));
-
-        // otherwise there are _a lot_ staling IO reactor threads lurking around (probably due to the async exec)
-        conf.setShutdownBusOnClose(true);
 
         // this must happen _after_ the 'bus' is set to use an async conduit above
         // (and you would think that I know what a 'bus' or a 'conduit' is ... but I don't know)
@@ -128,7 +123,7 @@ public class NTLMAuthentication extends UsernamePasswordAuthentication {
         // the more you read about CXF and NTLM/Kerberos... the more you are convinced this line is needed but it's not:
         // SpnegoAuthSupplier supplier = new SpnegoAuthSupplier();
         // httpConduit.setAuthSupplier(supplier);
-        final var httpClientPolicy = new HTTPClientPolicy();
+        final var httpClientPolicy = Objects.requireNonNullElseGet(httpConduit.getClient(), HTTPClientPolicy::new);
         httpClientPolicy.setAllowChunking(false);
         httpConduit.setAuthorization(null);
 
