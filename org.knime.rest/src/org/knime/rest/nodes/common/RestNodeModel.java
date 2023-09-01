@@ -1175,7 +1175,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         final var proxyManager = m_settings.getProxyManager();
         final var optProxyConfig = m_settings.getCurrentProxyConfig();
         if (!usesHttpsThroughAuthenticatedProxy(target.getUri(), proxyManager, optProxyConfig.orElse(null))) {
-            bus.setProperty("force.urlconnection.http.conduit", true);
+            target = target.property("force.urlconnection.http.conduit", true);
         }
 
         // IMPORTANT: don't access the HttpConduit before the request has been updated by an EachRequestAuthentication!
