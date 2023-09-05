@@ -57,7 +57,6 @@ import java.nio.charset.StandardCharsets;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -150,9 +149,7 @@ import org.knime.credentials.base.Credential;
 import org.knime.credentials.base.CredentialPortObject;
 import org.knime.credentials.base.CredentialPortObjectSpec;
 import org.knime.credentials.base.oauth.api.HttpAuthorizationHeaderCredentialValue;
-import org.knime.cxf.CXFBusExtension;
 import org.knime.cxf.CXFUtil;
-import org.knime.cxf.KNIMEClientLifeCycleListener;
 import org.knime.rest.generic.EachRequestAuthentication;
 import org.knime.rest.generic.ResponseBodyParser;
 import org.knime.rest.generic.ResponseBodyParser.Default;
@@ -191,9 +188,6 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
     private static final int MAX_RETRANSMITS = 4;
 
     private static final NodeLogger LOGGER = NodeLogger.getLogger(RestNodeModel.class);
-
-    private static final Collection<CXFBusExtension<?>> CXF_BUS_EXTENSIONS =
-            List.of(new KNIMEClientLifeCycleListener());
 
     /**
      * The settings of this node model.
@@ -1165,10 +1159,6 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         // (see CXF documentation)
         bus.setProperty(AsyncHTTPConduit.USE_ASYNC, false);
 
-        // Using CXF bus extensions, we configure KNIME-specific behavior for the CXF clients.
-        // The only extension currently used is a client life cycle listener that resolves the bug CXF-8885.
-        CXF_BUS_EXTENSIONS.forEach(ext -> ext.setOnBus(bus));
-
         final var client = createClient();
         CheckUtils.checkState(m_settings.isUseConstantURI() || row != null,
             "Without the constant uri and input, it is not possible to call a REST service!");
@@ -1194,7 +1184,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         final var localConfig = m_settings.getCurrentProxyConfig().orElse(null);
         final var optProxyConfig = proxyManager.getProxyConfig(localConfig);
         if (!usesHttpsThroughAuthenticatedProxy(target.getUri(), optProxyConfig.orElse(null))) {
-            bus.setProperty("force.urlconnection.http.conduit", true);
+            target = target.property("force.urlconnection.http.conduit", true);
         }
 
         // IMPORTANT: don't access the HttpConduit before the request has been updated by an EachRequestAuthentication!
@@ -1225,9 +1215,6 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         }
 
         final var clientConfig = WebClient.getConfig(request);
-
-        // Always shut down the bus when closing the client, otherwise "default-workqueue" threads are never closed.
-        clientConfig.setShutdownBusOnClose(true);
 
         HTTPClientPolicy clientPolicy = clientConfig.getHttpConduit().getClient();
         // Set HTTP version to 1.1 because by default HTTP/2 will be used. It's a) not supported by some sites
