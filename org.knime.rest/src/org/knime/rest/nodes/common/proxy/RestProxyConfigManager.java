@@ -312,13 +312,14 @@ public final class RestProxyConfigManager {
     /**
      * Returns the correct proxy configuration for the current proxy mode.
      *
-     * @param localConfig local proxy settings (may be {@code null})
+     * @param localConfig local proxy settings (must be non-{@code null} if {@link #getProxyMode()} is
+     *        {@link ProxyMode#LOCAL})
      * @return proxy configuration
      */
     public Optional<RestProxyConfig> getProxyConfig(final RestProxyConfig localConfig) {
         return switch (m_proxyMode) {
             case GLOBAL -> Optional.ofNullable(getGlobalConfig());
-            case LOCAL -> Optional.ofNullable(localConfig);
+            case LOCAL -> Optional.of(localConfig);
             case NONE -> Optional.empty();
         };
     }
