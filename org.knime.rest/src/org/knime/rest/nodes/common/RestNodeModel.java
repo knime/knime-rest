@@ -158,7 +158,6 @@ import org.knime.rest.internals.NTLMAuthentication;
 import org.knime.rest.nodes.common.RestSettings.ReferenceType;
 import org.knime.rest.nodes.common.RestSettings.RequestHeaderKeyItem;
 import org.knime.rest.nodes.common.RestSettings.ResponseHeaderItem;
-import org.knime.rest.nodes.common.proxy.ProxyMode;
 import org.knime.rest.nodes.common.proxy.RestProxyConfig;
 import org.knime.rest.nodes.common.proxy.RestProxyConfigManager;
 import org.knime.rest.util.CooldownContext;
@@ -1173,8 +1172,9 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
 
         // AP-20749: this prevents long living SelectorManager threads that can lead to out of memory errors
         final var proxyManager = m_settings.getProxyManager();
-        final var optProxyConfig = m_settings.getCurrentProxyConfig();
-        if (!usesHttpsThroughAuthenticatedProxy(target.getUri(), proxyManager, optProxyConfig.orElse(null))) {
+        final var localConfig = m_settings.getCurrentProxyConfig().orElse(null);
+        final var optProxyConfig = proxyManager.getProxyConfig(localConfig);
+        if (!usesHttpsThroughAuthenticatedProxy(target.getUri(), optProxyConfig.orElse(null))) {
             target = target.property("force.urlconnection.http.conduit", true);
         }
 
@@ -1223,14 +1223,11 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
      * that leads to memory problems (see AP-20749).
      *
      * @param uri request URI
-     * @param proxyManager proxy manager
      * @param proxyConfig proxy configuration
      * @return {@code true} if new conduit has to be used, {@code false} otherwise
      */
-    private static boolean usesHttpsThroughAuthenticatedProxy(final URI uri, final RestProxyConfigManager proxyManager,
-            final RestProxyConfig proxyConfig) {
+    private static boolean usesHttpsThroughAuthenticatedProxy(final URI uri, final RestProxyConfig proxyConfig) {
         if (!uri.getScheme().equals("https")                     // not HTTPS
-                || proxyManager.getProxyMode() == ProxyMode.NONE // proxy bypassed
                 || proxyConfig == null                           // no proxy settings available
                 || !proxyConfig.isUseAuthentication()) {         // proxy not authenticated
             return false;

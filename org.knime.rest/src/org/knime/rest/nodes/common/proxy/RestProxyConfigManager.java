@@ -306,9 +306,19 @@ public final class RestProxyConfigManager {
      */
     public Optional<RestProxyConfig> loadConfigFrom(final NodeSettingsRO settings) throws InvalidSettingsException {
         m_proxyMode = ProxyMode.fromSettings(settings);
+        return getProxyConfig(getLocalConfig(settings, null, (DataTableSpec[])null).orElse(null));
+    }
+
+    /**
+     * Returns the correct proxy configuration for the current proxy mode.
+     *
+     * @param localConfig local proxy settings (may be {@code null})
+     * @return proxy configuration
+     */
+    public Optional<RestProxyConfig> getProxyConfig(final RestProxyConfig localConfig) {
         return switch (m_proxyMode) {
             case GLOBAL -> Optional.ofNullable(getGlobalConfig());
-            case LOCAL -> Optional.of(getLocalConfig(settings, null, (DataTableSpec[])null));
+            case LOCAL -> Optional.ofNullable(localConfig);
             case NONE -> Optional.empty();
         };
     }
@@ -335,20 +345,15 @@ public final class RestProxyConfigManager {
                 }
             });
         }
-        return switch (m_proxyMode) {
-            case GLOBAL -> Optional.ofNullable(getGlobalConfig());
-            case LOCAL -> Optional.of(getLocalConfig(settings, credentialNames, specs));
-            case NONE -> Optional.empty();
-        };
+        return getProxyConfig(getLocalConfig(settings, credentialNames, specs).orElse(null));
     }
 
     /**
      * Loads a global proxy config from {@link GlobalProxyConfigProvider}. Package scope for tests.
      *
      * @return RestProxyConfig
-     * @throws InvalidSettingsException
      */
-    static RestProxyConfig getGlobalConfig() throws InvalidSettingsException {
+    static RestProxyConfig getGlobalConfig() {
         try {
             final var b = RestProxyConfig.builder();
             GlobalProxyConfigProvider.getProtocol().ifPresent(b::setProtocol);
@@ -373,11 +378,15 @@ public final class RestProxyConfigManager {
      * @return RestProxyConfig
      * @throws InvalidSettingsException
      */
-    private RestProxyConfig getLocalConfig(final NodeSettingsRO settings, final CredentialsProvider credentialNames,
-        final PortObjectSpec... specs) throws InvalidSettingsException {
-        return RestProxyConfig.builder()//
-            .setBasicAuthentication(m_authReference.orElse(null))//
-            .useNodeSettings(settings, credentialNames, specs)//
-            .build();
+    private Optional<RestProxyConfig> getLocalConfig(final NodeSettingsRO settings,
+            final CredentialsProvider credentialNames, final PortObjectSpec... specs) throws InvalidSettingsException {
+        if (!settings.containsKey(RestProxyConfig.PROXY_SETTINGS_KEY)) {
+            return Optional.empty();
+        }
+
+        return Optional.of(RestProxyConfig.builder()//
+                .setBasicAuthentication(m_authReference.orElse(null))//
+                .useNodeSettings(settings, credentialNames, specs)//
+                .build());
     }
 }
