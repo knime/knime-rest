@@ -60,6 +60,6 @@ final class RestPostSettings extends RestWithBodySettings {
      * Constructor
      */
     RestPostSettings() {
-        super();
+        super(HttpMethod.POST);
     }
 }

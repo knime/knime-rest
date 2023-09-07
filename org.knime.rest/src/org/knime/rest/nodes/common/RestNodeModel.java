@@ -155,6 +155,7 @@ import org.knime.rest.generic.ResponseBodyParser.Default;
 import org.knime.rest.generic.ResponseBodyParser.Missing;
 import org.knime.rest.internals.HttpAuthorizationHeaderAuthentication;
 import org.knime.rest.internals.NTLMAuthentication;
+import org.knime.rest.nodes.common.RestSettings.HttpMethod;
 import org.knime.rest.nodes.common.RestSettings.ReferenceType;
 import org.knime.rest.nodes.common.RestSettings.RequestHeaderKeyItem;
 import org.knime.rest.nodes.common.RestSettings.ResponseHeaderItem;
@@ -170,6 +171,7 @@ import jakarta.ws.rs.client.ClientBuilder;
 import jakarta.ws.rs.client.Invocation;
 import jakarta.ws.rs.client.Invocation.Builder;
 import jakarta.ws.rs.client.WebTarget;
+import jakarta.ws.rs.core.HttpHeaders;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.ext.RuntimeDelegate;
@@ -1182,6 +1184,13 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         // Some implementations (e.g. NTLM) must configure the conduit but they cannot after it has been accessed.
 
         final Builder request = target.request();
+
+        // AP-20968: for DELETE requests, the HttpClientHTTPConduit sends a 'Content-Type: text/xml' header
+        // when no content type was specified. We avoid this by explicitly setting to '*/*'.
+        // This default is overwritten below if request headers were specified in the node dialog.
+        if (m_settings.getMethod().orElse(null) == HttpMethod.DELETE) {
+            request.header(HttpHeaders.CONTENT_TYPE, "*/*");
+        }
 
         for (final RequestHeaderKeyItem headerItem : m_settings.getRequestHeaders()) {
             var value = extractHeaderValue(row, spec, headerItem);

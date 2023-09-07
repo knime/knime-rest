@@ -61,6 +61,6 @@ final class RestPatchSettings extends RestWithBodySettings {
      * Constructor
      */
     RestPatchSettings() {
-        super();
+        super(HttpMethod.PATCH);
     }
 }
