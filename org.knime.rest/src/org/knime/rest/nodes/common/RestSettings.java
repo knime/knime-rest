@@ -83,6 +83,42 @@ import org.knime.rest.util.DelayPolicy;
  */
 public class RestSettings {
 
+    /** Set of HTTP request methods to indicate the desired action to be performed for a given resource. */
+    protected enum HttpMethod {
+        /**
+         * The GET method requests a representation of the specified resource. Requests using GET should only
+         * retrieve data.
+         */
+        GET,
+
+        /** The HEAD method asks for a response identical to a GET request, but without the response body. */
+        HEAD,
+
+        /**
+         * The POST method submits an entity to the specified resource, often causing a change in state or side effects
+         * on the server.
+         */
+        POST,
+
+        /** The PUT method replaces all current representations of the target resource with the request payload. */
+        PUT,
+
+        /** The DELETE method deletes the specified resource. */
+        DELETE,
+
+        /** The CONNECT method establishes a tunnel to the server identified by the target resource. */
+        CONNECT,
+
+        /** The OPTIONS method describes the communication options for the target resource. */
+        OPTIONS,
+
+        /** The TRACE method performs a message loop-back test along the path to the target resource. */
+        TRACE,
+
+        /** The PATCH method applies partial modifications to a resource. */
+        PATCH
+    }
+
     /** The logger. */
     protected static final NodeLogger LOGGER = NodeLogger.getLogger(RestSettings.class);
 
@@ -247,6 +283,8 @@ public class RestSettings {
      * the request failed. Added in 4.5.
      */
     private Optional<Boolean> m_outputErrorCause = Optional.empty();
+
+    private final HttpMethod m_httpMethod;
 
     public void setDelayPolicy(final DelayPolicy delayPolicy) {
         m_delayPolicy = Optional.ofNullable(delayPolicy);
@@ -508,7 +546,16 @@ public class RestSettings {
      * Constructs the default settings.
      */
     protected RestSettings() {
-        this(DEFAULT_RESPONSE_HEADER_ITEMS);
+        this(null, DEFAULT_RESPONSE_HEADER_ITEMS);
+    }
+
+    /**
+     * Constructs the default settings.
+     *
+     * @param method HTTP method that will be used
+     */
+    protected RestSettings(final HttpMethod method) {
+        this(method, DEFAULT_RESPONSE_HEADER_ITEMS);
     }
 
     /**
@@ -517,6 +564,16 @@ public class RestSettings {
      * @param defaultResponseHeaderItems the response headers to extract by default
      */
     protected RestSettings(final List<ResponseHeaderItem> defaultResponseHeaderItems) {
+        this(null, defaultResponseHeaderItems);
+    }
+
+    /**
+     * Constructs the default settings with a customized set of default response headers to extract.
+     *
+     * @param method HTTP method that will be used
+     * @param defaultResponseHeaderItems the response headers to extract by default
+     */
+    protected RestSettings(final HttpMethod method, final List<ResponseHeaderItem> defaultResponseHeaderItems) {
         m_extractFields.addAll(defaultResponseHeaderItems);
         IConfigurationElement[] configurationElements =
                 Platform.getExtensionRegistry().getConfigurationElementsFor(EXTENSION_ID);
@@ -524,6 +581,7 @@ public class RestSettings {
                 new EnablableUserConfiguration<>(new NoAuthentication(), "None");
             noAuth.setEnabled(true);
             m_authorizationConfigurations.add(noAuth);
+            m_httpMethod = method;
             for (final IConfigurationElement configurationElement : configurationElements) {
                 try {
                     final Object object = configurationElement.createExecutableExtension("class");
@@ -793,6 +851,15 @@ public class RestSettings {
      */
     protected RestProxyConfigManager getProxyManager() {
         return m_proxyManager;
+    }
+
+    /**
+     * HTTP method that will be used, if known.
+     *
+     * @return HTTP method
+     */
+    protected Optional<HttpMethod> getMethod() {
+        return Optional.ofNullable(m_httpMethod);
     }
 
     /**

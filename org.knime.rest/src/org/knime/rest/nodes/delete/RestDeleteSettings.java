@@ -61,6 +61,6 @@ final class RestDeleteSettings extends RestSettings {
      *
      */
     RestDeleteSettings() {
-        super();
+        super(HttpMethod.DELETE);
     }
 }

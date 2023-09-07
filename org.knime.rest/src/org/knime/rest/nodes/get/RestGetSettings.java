@@ -61,6 +61,6 @@ final class RestGetSettings extends RestSettings {
      * Constructor
      */
     RestGetSettings() {
-        super();
+        super(HttpMethod.GET);
     }
 }

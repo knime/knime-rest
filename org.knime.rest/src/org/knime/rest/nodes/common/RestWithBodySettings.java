@@ -83,7 +83,16 @@ public class RestWithBodySettings extends RestSettings {
      * Constructs the settings with defaults.
      */
     public RestWithBodySettings() {
-        super();
+        super((HttpMethod)null);
+    }
+
+    /**
+     * Constructs the settings with defaults.
+     *
+     * @param method HTTP method that will be used
+     */
+    protected RestWithBodySettings(final HttpMethod method) {
+        super(method);
     }
 
     /**

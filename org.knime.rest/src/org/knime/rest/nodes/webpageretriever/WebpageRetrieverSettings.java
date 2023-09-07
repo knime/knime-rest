@@ -102,7 +102,7 @@ final class WebpageRetrieverSettings extends RestSettings {
 
     /** */
     WebpageRetrieverSettings() {
-        super(Collections.emptyList());
+        super(HttpMethod.GET, Collections.emptyList());
         setFailOnConnectionProblems(DEFAULT_FAIL_ON_PROBLEMS);
         setFailOnClientErrors(DEFAULT_FAIL_ON_PROBLEMS);
         setFailOnServerErrors(DEFAULT_FAIL_ON_PROBLEMS);

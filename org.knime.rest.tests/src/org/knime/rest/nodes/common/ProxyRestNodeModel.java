@@ -57,6 +57,7 @@ import org.knime.core.data.DataRow;
 import org.knime.core.data.DataTableSpec;
 import org.knime.core.node.util.CheckUtils;
 import org.knime.rest.generic.EachRequestAuthentication;
+import org.knime.rest.nodes.common.RestSettings.HttpMethod;
 import org.knime.rest.nodes.common.proxy.ProxyMode;
 import org.knime.rest.nodes.common.proxy.RestProxyConfig;
 
@@ -97,7 +98,7 @@ public final class ProxyRestNodeModel extends RestNodeModel<RestSettings> {
 
     @Override
     protected RestSettings createSettings() {
-        return new RestSettings();
+        return new RestSettings(HttpMethod.GET);
     }
 
     @Override
