@@ -48,7 +48,6 @@
  */
 package org.knime.rest.internals;
 
-import org.knime.cxf.CXFUtil;
 import org.osgi.framework.BundleActivator;
 import org.osgi.framework.BundleContext;
 
@@ -65,7 +64,7 @@ public class RESTActivator implements BundleActivator {
      */
     @Override
     public void start(final BundleContext context) throws Exception {
-        CXFUtil.initializeJAXRSRuntime(getClass());
+        // nothing to do
     }
 
     /**

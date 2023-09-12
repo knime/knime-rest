@@ -74,10 +74,7 @@ import javax.net.ssl.TrustManager;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
-import org.apache.cxf.Bus;
 import org.apache.cxf.jaxrs.client.WebClient;
-import org.apache.cxf.jaxrs.client.spec.ClientBuilderImpl;
-import org.apache.cxf.jaxrs.impl.RuntimeDelegateImpl;
 import org.apache.cxf.transport.http.HTTPConduit;
 import org.apache.cxf.transport.http.PatternBuilder;
 import org.apache.cxf.transport.http.asyncclient.AsyncHTTPConduit;
@@ -149,13 +146,11 @@ import org.knime.credentials.base.Credential;
 import org.knime.credentials.base.CredentialPortObject;
 import org.knime.credentials.base.CredentialPortObjectSpec;
 import org.knime.credentials.base.oauth.api.HttpAuthorizationHeaderCredentialValue;
-import org.knime.cxf.CXFUtil;
 import org.knime.rest.generic.EachRequestAuthentication;
 import org.knime.rest.generic.ResponseBodyParser;
 import org.knime.rest.generic.ResponseBodyParser.Default;
 import org.knime.rest.generic.ResponseBodyParser.Missing;
 import org.knime.rest.internals.HttpAuthorizationHeaderAuthentication;
-import org.knime.rest.internals.NTLMAuthentication;
 import org.knime.rest.nodes.common.RestSettings.HttpMethod;
 import org.knime.rest.nodes.common.RestSettings.ReferenceType;
 import org.knime.rest.nodes.common.RestSettings.RequestHeaderKeyItem;
@@ -176,7 +171,6 @@ import jakarta.ws.rs.client.WebTarget;
 import jakarta.ws.rs.core.HttpHeaders;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
-import jakarta.ws.rs.ext.RuntimeDelegate;
 
 /**
  * Common {@link NodeModel} for the REST nodes.
@@ -252,7 +246,6 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
 
         m_credentialPortIdx = cfg.getPortConfig().orElseThrow(IllegalStateException::new).getInputPortLocation()
             .getOrDefault(RestNodeFactory.CREDENTIAL_GROUP_ID, new int[]{-1})[0];
-        init();
     }
 
     /**
@@ -262,7 +255,6 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         super(new PortType[]{BufferedDataTable.TYPE_OPTIONAL}, new PortType[]{BufferedDataTable.TYPE});
 
         m_credentialPortIdx = -1;
-        init();
     }
 
     /**
@@ -307,14 +299,6 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
      */
     protected RestProxyConfigManager getProxyManager() {
         return m_settings.getProxyManager();
-    }
-
-    /**
-     * Inits JAX-RS to use CXF, only called in constructors.
-     */
-    protected static final void init() {
-        System.setProperty(ClientBuilder.JAXRS_DEFAULT_CLIENT_BUILDER_PROPERTY, ClientBuilderImpl.class.getName());
-        System.setProperty(RuntimeDelegate.JAXRS_RUNTIME_DELEGATE_PROPERTY, RuntimeDelegateImpl.class.getName());
     }
 
     /**
@@ -413,8 +397,6 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
             final ColumnRearranger rearranger =
                 createColumnRearranger(enabledEachRequestAuthentications, spec, exec, inTable.size());
             var out = new BufferedDataTable[]{exec.createColumnRearrangeTable(inTable, rearranger, exec)};
-            // Ensure that the current Thread has a valid Bus (the NTLM auth might have closed it, see AP-20595)
-            CXFUtil.getThreadDefaultBus(getClass());
             return out;
         }
         makeFirstCall(null/*row*/, enabledEachRequestAuthentications, null/*spec*/, exec);
@@ -701,8 +683,6 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
             container.addRowToTable(new DefaultRow(RowKey.createRowKey((long)i), m_firstCallValues.get(i)));
         }
         container.close();
-        // Ensure that the current Thread has a valid Bus (the NTLM auth might have closed it, see AP-20595)
-        CXFUtil.getThreadDefaultBus(getClass());
         return new BufferedDataTable[]{container.getTable()};
     }
 
@@ -765,10 +745,6 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         final ColumnRearranger rearranger = new ColumnRearranger(spec);
         final DataColumnSpec[] newColumns = createNewColumnsSpec(spec);
         final int uriColumn = spec.findColumnIndex(m_settings.getUriColumn());
-
-        // Check if NTLMAuthentication is enabled, as this requires an additional cleanup step
-        boolean ntlmEnabled =
-            enabledEachRequestAuthentications.stream().anyMatch(p -> p.getClass().equals(NTLMAuthentication.class));
 
         final AbstractCellFactory factory = new AbstractCellFactory(newColumns) {
             @Override
@@ -856,10 +832,6 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
                     m_consumedRows++;
                     if (requestBuilder != null) {
                         requestBuilder.getSecond().close();
-                    }
-                    if (ntlmEnabled) {
-                        // If NTLM Authentication is enabled, restore the bus after closing the client.
-                        CXFUtil.getThreadDefaultBus(RestNodeModel.class);
                     }
                 }
                 if (exec != null) {
@@ -1109,7 +1081,14 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
      * @return The client to be used for the request.
      */
     protected Client createClient() {
-        final ClientBuilder clientBuilder = ClientBuilder.newBuilder();
+        final var clientBuilder = ClientBuilder.newBuilder();
+
+        // Per default, the sync client is used. With AP-17297 it was assumed that the async client
+        // needs to be used due to a bug, but a CXF bump to v4 fixed this.
+        // (this can be overwritten by system property 'org.apache.cxf.transport.http.async.usePolicy'
+        // (see CXF documentation)
+        clientBuilder.property(AsyncHTTPConduit.USE_ASYNC, Boolean.FALSE);
+
         if (m_settings.isSslTrustAll()) {
             final SSLContext context;
             try {
@@ -1148,16 +1127,6 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
     private Pair<Builder, Client> createRequest(final int uriColumn,
         final List<EachRequestAuthentication> enabledEachRequestAuthentications, final DataRow row,
         final DataTableSpec spec) throws InvalidSettingsException {
-
-        // We need to initialize the bus before creating the client, otherwise
-        // we run into issues if the bus has been closed after use.
-        // (e.g. by the NTLMAuthentication)
-        final Bus bus = CXFUtil.getThreadDefaultBus(getClass());
-        // Per default, the sync client is used. With AP-17297 it was assumed that the async client
-        // needs to be used due to a bug, but a CXF bump to v4 fixed this.
-        // (this can be overwritten by system property 'org.apache.cxf.transport.http.async.usePolicy'
-        // (see CXF documentation)
-        bus.setProperty(AsyncHTTPConduit.USE_ASYNC, false);
 
         final var client = createClient();
         CheckUtils.checkState(m_settings.isUseConstantURI() || row != null,

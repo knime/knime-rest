@@ -61,6 +61,7 @@ import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.cxf.jaxrs.client.ClientConfiguration;
 import org.apache.cxf.jaxrs.client.WebClient;
+import org.apache.cxf.transport.http.asyncclient.AsyncHTTPConduit;
 import org.apache.cxf.transports.http.configuration.HTTPClientPolicy;
 import org.apache.http.auth.Credentials;
 import org.apache.http.auth.NTCredentials;
@@ -112,7 +113,7 @@ public class NTLMAuthentication extends UsernamePasswordAuthentication {
         final ClientConfiguration conf = WebClient.getConfig(request);
         final Map<String, Object> requestContext = conf.getRequestContext();
 
-        requestContext.put("use.async.http.conduit", Boolean.TRUE);
+        requestContext.put(AsyncHTTPConduit.USE_ASYNC, Boolean.TRUE);
         requestContext.put(Credentials.class.getName(), getNTCredentials(credProvider));
 
         // this must happen _after_ the 'bus' is set to use an async conduit above
