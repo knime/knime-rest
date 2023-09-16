@@ -68,8 +68,6 @@ import org.knime.rest.nodes.common.proxy.SystemPropertyProvider.PropertyMode;
  */
 final class BypassGlobalProxyTest {
 
-    private static final String INVALID_PROXY_HOST = "dummyHost123";
-
     private static ProxyRestNodeModel noProxyNodeModel;
 
     @BeforeAll
@@ -86,8 +84,8 @@ final class BypassGlobalProxyTest {
     @SuppressWarnings("static-method")
     @Test
     void bypassAllProxies() {
-        var props = new String[]{"http.proxyHost"};
-        var values = SystemPropertyProvider.saveAndSetProperties(props, PropertyMode.DUMMY, INVALID_PROXY_HOST);
+        var props = new String[]{"http.proxyHost", "http.proxyPort"};
+        var values = SystemPropertyProvider.saveAndSetProperties(props, PropertyMode.DUMMY);
         assertDoesNotThrow(() -> noProxyNodeModel.makeRequest(),
             "Making a (dummy) GET request should not have thrown an exception.");
         // If at least one response value is not missing, the request went through.
