@@ -1189,16 +1189,11 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         // Set HTTP version to 1.1 because by default HTTP/2 will be used. It's a) not supported by some sites
         // and b) doesn't make sense in our context.
         clientPolicy.setVersion("1.1");
+        clientPolicy.setAutoRedirect(m_settings.isFollowRedirects());
+        clientPolicy.setMaxRetransmits(MAX_RETRANSMITS);
 
         // Configures the proxy credentials for the request builder if needed.
         proxyManager.configureRequest(optProxyConfig, request, getCredentialsProvider());
-
-        if (!clientPolicy.isSetAutoRedirect()) {
-            clientPolicy.setAutoRedirect(m_settings.isFollowRedirects());
-        }
-        if (!clientPolicy.isSetMaxRetransmits()) {
-            clientPolicy.setMaxRetransmits(MAX_RETRANSMITS);
-        }
         return Pair.create(request, client);
     }
 
