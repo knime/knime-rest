@@ -2,7 +2,7 @@ Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
 Bundle-Name: KNIME REST Client Nodes
 Bundle-SymbolicName: org.knime.rest;singleton:=true
-Bundle-Version: 5.1.1.qualifier
+Bundle-Version: 5.1.2.qualifier
 Bundle-Activator: org.knime.rest.internals.RESTActivator
 Bundle-Vendor: KNIME AG, Zurich, Switzerland
 Export-Package: org.knime.rest.generic,
@@ -10,12 +10,12 @@ Export-Package: org.knime.rest.generic,
 Import-Package: org.eclipse.jdt.annotation
 Require-Bundle: org.knime.base;bundle-version="[5.0.0,6.0.0)",
  jakarta.ws.rs-api;bundle-version="[3.1.0,4.0.0)",
- org.apache.cxf.cxf-core;bundle-version="[4.0.0,5.0.0)",
- org.apache.cxf.cxf-rt-frontend-jaxrs;bundle-version="[4.0.0,5.0.0)",
- org.apache.cxf.cxf-rt-rs-client;bundle-version="[4.0.0,5.0.0)",
- org.apache.cxf.cxf-rt-rs-extension-providers;bundle-version="[4.0.0,5.0.0)",
- org.apache.cxf.cxf-rt-transports-http;bundle-version="[4.0.0,5.0.0)",
- org.apache.cxf.cxf-rt-transports-http-hc;bundle-version="[4.0.0,5.0.0)",
+ org.apache.cxf.cxf-core;bundle-version="[4.0.3,5.0.0)",
+ org.apache.cxf.cxf-rt-frontend-jaxrs;bundle-version="[4.0.3,5.0.0)",
+ org.apache.cxf.cxf-rt-rs-client;bundle-version="[4.0.3,5.0.0)",
+ org.apache.cxf.cxf-rt-rs-extension-providers;bundle-version="[4.0.3,5.0.0)",
+ org.apache.cxf.cxf-rt-transports-http;bundle-version="[4.0.3,5.0.0)",
+ org.apache.cxf.cxf-rt-transports-http-hc;bundle-version="[4.0.3,5.0.0)",
  org.knime.json;bundle-version="[5.0.0,6.0.0)",
  org.knime.xml;bundle-version="[5.0.0,6.0.0)",
  org.knime.core.data.uritype;bundle-version="[5.0.0,6.0.0)",
