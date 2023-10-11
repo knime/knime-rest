@@ -106,18 +106,18 @@ public abstract class UsernamePasswordAuthentication extends EachRequestAuthenti
     }
 
     /**
-     * Updates the settings based on the control values.
+     * Updates the settings based on the control values (if controls were set, i.e. it was added to a panel).
      */
     @Override
     public void updateSettings() {
-        var nodeSettings = new NodeSettings("");
-        try {
-            if (m_controls != null) {
+        if (m_controls != null) {
+            try {
+                var nodeSettings = new NodeSettings("");
                 m_controls.saveSettingsTo(nodeSettings);
+                m_settings.loadSettingsFrom(nodeSettings);
+            } catch (InvalidSettingsException e) {
+                throw new IllegalStateException(e);
             }
-            m_settings.loadSettingsFrom(nodeSettings);
-        } catch (InvalidSettingsException e) {
-            throw new IllegalStateException(e);
         }
     }
 
