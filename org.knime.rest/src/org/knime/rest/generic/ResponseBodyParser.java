@@ -48,6 +48,7 @@
  */
 package org.knime.rest.generic;
 
+import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -213,18 +214,25 @@ public interface ResponseBodyParser {
          * @return The {@link InputStream} that can handle {@code Content-Encoding}.
          */
         private InputStream responseInputStream(final Response response) {
-            final InputStream entity = new BOMInputStream(response.readEntity(InputStream.class), ByteOrderMark.UTF_8,
-                ByteOrderMark.UTF_16BE, ByteOrderMark.UTF_16LE, ByteOrderMark.UTF_32BE, ByteOrderMark.UTF_32LE);
+            final var entity =
+                new BufferedInputStream(new BOMInputStream(response.readEntity(InputStream.class), ByteOrderMark.UTF_8,
+                    ByteOrderMark.UTF_16BE, ByteOrderMark.UTF_16LE, ByteOrderMark.UTF_32BE, ByteOrderMark.UTF_32LE));
             final String contentEncoding = response.getHeaderString("Content-Encoding");
             if (contentEncoding != null) {
                 //https://en.wikipedia.org/wiki/HTTP_compression#Content-Encoding_tokens
                 switch (contentEncoding) {
                     case "gzip":
                         try {
+                            entity.mark(1024);
                             return new GZIPInputStream(entity);
                         } catch (final IOException e) {
-                            //we cannot reset the stream, so it is not worth special casing for ZipExceptions
-                            throw new UncheckedIOException(e);
+                            // seen this with some web pages - claiming gzip in header but really aren't.
+                            try {
+                                entity.reset();
+                                return entity;
+                            } catch (IOException e2) {
+                                throw new UncheckedIOException(e);
+                            }
                         }
                     case "deflate":
                         return new InflaterInputStream(entity);
