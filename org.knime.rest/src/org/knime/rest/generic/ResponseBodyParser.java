@@ -213,15 +213,15 @@ public interface ResponseBodyParser {
          * @param response The {@link Response} from the REST call.
          * @return The {@link InputStream} that can handle {@code Content-Encoding}.
          */
-        private InputStream responseInputStream(final Response response) {
+        private static InputStream responseInputStream(final Response response) {
             final var entity =
                 new BufferedInputStream(new BOMInputStream(response.readEntity(InputStream.class), ByteOrderMark.UTF_8,
                     ByteOrderMark.UTF_16BE, ByteOrderMark.UTF_16LE, ByteOrderMark.UTF_32BE, ByteOrderMark.UTF_32LE));
-            final String contentEncoding = response.getHeaderString("Content-Encoding");
+            final var contentEncoding = response.getHeaderString("Content-Encoding");
             if (contentEncoding != null) {
                 //https://en.wikipedia.org/wiki/HTTP_compression#Content-Encoding_tokens
                 switch (contentEncoding) {
-                    case "gzip":
+                    case "gzip": // NOSONAR too complex case block
                         try {
                             entity.mark(1024);
                             return new GZIPInputStream(entity);
@@ -230,7 +230,7 @@ public interface ResponseBodyParser {
                             try {
                                 entity.reset();
                                 return entity;
-                            } catch (IOException e2) {
+                            } catch (IOException e2) { // NOSONAR - report the more severe problem
                                 throw new UncheckedIOException(e);
                             }
                         }
