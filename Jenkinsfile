@@ -42,6 +42,12 @@ try {
                 'knime-core-columnar',
                 'knime-conda'
             ]
+        ],
+        sidecarContainers: [
+            [ image: "docker.io/kalaksi/tinyproxy:1.6", namePrefix: "TINYPROXYAUTH", port: 8888, envArgs: ["STAT_HOST=tinyproxy.stats", "MAX_CLIENTS=500", "ALLOWED_NETWORKS=0.0.0.0/0", "LOG_LEVEL=Info", "TIMEOUT=300", "AUTH_USER='knime-proxy'", "AUTH_PASSWORD='knime-proxy-password'"]
+            ],
+            [ image: "docker.io/kalaksi/tinyproxy:1.6", namePrefix: "TINYPROXY", port: 8888, envArgs: ["STAT_HOST=tinyproxy.stats", "MAX_CLIENTS=500", "ALLOWED_NETWORKS=0.0.0.0/0", "LOG_LEVEL=Info", "TIMEOUT=300"]
+            ],
         ]
     )
 
