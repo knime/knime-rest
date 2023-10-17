@@ -62,6 +62,7 @@ import org.jsoup.Jsoup;
 import org.jsoup.helper.W3CDom;
 import org.jsoup.nodes.Comment;
 import org.jsoup.nodes.Document;
+import org.jsoup.nodes.DocumentType;
 import org.jsoup.nodes.Element;
 import org.jsoup.nodes.Node;
 import org.jsoup.select.Elements;
@@ -180,6 +181,13 @@ final class WebpageRetrieverNodeModel extends RestNodeModel<WebpageRetrieverSett
             // parser.
             replaceDeprecatedXLinkHrefAttributesInSVGs(htmlDocument);
 
+            // Fix a problem that showed up with JSoup 1.14: the DOCTYPE is part of the tree, which causes W3CDom
+            // to insert a line (<!DOCTYPE html PUBLIC "" "">) that causes errors in the XML parser. So we simply
+            // remove the DOCTYPE.
+            htmlDocument.childNodes() //
+                .stream() //
+                .filter(DocumentType.class::isInstance) //
+                .forEach(Node::remove);
 
             // convert to w3c document
             org.w3c.dom.Document w3cDoc = new W3CDom().fromJsoup(htmlDocument);
