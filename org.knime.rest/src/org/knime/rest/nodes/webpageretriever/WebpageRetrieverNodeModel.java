@@ -77,6 +77,7 @@ import org.knime.core.data.def.StringCell;
 import org.knime.core.data.xml.XMLCell;
 import org.knime.core.data.xml.XMLCellFactory;
 import org.knime.core.node.ExecutionContext;
+import org.knime.core.node.NodeLogger;
 import org.knime.core.node.context.NodeCreationConfiguration;
 import org.knime.core.util.UniqueNameGenerator;
 import org.knime.rest.generic.EachRequestAuthentication;
@@ -94,6 +95,8 @@ import jakarta.ws.rs.core.Response;
  * @author Simon Schmid, KNIME GmbH, Konstanz, Germany
  */
 final class WebpageRetrieverNodeModel extends RestNodeModel<WebpageRetrieverSettings> {
+
+    private static final NodeLogger LOGGER = NodeLogger.getLogger(WebpageRetrieverNodeModel.class);
 
     private static final String XMLNS = "xmlns";
 
@@ -172,6 +175,12 @@ final class WebpageRetrieverNodeModel extends RestNodeModel<WebpageRetrieverSett
 
         // output either as XML or String cell
         if (m_settings.isOutputAsXML()) {
+            // Fix an issue where "xlink:href" attributes are present in <svg> elements, but the attribute is
+            // deprecated and should be replaced by "href" only. "xlink:href" caused errors downstream in the XML
+            // parser.
+            replaceDeprecatedXLinkHrefAttributesInSVGs(htmlDocument);
+
+
             // convert to w3c document
             org.w3c.dom.Document w3cDoc = new W3CDom().fromJsoup(htmlDocument);
 
@@ -228,6 +237,29 @@ final class WebpageRetrieverNodeModel extends RestNodeModel<WebpageRetrieverSett
                 }
                 element.tagName(tagSplit[0] + id);
             }
+        }
+    }
+
+    private static void replaceDeprecatedXLinkHrefAttributesInSVGs(final Document htmlDocument) {
+        for (var svgElement: htmlDocument.select("svg")) {
+            replaceDeprecatedXLinkHrefAttributes(svgElement);
+        }
+    }
+
+    private static void replaceDeprecatedXLinkHrefAttributes(final Element element) {
+        if (element.attributes().hasKeyIgnoreCase("xlink:href")) {
+            if (element.attributes().hasKeyIgnoreCase("href")) {
+                LOGGER.warn("SVG element " + element.tagName()
+                    + " has both, xlink:href and href attributes set. Removing deprecated xlink:href attribute.");
+            } else {
+                element.attr("href", element.attr("xlink:href"));
+                element.attributes().removeIgnoreCase("xlink:href");
+            }
+        }
+
+        // apply recursively
+        for (var child : element.children()) {
+            replaceDeprecatedXLinkHrefAttributes(child);
         }
     }
 
