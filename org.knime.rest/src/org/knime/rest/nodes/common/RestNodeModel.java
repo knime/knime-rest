@@ -376,7 +376,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         createResponseBodyParsers(exec);
         // Issue a warning if no proxy config came in from the global settings.
         if (m_settings.getProxyManager().getProxyMode() == ProxyMode.GLOBAL
-            && m_settings.getCurrentProxyConfig().isEmpty()) {
+            && m_settings.getUpdatedProxyConfig().isEmpty()) {
             LOGGER.warn("The KNIME-wide proxy settings are activated but none were specified. "
                 + "Defaulting to using no proxy.");
         }
@@ -1145,10 +1145,8 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         //Support relative redirects too, see https://tools.ietf.org/html/rfc7231#section-3.1.4.2
         target = target.property("http.redirect.relative.uri", true);
 
+        final var optProxyConfig = m_settings.getUpdatedProxyConfig();
         // AP-20749: this prevents long living SelectorManager threads that can lead to out of memory errors
-        final var proxyManager = m_settings.getProxyManager();
-        final var localConfig = m_settings.getCurrentProxyConfig().orElse(null);
-        final var optProxyConfig = proxyManager.getProxyConfig(localConfig);
         if (!usesHttpsThroughAuthenticatedProxy(target.getUri(), optProxyConfig.orElse(null))) {
             target = target.property("force.urlconnection.http.conduit", true);
         }
@@ -1190,7 +1188,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         clientPolicy.setMaxRetransmits(MAX_RETRANSMITS);
 
         // Configures the proxy credentials for the request builder if needed.
-        proxyManager.configureRequest(optProxyConfig, request, getCredentialsProvider());
+        getProxyManager().configureRequest(optProxyConfig, request, getCredentialsProvider());
         return Pair.create(request, client);
     }
 

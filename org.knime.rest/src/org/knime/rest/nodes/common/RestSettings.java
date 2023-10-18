@@ -872,6 +872,21 @@ public class RestSettings {
     }
 
     /**
+     * Takes the current proxy config from {@link RestSettings#getCurrentProxyConfig()},
+     * and updates it based on the proxy manager's mode:
+     *  - NONE: clears the proxy config
+     *  - LOCAL: returns config as is
+     *  - GLOBAL: re-fetches System properties
+     *
+     * Does not update the cached {@link #m_currentProxyConfig}.
+     *
+     * @return RestProxyConfig, if present
+     */
+    protected Optional<RestProxyConfig> getUpdatedProxyConfig() {
+        return getProxyManager().getProxyConfig(getCurrentProxyConfig().orElse(null));
+    }
+
+    /**
      * Saves the internal state to {@code settings}.
      *
      * @param settings A writable {@link NodeSettingsWO}.
