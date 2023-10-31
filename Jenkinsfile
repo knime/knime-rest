@@ -41,6 +41,9 @@ try {
                 'knime-python-legacy',
                 'knime-core-columnar',
                 'knime-conda'
+            ],
+            ius: [
+              'org.knime.features.kerberos.feature.group',
             ]
         ],
         sidecarContainers: [
