@@ -44,58 +44,95 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   15 Mar 2023 (leon.wenzler): created
+ *   7 Nov 2023 (leon.wenzler): created
  */
-package org.knime.rest.nodes.common.proxy;
+package org.knime.rest.nodes.common;
 
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
-import static org.junit.jupiter.api.Assertions.assertFalse;
+import java.util.Collections;
 
-import java.util.Arrays;
-
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
 import org.knime.core.data.DataCell;
-import org.knime.rest.nodes.common.TestGetNodeModel;
-import org.knime.rest.nodes.common.proxy.SystemPropertyProvider.PropertyMode;
+import org.knime.rest.nodes.common.RestSettings.HttpMethod;
+
+import jakarta.ws.rs.client.Entity;
+import jakarta.ws.rs.client.Invocation;
+import jakarta.ws.rs.client.Invocation.Builder;
 
 /**
- * Test class for the proxy detection in {@link RestProxyConfigManager#configureRequest()}. Tests whether the
- * ProxyMode.NONE bypasses all configured proxies.
+ * REST model for testing requests with a body (always uses POST). Makes the request method available.
  *
  * @author Leon Wenzler, KNIME AG, Konstanz, Germany
  */
-final class BypassGlobalProxyTest {
+public final class TestPostNodeModel extends RestWithBodyNodeModel<RestWithBodySettings> {
 
-    private static TestGetNodeModel noProxyNodeModel;
+    /**
+     * Simplified REST node model always using a POST request.
+     */
+    public TestPostNodeModel() {
+        // Useful for testing: extract all response headers.
+        m_settings.setExtractAllResponseFields(true);
+    }
 
-    @BeforeAll
-    public static void initializeModel() {
-        noProxyNodeModel = new TestGetNodeModel(ProxyMode.NONE);
+    @Override
+    protected RestWithBodySettings createSettings() {
+        return new RestWithBodySettings(HttpMethod.POST);
     }
 
     /**
-     * Tests if all proxies are successfully bypassed by settings global *and* local proxy hosts to an invalid host (see
-     * INVALID_PROXY_HOST).
-     *
-     * The request should work just fine. Test fails if any proxy is used because a connection is not possible.
+     * {@inheritDoc}
      */
-    @SuppressWarnings("static-method")
-    @Test
-    void bypassAllProxies() {
-        var props = new String[]{"http.proxyHost", "http.proxyPort"};
-        var values = SystemPropertyProvider.saveAndSetProperties(props, PropertyMode.DUMMY);
-        assertDoesNotThrow(() -> noProxyNodeModel.makeRequest(),
-            "Making a (dummy) GET request should not have thrown an exception.");
-        // If at least one response value is not missing, the request went through.
-        assertFalse(Arrays.stream(noProxyNodeModel.getResponses()).allMatch(DataCell::isMissing),
-            "GET request should have succeeded but got missing values as response.");
-        SystemPropertyProvider.restoreProperties(props, values);
+    @Override
+    protected Invocation invocationWithEntity(final Builder request, final Entity<?> entity) {
+        return request.buildPost(entity);
     }
 
-    @AfterAll
-    public static void discardModel() {
-        noProxyNodeModel = null;
+    /**
+     * Sets the target of this REST request to the given URI string.
+     *
+     * @param targetURI
+     */
+    public void setRequestTarget(final String targetURI) {
+        m_settings.setUseConstantURI(true);
+        m_settings.setConstantURI(targetURI);
+    }
+
+    /**
+     * Sets the request body of this REST request to the given body string.
+     *
+     * @param requestBodyAsString body
+     */
+    public void setRequestBody(final String requestBodyAsString) {
+        m_settings.setUseConstantRequestBody(true);
+        m_settings.setConstantRequestBody(requestBodyAsString);
+    }
+
+    /**
+     * Sets the chunking threshold of this REST request to the given byte size.
+     *
+     * @param newThreshold chunking threshold in bytes
+     */
+    public void setChunkingThreshold(final int newThreshold) {
+        chunkingThreshold = newThreshold;
+    }
+
+    /**
+     * Performs a simple POST request without any context.
+     *
+     * @throws Exception
+     */
+    public void makeRequest() throws Exception {
+        reset();
+        makeFirstCall(null, Collections.emptyList(), null, null);
+    }
+
+    /**
+     * Returns an array of DataCells, encapsulating the HTTP response.
+     *
+     * @return array of DataCells
+     */
+    public DataCell[] getResponses() {
+        if (!m_firstCallValues.isEmpty()) {
+            return m_firstCallValues.get(0);
+        }
+        return new DataCell[0];
     }
 }

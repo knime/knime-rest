@@ -90,10 +90,23 @@ import jakarta.ws.rs.core.Variant;
 public abstract class RestWithBodyNodeModel<S extends RestWithBodySettings> extends RestNodeModel<S> {
 
     /**
+     * The default chunking threshold, i.e. the body size at which 'Transfer-Encoding: chunked' should be enabled.
+     * Package scope for tests.
+     */
+    static int chunkingThreshold = 1 << 20;
+
+    /**
      * @param cfg The node creation configuration.
      */
     protected RestWithBodyNodeModel(final NodeCreationConfiguration cfg) {
         super(cfg);
+    }
+
+    /**
+     * Passing no-args constructor to subclasses.
+     */
+    protected RestWithBodyNodeModel() {
+        super();
     }
 
     @Override
@@ -225,7 +238,7 @@ public abstract class RestWithBodyNodeModel<S extends RestWithBodySettings> exte
         int bufferSize;
         if (m_settings.isAllowChunking().orElse(RestSettings.DEFAULT_ALLOW_CHUNKING)) {
             // chunk allowed => use a moderately sized buffer of 1 MB.
-            bufferSize = 1 << 20;
+            bufferSize = chunkingThreshold;
         } else {
             // chunking should not happen, try to guess the size of the body
             if (o instanceof byte[]) {

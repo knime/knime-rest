@@ -65,7 +65,7 @@ import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.util.proxy.ProxyProtocol;
 import org.knime.rest.nodes.common.HttpMockServiceFactory;
 import org.knime.rest.nodes.common.PassthroughMarker;
-import org.knime.rest.nodes.common.ProxyRestNodeModel;
+import org.knime.rest.nodes.common.TestGetNodeModel;
 
 import com.github.tomakehurst.wiremock.WireMockServer;
 
@@ -84,9 +84,9 @@ final class MockProxyTest {
 
     // -- CLIENTS --
 
-    private static ProxyRestNodeModel noProxyNodeModel;
+    private static TestGetNodeModel noProxyNodeModel;
 
-    private static ProxyRestNodeModel configuredProxyNodeModel;
+    private static TestGetNodeModel configuredProxyNodeModel;
 
     @BeforeAll
     public static void initializeMockObjects() throws InvalidSettingsException {
@@ -98,7 +98,7 @@ final class MockProxyTest {
         final var serverAdress = HttpMockServiceFactory.getBaseUri(mockRequestServer).toString();
 
         // Configuring our REST clients.
-        noProxyNodeModel = new ProxyRestNodeModel(ProxyMode.NONE);
+        noProxyNodeModel = new TestGetNodeModel(ProxyMode.NONE);
         noProxyNodeModel.setRequestTarget(serverAdress);
 
         final var proxyAdress = HttpMockServiceFactory.getBaseUri(mockRequestProxy);
@@ -107,7 +107,7 @@ final class MockProxyTest {
             .setProxyHost(proxyAdress.getHost())//
             .setProxyPort(proxyAdress.getPort())//
             .build();
-        configuredProxyNodeModel = new ProxyRestNodeModel(ProxyMode.LOCAL, proxyConfig);
+        configuredProxyNodeModel = new TestGetNodeModel(ProxyMode.LOCAL, proxyConfig);
         configuredProxyNodeModel.setRequestTarget(serverAdress);
     }
 

@@ -70,14 +70,14 @@ import jakarta.ws.rs.client.Invocation.Builder;
  *
  * @author Leon Wenzler, KNIME AG, Konstanz, Germany
  */
-public final class ProxyRestNodeModel extends RestNodeModel<RestSettings> {
+public final class TestGetNodeModel extends RestNodeModel<RestSettings> {
 
     /**
      * REST node model always using a GET request, but configurable on which proxy to use.
      *
      * @param proxyMode NONE, LOCAL, or GLOBAL
      */
-    public ProxyRestNodeModel(final ProxyMode proxyMode) {
+    public TestGetNodeModel(final ProxyMode proxyMode) {
         this(proxyMode, null);
     }
 
@@ -87,7 +87,7 @@ public final class ProxyRestNodeModel extends RestNodeModel<RestSettings> {
      * @param proxyMode NONE, LOCAL, or GLOBAL
      * @param proxyConfig proxy config
      */
-    public ProxyRestNodeModel(final ProxyMode proxyMode, final RestProxyConfig proxyConfig) {
+    public TestGetNodeModel(final ProxyMode proxyMode, final RestProxyConfig proxyConfig) {
         CheckUtils.checkArgument((proxyMode == ProxyMode.NONE) == (proxyConfig == null),
             "Either set proxy mode to NONE and don't specify a config object, or set a different proxy mode!");
         m_settings.getProxyManager().setProxyMode(proxyMode);

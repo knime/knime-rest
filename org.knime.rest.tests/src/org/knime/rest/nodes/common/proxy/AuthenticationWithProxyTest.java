@@ -65,7 +65,7 @@ import org.knime.rest.internals.BasicAuthentication;
 import org.knime.rest.internals.DigestAuthentication;
 import org.knime.rest.nodes.common.HttpMockServiceFactory;
 import org.knime.rest.nodes.common.PassthroughMarker;
-import org.knime.rest.nodes.common.ProxyRestNodeModel;
+import org.knime.rest.nodes.common.TestGetNodeModel;
 
 import com.github.tomakehurst.wiremock.WireMockServer;
 
@@ -78,7 +78,7 @@ public class AuthenticationWithProxyTest {
 
     private static WireMockServer forwardingProxy;
 
-    private static ProxyRestNodeModel proxyNodeModel;
+    private static TestGetNodeModel proxyNodeModel;
 
     /**
      * Initializes all needed HTTP objects.
@@ -98,7 +98,7 @@ public class AuthenticationWithProxyTest {
             .setProxyHost(proxyAdress.getHost())//
             .setProxyPort(proxyAdress.getPort())//
             .build();
-        proxyNodeModel = new ProxyRestNodeModel(ProxyMode.LOCAL, proxyConfig);
+        proxyNodeModel = new TestGetNodeModel(ProxyMode.LOCAL, proxyConfig);
     }
 
     /**
