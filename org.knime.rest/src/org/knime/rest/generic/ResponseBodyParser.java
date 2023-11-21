@@ -56,9 +56,11 @@ import java.io.Reader;
 import java.io.UncheckedIOException;
 import java.nio.charset.Charset;
 import java.text.ParseException;
+import java.util.function.UnaryOperator;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.InflaterInputStream;
 
+import org.apache.commons.compress.compressors.brotli.BrotliCompressorInputStream;
 import org.apache.commons.io.ByteOrderMark;
 import org.apache.commons.io.input.BOMInputStream;
 import org.apache.commons.lang3.StringUtils;
@@ -71,6 +73,7 @@ import org.knime.core.data.MissingCell;
 import org.knime.core.data.MissingValue;
 import org.knime.core.data.StringValue;
 import org.knime.core.node.ExecutionContext;
+import org.knime.core.node.util.CheckUtils;
 
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
@@ -221,21 +224,13 @@ public interface ResponseBodyParser {
             if (contentEncoding != null) {
                 //https://en.wikipedia.org/wiki/HTTP_compression#Content-Encoding_tokens
                 switch (contentEncoding) {
-                    case "gzip": // NOSONAR too complex case block
-                        try {
-                            entity.mark(1024);
-                            return new GZIPInputStream(entity);
-                        } catch (final IOException e) {
-                            // seen this with some web pages - claiming gzip in header but really aren't.
-                            try {
-                                entity.reset();
-                                return entity;
-                            } catch (IOException e2) { // NOSONAR - report the more severe problem
-                                throw new UncheckedIOException(e);
-                            }
-                        }
+                    case "gzip":
+                        entity.mark(1024);
+                        return tryReadAsEncoding(entity, GZIPInputStream::new);
+                    case "br":
+                        return tryReadAsEncoding(entity, BrotliCompressorInputStream::new);
                     case "deflate":
-                        return new InflaterInputStream(entity);
+                        return tryReadAsEncoding(entity, InflaterInputStream::new);
                     case "identity":
                         return entity;
                     default:
@@ -243,6 +238,33 @@ public interface ResponseBodyParser {
                 }
             }
             return entity;
+        }
+
+        /**
+         * Tries to read the {@link InputStream} entity with the given stream decoder (e.g. gzip, brotli, ...),
+         * and throws an unchecked exception if something went wrong.
+         *
+         * Additionally, it uses a fallback to read the entity as plain content,
+         * if the received content type via header was wrong.
+         *
+         * @param entity input stream
+         * @param streamDecoder new input stream, decoding the entity
+         * @return decoded entity
+         */
+        private static InputStream tryReadAsEncoding(final InputStream entity,
+            final UnaryIOOperator<InputStream> streamDecoder) {
+            CheckUtils.checkArgumentNotNull(streamDecoder, "Content decoder must not be null");
+            try {
+                return streamDecoder.applyWithException(entity);
+            } catch (final IOException e1) {
+                // seen this with some web pages - claiming a wrong content type in header.
+                try {
+                    entity.reset();
+                    return entity;
+                } catch (IOException e2) { // NOSONAR - report the more severe problem
+                    throw new UncheckedIOException(e1);
+                }
+            }
         }
 
         /**
@@ -305,5 +327,19 @@ public interface ResponseBodyParser {
         public DataType producedDataType() {
             return DataType.getMissingCell().getType();
         }
+    }
+
+    /**
+     * Not really a {@link UnaryOperator} but is an operator that
+     * works on a single input returns the same type.
+     * An {@link IOException} might be thrown if something went wrong.
+     *
+     * Does not extend {@link UnaryOperator} to remain a functional interface.
+     *
+     * @author Leon Wenzler, KNIME GmbH, Konstanz, Germany
+     */
+    @FunctionalInterface
+    interface UnaryIOOperator<T> {
+        T applyWithException(T t) throws IOException;
     }
 }

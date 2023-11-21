@@ -72,6 +72,9 @@
           <value>
              gzip
           </value>
+          <value>
+             br
+          </value>
        </Entry>
        <Entry
              key="Accept-Language">
