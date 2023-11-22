@@ -62,6 +62,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -1231,31 +1232,55 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         m_bodyColumns.stream().forEachOrdered(rhi -> {
             if (response != null) {
                 DataType expectedType = rhi.getType();
-                var mediaType = response.getMediaType();
-                if (mediaType == null) {
-                    cells.add(new MissingCell("Response doesn't have a media type"));
+                if (response.getMediaType() == null) {
+                    cells.add(getBinaryObjectParser(response)//
+                        .map(p -> p.create(response)) //
+                        .orElse(new MissingCell("Response doesn't have a media type")));
                 } else if (missing != null) {
                     cells.add(missing);
                 } else {
-                    var wasAdded = false;
-                    for (ResponseBodyParser parser : isHttpError(response) ? m_errorBodyParsers
-                        : m_responseBodyParsers) {
-                        if (parser.producedDataType().isCompatible(expectedType.getPreferredValueClass())
-                            && parser.supportedMediaType().isCompatible(response.getMediaType())) {
-                            wasAdded = true;
-                            cells.add(parser.create(response));
-                            break;
-                        }
-                    }
-                    if (!wasAdded) {
-                        cells.add(new MissingCell("Could not parse the body because the body was "
-                            + response.getMediaType() + ", but was expecting: " + expectedType.getName()));
-                    }
+                    cells.add(tryParseResponseOfType(response, expectedType));
                 }
             } else {
                 cells.add(missing);
             }
         });
+    }
+
+    /**
+     * Depending on the HTTP response, chooses the right parse for producing a {@link BinaryObjectDataCell} out of the
+     * received response.
+     *
+     * @param response received HTTP response
+     * @return response body parser
+     */
+    private Optional<ResponseBodyParser> getBinaryObjectParser(final Response response) {
+        final var parsers = isHttpError(response) ? m_errorBodyParsers : m_responseBodyParsers;
+        return parsers.stream()//
+            .filter(parser -> parser.producedDataType()//
+                .isCompatible(BinaryObjectDataCell.TYPE.getPreferredValueClass())
+                && parser.supportedMediaType().equals(MediaType.WILDCARD_TYPE))//
+            .findFirst();
+    }
+
+    /**
+     * Given the expected type and media type of the response, this method finds a compatible response body parser to
+     * produce a {@link DataCell} as output. Then, it parses the response into the {@link DataCell}.
+     *
+     * @param response received HTTP response
+     * @param expectedType data type of the to be produced {@link DataCell}
+     * @return data cell that was produced
+     */
+    private DataCell tryParseResponseOfType(final Response response, final DataType expectedType) {
+        final var parsers = isHttpError(response) ? m_errorBodyParsers : m_responseBodyParsers;
+        for (var parser : parsers) {
+            if (parser.producedDataType().isCompatible(expectedType.getPreferredValueClass())
+                && parser.supportedMediaType().isCompatible(response.getMediaType())) {
+                return parser.create(response);
+            }
+        }
+        return new MissingCell("Could not parse the body because the body was " + response.getMediaType()
+            + ", but was expecting: " + expectedType.getName());
     }
 
     /**
