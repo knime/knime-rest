@@ -442,7 +442,8 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         try {
             var invocation = invocation(requestBuilderPair.getFirst(), row, spec);
             response =
-                DelayPolicy.doWithDelays(m_settings.getDelayPolicy(), m_cooldownContext, () -> invoke(invocation));
+                DelayPolicy.doWithDelays(m_settings.getDelayPolicy(), m_cooldownContext,
+                    () -> invoke(invocation), exec);
             requestBuilderPair.getSecond().close();
             missing = null;
         } catch (ProcessingException procEx) {
@@ -761,7 +762,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
                         requestBuilder = createRequest(uriColumn, enabledEachRequestAuthentications, row, spec);
                         var invocation = invocation(requestBuilder.getFirst(), row, spec);
                         response = DelayPolicy.doWithDelays(m_settings.getDelayPolicy(), m_cooldownContext,
-                            () -> invoke(invocation));
+                            () -> invoke(invocation), exec);
                     } catch (ProcessingException e) {
                         LOGGER.debug("Call failed: " + e.getMessage(), e);
 
