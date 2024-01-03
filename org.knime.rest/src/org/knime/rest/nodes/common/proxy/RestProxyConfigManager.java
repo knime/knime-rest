@@ -258,10 +258,10 @@ public final class RestProxyConfigManager {
         policy.setProxyServerType(
             config.getProtocol() == ProxyProtocol.SOCKS ? ProxyServerType.SOCKS : ProxyServerType.HTTP);
         // Previous behavior: explicitly set null when excluded hosts are empty.
-        if (config.isExcludeHosts()) {
-            policy.setNonProxyHosts(
-                config.getExcludeHosts().map(RestProxyConfigManager::formatNonProxyHosts).orElse(null));
-        }
+        policy.setNonProxyHosts(config.getExcludeHosts() //
+            .filter(x -> config.isExcludeHosts()) // set excluded hosts to null if disabled
+            .map(RestProxyConfigManager::formatNonProxyHosts) //
+            .orElse(null));
         conduit.setClient(policy);
 
         // Setting authentication data.
