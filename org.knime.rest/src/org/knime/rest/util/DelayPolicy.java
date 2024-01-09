@@ -51,13 +51,10 @@ package org.knime.rest.util;
 import java.util.Optional;
 import java.util.concurrent.Callable;
 
-import org.knime.core.node.CanceledExecutionException;
-import org.knime.core.node.ExecutionMonitor;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.util.CheckUtils;
-import org.knime.core.util.proxy.CXFThrottlingChecker;
 import org.knime.rest.nodes.common.RestNodeModel;
 
 import jakarta.ws.rs.core.Response;
@@ -141,7 +138,6 @@ public final class DelayPolicy {
 
     /**
      * Perform the given {@code Callable} and inspect the result, potentially retrying after some delay.
-     * Execution monitor is <tt>null</tt> by default.
      *
      * @param policy The policy defining number of retries and sleep durations
      * @param cooldownContext Context maintained across multiple requests.
@@ -151,27 +147,12 @@ public final class DelayPolicy {
      */
     public static Response doWithDelays(final DelayPolicy policy, final CooldownContext cooldownContext,
         final Callable<Response> task) throws Exception {
-        return doWithDelays(policy, cooldownContext, task, null);
-    }
-
-    /**
-     * Perform the given {@code Callable} and inspect the result, potentially retrying after some delay.
-     *
-     * @param policy The policy defining number of retries and sleep durations
-     * @param cooldownContext Context maintained across multiple requests.
-     * @param task The task that will return a {@link Response}. Will usually perform a request.
-     * @param exec The execution monitor checking whether the user cancelled.
-     * @return The server response obtained from the last performed attempt.
-     * @throws Exception Generic exception, will be handled by the node model.
-     */
-    public static Response doWithDelays(final DelayPolicy policy, final CooldownContext cooldownContext, // NOSONAR
-        final Callable<Response> task, final ExecutionMonitor exec) throws Exception {
         Response lastResponse = null;
-        var errorRetryCount = 0;
-        var cooldownRetryCount = 0;
+        int errorRetryCount = 0;
+        int cooldownRetryCount = 0;
         long alreadyWaited = 0;
         // determines whether to do another request after the current one (applies to both server and ratelimit errors).
-        var tryAgain = false;
+        boolean tryAgain = false;
         do {
             // rate-limit cooldown delay
             long cooldownDelta = cooldownContext.getCooldownDelta(policy);
@@ -181,7 +162,7 @@ public final class DelayPolicy {
                 // we (assume that we can) subtract the time waited for the rate-limit
                 // cooldown counts towards the server-error retry delay.
                 alreadyWaited += cooldownDelta;
-                checkCancelledBeforeSleep(exec, cooldownDelta);
+                Thread.sleep(cooldownDelta);
                 // after delay, re-enter loop (without increasing attempt counter)
                 // this is necessary because we want to re-check the cooldown in case
                 // another task has reset it in the meantime. In that case we need to
@@ -193,17 +174,14 @@ public final class DelayPolicy {
             // retry backoff delay
             long timeout = policy.getRetryDelayAt(errorRetryCount) - alreadyWaited;
             if (timeout > 0 && errorRetryCount > 0 && policy.isRetriesEnabled()) {
-                checkCancelledBeforeSleep(exec, timeout);
+                Thread.sleep(timeout);
             }
 
             // done waiting for cooldown to pass (and dont need value any longer),
             // reset for future iterations.
             alreadyWaited = 0;
-            lastResponse = CXFThrottlingChecker.callThrottledWithMonitor(task, () -> {
-                if (exec != null) {
-                    exec.checkCanceled();
-                }
-            });
+
+            lastResponse = task.call(); // perform request
 
             // inspect result and handle accordingly
             if (RestNodeModel.isServerError(lastResponse)) {
@@ -223,14 +201,6 @@ public final class DelayPolicy {
 
         // out of retries or not enabled; return last response and let downstream code path handle errors.
         return lastResponse;
-    }
-
-    private static void checkCancelledBeforeSleep(final ExecutionMonitor exec, final long sleepTimeMs)
-        throws InterruptedException, CanceledExecutionException {
-        if (exec != null) {
-            exec.checkCanceled();
-        }
-        Thread.sleep(sleepTimeMs);
     }
 
     /**
@@ -277,11 +247,11 @@ public final class DelayPolicy {
     public static Optional<DelayPolicy> loadFromSettings(final NodeSettingsRO settings) {
         try {
             NodeSettingsRO childSettings = settings.getNodeSettings("delayPolicy");
-            final var base = childSettings.getLong("delayRetryBase");
-            final var retries = childSettings.getInt("delayMaxRetries");
-            final var cooldown = childSettings.getLong("delayRateLimitCooldown");
-            final var retriesEnabled = childSettings.getBoolean("delayRetriesEnabled");
-            final var cooldownEnabled = childSettings.getBoolean("delayCooldownEnabled");
+            long base = childSettings.getLong("delayRetryBase");
+            int retries = childSettings.getInt("delayMaxRetries");
+            long cooldown = childSettings.getLong("delayRateLimitCooldown");
+            boolean retriesEnabled = childSettings.getBoolean("delayRetriesEnabled");
+            boolean cooldownEnabled = childSettings.getBoolean("delayCooldownEnabled");
             return Optional.of(new DelayPolicy(base, retries, cooldown, retriesEnabled, cooldownEnabled));
         } catch (InvalidSettingsException e) { // NOSONAR: exception handled properly, added in 4.3.2
             return Optional.empty();
