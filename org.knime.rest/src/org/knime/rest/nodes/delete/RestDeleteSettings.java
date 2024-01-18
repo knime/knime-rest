@@ -48,14 +48,14 @@
  */
 package org.knime.rest.nodes.delete;
 
-import org.knime.rest.nodes.common.RestSettings;
+import org.knime.rest.nodes.common.RestWithBodySettings;
 
 /**
  * Node settings for the DELETE REST node.
  *
  * @author Gabor Bakos
  */
-final class RestDeleteSettings extends RestSettings {
+final class RestDeleteSettings extends RestWithBodySettings {
 
     /**
      *

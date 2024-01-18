@@ -69,17 +69,11 @@ class RestPutNodeModel extends RestWithBodyNodeModel<RestPutSettings> {
         super(cfg);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     protected RestPutSettings createSettings() {
         return new RestPutSettings();
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     protected Invocation invocationWithEntity(final Builder request, final Entity<?> entity) {
         return request.buildPut(entity);

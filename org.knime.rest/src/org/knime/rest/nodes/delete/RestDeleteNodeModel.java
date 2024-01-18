@@ -48,11 +48,12 @@
  */
 package org.knime.rest.nodes.delete;
 
-import org.knime.core.data.DataRow;
-import org.knime.core.data.DataTableSpec;
+import org.apache.commons.lang3.StringUtils;
 import org.knime.core.node.context.NodeCreationConfiguration;
-import org.knime.rest.nodes.common.RestNodeModel;
+import org.knime.rest.nodes.common.RestWithBodyNodeModel;
 
+import jakarta.ws.rs.HttpMethod;
+import jakarta.ws.rs.client.Entity;
 import jakarta.ws.rs.client.Invocation;
 import jakarta.ws.rs.client.Invocation.Builder;
 
@@ -61,7 +62,7 @@ import jakarta.ws.rs.client.Invocation.Builder;
  *
  * @author Gabor Bakos
  */
-class RestDeleteNodeModel extends RestNodeModel<RestDeleteSettings> {
+class RestDeleteNodeModel extends RestWithBodyNodeModel<RestDeleteSettings> {
 
     /**
      * Constructor
@@ -71,20 +72,20 @@ class RestDeleteNodeModel extends RestNodeModel<RestDeleteSettings> {
         super(cfg);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     protected RestDeleteSettings createSettings() {
         return new RestDeleteSettings();
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
-    protected Invocation invocation(final Builder request, final DataRow row, final DataTableSpec spec) {
-        //No need to add the entity, so row and spec are not used.
-        return request.buildDelete();
+    protected Invocation invocationWithEntity(final Builder request, final Entity<?> entity) {
+        // Body for DELETE requests was added in 5.3, for which now providing any (even empty) entity,
+        // its attributes will be initialized with defaults, e.g. the content-type to 'application/json'.
+        // To avoid this, if the user does not input anything in the new body field, we use the old code path.
+        final var body = entity.getEntity();
+        if (body instanceof String stringBody && StringUtils.isEmpty(stringBody)) {
+            return request.buildDelete();
+        }
+        return request.build(HttpMethod.DELETE, entity);
     }
 }

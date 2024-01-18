@@ -69,17 +69,11 @@ class RestPostNodeModel extends RestWithBodyNodeModel<RestPostSettings> {
         super(cfg);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     protected RestPostSettings createSettings() {
         return new RestPostSettings();
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     protected Invocation invocationWithEntity(final Builder request, final Entity<?> entity) {
         return request.buildPost(entity);

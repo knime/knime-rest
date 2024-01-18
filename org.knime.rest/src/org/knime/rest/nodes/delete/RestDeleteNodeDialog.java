@@ -49,14 +49,14 @@
 package org.knime.rest.nodes.delete;
 
 import org.knime.core.node.context.NodeCreationConfiguration;
-import org.knime.rest.nodes.common.RestNodeDialog;
+import org.knime.rest.nodes.common.RestWithBodyNodeDialog;
 
 /**
  * Node dialog for the node of DELETE http method.
  *
  * @author Gabor Bakos
  */
-final class RestDeleteNodeDialog extends RestNodeDialog<RestDeleteSettings> {
+final class RestDeleteNodeDialog extends RestWithBodyNodeDialog<RestDeleteSettings> {
     /**
      * Constructor.
      * @param cfg The node creation configuration.

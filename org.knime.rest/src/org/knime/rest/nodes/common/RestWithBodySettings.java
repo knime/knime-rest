@@ -154,9 +154,17 @@ public class RestWithBodySettings extends RestSettings {
     @Override
     protected void loadSettingsFrom(final NodeSettingsRO settings) throws InvalidSettingsException {
         super.loadSettingsFrom(settings);
-        m_useConstantRequestBody = settings.getBoolean(USE_CONSTANT_REQUEST_BODY);
-        m_constantRequestBody = settings.getString(CONSTANT_REQUEST_BODY);
-        m_requestBodyColumn = settings.getString(REQUEST_BODY_COLUMN);
+        if (getMethod().map(HttpMethod.DELETE::equals).orElse(false)
+                && !settings.containsKey(USE_CONSTANT_REQUEST_BODY)
+                && !settings.containsKey(CONSTANT_REQUEST_BODY)
+                && !settings.containsKey(REQUEST_BODY_COLUMN)) {
+            // request body for DELETE requests was added in 5.3
+            loadSettingsWithDefaults(settings);
+        } else {
+            m_useConstantRequestBody = settings.getBoolean(USE_CONSTANT_REQUEST_BODY);
+            m_constantRequestBody = settings.getString(CONSTANT_REQUEST_BODY);
+            m_requestBodyColumn = settings.getString(REQUEST_BODY_COLUMN);
+        }
     }
 
     /**
@@ -166,6 +174,10 @@ public class RestWithBodySettings extends RestSettings {
     protected void loadSettingsForDialog(final NodeSettingsRO settings, final CredentialsProvider credentialNames,
         final PortObjectSpec... specs) throws InvalidSettingsException {
         super.loadSettingsForDialog(settings, credentialNames, specs);
+        loadSettingsWithDefaults(settings);
+    }
+
+    private void loadSettingsWithDefaults(final NodeSettingsRO settings) {
         m_useConstantRequestBody = settings.getBoolean(USE_CONSTANT_REQUEST_BODY, DEFAULT_USE_CONSTANT_REQUEST_BODY);
         m_constantRequestBody = settings.getString(CONSTANT_REQUEST_BODY, DEFAULT_CONSTANT_REQUEST_BODY);
         m_requestBodyColumn = settings.getString(REQUEST_BODY_COLUMN, DEFAULT_REQUEST_BODY_COLUMN);
