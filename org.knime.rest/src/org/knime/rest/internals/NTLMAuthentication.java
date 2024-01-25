@@ -214,6 +214,15 @@ public class NTLMAuthentication extends UsernamePasswordAuthentication {
         m_domainPanel.setSelectedString(userSettings.getString(SETTINGS_DOMAIN, ""));
     }
 
+    @Override
+    public void clearUserConfiguration() {
+        super.clearUserConfiguration();
+        if (m_domainPanel != null) { // used in dialog
+            m_domainPanel.setSelectedString("");
+        } // nothing to do for model
+        m_domainString = "";
+    }
+
     private void initControls() {
         if (m_domainPanel == null) {
             m_domainPanel = new StringHistoryPanel(SETTINGS_DOMAIN);

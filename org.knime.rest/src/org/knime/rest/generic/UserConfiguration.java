@@ -97,6 +97,13 @@ public abstract class UserConfiguration {
         final CredentialsProvider credentialNames) throws NotConfigurableException;
 
     /**
+     * Clears all stored user configuration. Especially important for credentials.
+     *
+     * @since 5.3
+     */
+    public abstract void clearUserConfiguration();
+
+    /**
      * Adds the dialog controls to {@code panel}.
      *
      * @param panel A {@link JPanel}.

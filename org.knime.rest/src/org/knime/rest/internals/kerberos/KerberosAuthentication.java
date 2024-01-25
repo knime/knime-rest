@@ -105,6 +105,11 @@ public class KerberosAuthentication extends EachRequestAuthentication {
     }
 
     @Override
+    public void clearUserConfiguration() {
+        // do nothing
+    }
+
+    @Override
     public void addControls(final JPanel panel) {
         // do nothing
     }

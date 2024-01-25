@@ -102,6 +102,11 @@ public class NoAuthentication extends EachRequestAuthentication {
         //No configuration
     }
 
+    @Override
+    public void clearUserConfiguration() {
+        //No configuration
+    }
+
     /**
      * {@inheritDoc}
      */

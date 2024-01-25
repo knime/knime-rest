@@ -140,6 +140,11 @@ public abstract class UsernamePasswordAuthentication extends EachRequestAuthenti
         m_lastCredentialsProvider = credentialNames;
     }
 
+    @Override
+    public void clearUserConfiguration() {
+        m_settings.clear();
+    }
+
     /**
      * Creates the controls with DialogComponentAuthentication.
      */

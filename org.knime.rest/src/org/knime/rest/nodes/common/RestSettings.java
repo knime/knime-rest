@@ -916,9 +916,8 @@ public class RestSettings {
             m_extractFields.stream().map(rh -> rh.getType()).toArray(n -> new DataType[n]));
         settings.addString(BODY_COLUMN_NAME, m_responseBodyColumn);
         for (final EnablableUserConfiguration<UserConfiguration> euc : m_authorizationConfigurations) {
-            final UserConfiguration uc = euc.getUserConfiguration();
             final NodeSettingsWO configBase = settings.addNodeSettings(euc.getName());
-            uc.saveUserConfiguration(configBase);
+            euc.saveUserConfiguration(configBase);
             settings.addBoolean(euc.getName() + ENABLED_SUFFIX, euc.isEnabled());
         }
         settings.addBoolean(FOLLOW_REDIRECTS, m_followRedirects);
@@ -979,18 +978,8 @@ public class RestSettings {
         }
         m_responseBodyColumn = settings.getString(BODY_COLUMN_NAME);
         for (final EnablableUserConfiguration<UserConfiguration> euc : m_authorizationConfigurations) {
-            final UserConfiguration uc = euc.getUserConfiguration();
             euc.setEnabled(settings.getBoolean(euc.getName() + ENABLED_SUFFIX, false));
-            try {
-                final NodeSettingsRO base = settings.getNodeSettings(euc.getName());
-                uc.loadUserConfiguration(base);
-            } catch (InvalidSettingsException e) {
-                if (euc.isEnabled()) {
-                    throw e;
-                } else {
-                    LOGGER.debug(e.getMessage(), e);
-                }
-            }
+            euc.loadUserConfigurationFrom(settings);
         }
         m_followRedirects = settings.getBoolean(FOLLOW_REDIRECTS);
         m_timeoutInSeconds = settings.getInt(TIMEOUT);
@@ -1082,15 +1071,10 @@ public class RestSettings {
         }
         m_responseBodyColumn = settings.getString(BODY_COLUMN_NAME, DEFAULT_BODY_COLUMN_NAME);
         for (final EnablableUserConfiguration<UserConfiguration> euc : m_authorizationConfigurations) {
-            final UserConfiguration uc = euc.getUserConfiguration();
+            final var uc = euc.getUserConfiguration();
             euc.setEnabled(settings.getBoolean(euc.getName() + ENABLED_SUFFIX, uc instanceof NoAuthentication));
             try {
-                try {
-                    final NodeSettingsRO base = settings.getNodeSettings(euc.getName());
-                    uc.loadUserConfigurationForDialog(base, specs, credentialNames);
-                } catch (InvalidSettingsException e) {
-                    uc.loadUserConfigurationForDialog(null, specs, credentialNames);
-                }
+                euc.loadUserConfigurationForDialog(settings, specs, credentialNames);
             } catch (NotConfigurableException e1) {
                 throw new IllegalStateException(e1);
             }

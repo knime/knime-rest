@@ -120,6 +120,11 @@ public class HttpAuthorizationHeaderAuthentication extends EachRequestAuthentica
     }
 
     @Override
+    public void clearUserConfiguration() {
+        //no user configuration
+    }
+
+    @Override
     public void addControls(final JPanel panel) {
         //no user configuration
     }

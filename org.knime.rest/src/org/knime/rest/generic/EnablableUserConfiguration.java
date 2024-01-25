@@ -48,6 +48,16 @@
  */
 package org.knime.rest.generic;
 
+import org.knime.core.node.InvalidSettingsException;
+import org.knime.core.node.NodeLogger;
+import org.knime.core.node.NodeSettingsRO;
+import org.knime.core.node.NodeSettingsWO;
+import org.knime.core.node.NotConfigurableException;
+import org.knime.core.node.config.base.ConfigBaseRO;
+import org.knime.core.node.config.base.ConfigBaseWO;
+import org.knime.core.node.port.PortObjectSpec;
+import org.knime.core.node.workflow.CredentialsProvider;
+
 /**
  * A basic {@link UserConfiguration} wrapper that allows enabling or disabling it.
  *
@@ -55,9 +65,12 @@ package org.knime.rest.generic;
  * @param <T> the specific {@link UserConfiguration} type
  */
 public class EnablableUserConfiguration<T extends UserConfiguration> {
+
+    private static final NodeLogger LOGGER = NodeLogger.getLogger(EnablableUserConfiguration.class);
+
     private final T m_userConfiguration;
 
-    private boolean m_enabled = false;
+    private boolean m_enabled;
 
     private final String m_name;
 
@@ -98,12 +111,72 @@ public class EnablableUserConfiguration<T extends UserConfiguration> {
         return m_name;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public String toString() {
         return m_userConfiguration + " - " + m_name + " (" + m_enabled + ")";
     }
 
+    /**
+     * Saves the user configuration to {@code userSettings}.
+     * If the configuration is disabled, clears the current values prior to saving in order to not save unnecessary
+     * confidential information.
+     *
+     * @param userSettings A {@link ConfigBaseWO} to save the configuration.
+     * @since 5.3
+     */
+    public void saveUserConfiguration(final NodeSettingsWO userSettings) {
+        if (m_userConfiguration != null && m_userConfiguration.hasUserConfiguration()) {
+            if (!isEnabled()) {
+                // don't save and persist credentials if they are not selected
+                // see ticket AP-21887
+                m_userConfiguration.clearUserConfiguration();
+            }
+            m_userConfiguration.saveUserConfiguration(userSettings);
+        }
+    }
+
+    /**
+     * Loads the configuration in the model (e.g. for validation).
+     * The exception is only thrown if the configuration is enabled.
+     *
+     * @param settings main settings object
+     * @throws InvalidSettingsException
+     * @since 5.3
+     */
+    public void loadUserConfigurationFrom(final NodeSettingsRO settings) throws InvalidSettingsException {
+        if (m_userConfiguration == null || !m_userConfiguration.hasUserConfiguration()) {
+            return;
+        }
+        try {
+            final var userSettings = settings.getNodeSettings(getName());
+            m_userConfiguration.loadUserConfiguration(userSettings);
+        } catch (final InvalidSettingsException e) {
+            if (isEnabled()) {
+                throw e;
+            }
+            LOGGER.debug("Could not load (disabled) user configuration: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Loads the stored user configuration from the settings for the dialog.
+     *
+     * @param settings a {@link ConfigBaseRO} to read the configuration from
+     * @param specs the input {@link PortObjectSpec}s
+     * @param credentialNames the {@link CredentialsProvider} names
+     * @throws NotConfigurableException when there is no option to configure this extension
+     * @since 5.3
+     */
+    public void loadUserConfigurationForDialog(final NodeSettingsRO settings, final PortObjectSpec[] specs,
+        final CredentialsProvider credentialNames) throws NotConfigurableException {
+        if (m_userConfiguration == null || !m_userConfiguration.hasUserConfiguration()) {
+            return;
+        }
+        try {
+            final var userSettings = settings.getNodeSettings(getName());
+            m_userConfiguration.loadUserConfigurationForDialog(userSettings, specs, credentialNames);
+        } catch (final InvalidSettingsException ignored) { // NOSONAR
+            m_userConfiguration.loadUserConfigurationForDialog(null, specs, credentialNames);
+        }
+    }
 }
