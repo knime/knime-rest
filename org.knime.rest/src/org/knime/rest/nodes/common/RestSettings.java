@@ -381,8 +381,8 @@ public class RestSettings {
          */
         @Override
         public int hashCode() {
-            final int prime = 31;
-            int result = 1;
+            final var prime = 31;
+            var result = 1;
             result = prime * result + ((m_key == null) ? 0 : m_key.hashCode());
             result = prime * result + ((m_kind == null) ? 0 : m_kind.hashCode());
             result = prime * result + ((m_valueReference == null) ? 0 : m_valueReference.hashCode());
@@ -506,8 +506,8 @@ public class RestSettings {
          */
         @Override
         public int hashCode() {
-            final int prime = 31;
-            int result = 1;
+            final var prime = 31;
+            var result = 1;
             result = prime * result + ((m_headerKey == null) ? 0 : m_headerKey.hashCode());
             result = prime * result + ((m_outputColumnName == null) ? 0 : m_outputColumnName.hashCode());
             result = prime * result + ((m_type == null) ? 0 : m_type.hashCode());
@@ -576,24 +576,23 @@ public class RestSettings {
     protected RestSettings(final HttpMethod method, final List<ResponseHeaderItem> defaultResponseHeaderItems) {
         m_extractFields.addAll(defaultResponseHeaderItems);
         IConfigurationElement[] configurationElements =
-                Platform.getExtensionRegistry().getConfigurationElementsFor(EXTENSION_ID);
-            final EnablableUserConfiguration<UserConfiguration> noAuth =
-                new EnablableUserConfiguration<>(new NoAuthentication(), "None");
-            noAuth.setEnabled(true);
-            m_authorizationConfigurations.add(noAuth);
-            m_httpMethod = method;
-            for (final IConfigurationElement configurationElement : configurationElements) {
-                try {
-                    final Object object = configurationElement.createExecutableExtension("class");
-                    if (object instanceof UserConfiguration) {
-                        final UserConfiguration uc = (UserConfiguration)object;
-                        m_authorizationConfigurations.add(new EnablableUserConfiguration<UserConfiguration>(uc,
-                            configurationElement.getAttribute("name")));
-                    }
-                } catch (CoreException e) {
-                    LOGGER.warn("Failed to load: " + configurationElement.getName(), e);
+            Platform.getExtensionRegistry().getConfigurationElementsFor(EXTENSION_ID);
+        final EnablableUserConfiguration<UserConfiguration> noAuth =
+            new EnablableUserConfiguration<>(new NoAuthentication(), "None");
+        noAuth.setEnabled(true);
+        m_authorizationConfigurations.add(noAuth);
+        m_httpMethod = method;
+        for (final IConfigurationElement configurationElement : configurationElements) {
+            try {
+                final var object = configurationElement.createExecutableExtension("class");
+                if (object instanceof UserConfiguration uc) {
+                    m_authorizationConfigurations.add(new EnablableUserConfiguration<>(
+                            uc, configurationElement.getAttribute("name")));
                 }
+            } catch (CoreException e) {
+                LOGGER.warn("Failed to load: " + configurationElement.getName(), e);
             }
+        }
     }
 
     /**
@@ -957,7 +956,7 @@ public class RestSettings {
         CheckUtils.checkSetting(requestKeys.length == requestKeySelectors.length,
             "Request keys and request key selectors have different lengths: " + requestKeys.length + " <> "
                 + requestKeySelectors.length);
-        for (int i = 0; i < requestKeys.length; ++i) {
+        for (var i = 0; i < requestKeys.length; ++i) {
             m_requestHeaders.add(new RequestHeaderKeyItem(requestKeys[i], requestKeySelectors[i],
                 ReferenceType.valueOf(requestKeyKinds[i])));
         }
@@ -973,7 +972,7 @@ public class RestSettings {
         CheckUtils.checkSetting(responseKeys.length == responseTypes.length,
             "Response header keys and output column types: they have different lengths: " + responseKeys.length + " <> "
                 + responseTypes.length);
-        for (int i = 0; i < responseKeys.length; ++i) {
+        for (var i = 0; i < responseKeys.length; ++i) {
             m_extractFields.add(new ResponseHeaderItem(responseKeys[i], responseTypes[i], responseColumns[i]));
         }
         m_responseBodyColumn = settings.getString(BODY_COLUMN_NAME);
@@ -1007,7 +1006,7 @@ public class RestSettings {
     private void loadFailOnHttp(final NodeSettingsRO settings) {
         // backwards compat.: If fail on client/server is not set, check if older, more general option "fail on http"
         // is set and use that.
-        boolean failOnHttp = settings.getBoolean(FAIL_ON_HTTP_ERRORS, DEFAULT_FAIL_ON_HTTP_ERRORS);
+        final var failOnHttp = settings.getBoolean(FAIL_ON_HTTP_ERRORS, DEFAULT_FAIL_ON_HTTP_ERRORS);
         m_failOnClientErrors = settings.getBoolean(FAIL_ON_CLIENT_ERRORS, failOnHttp);
         m_failOnServerErrors = settings.getBoolean(FAIL_ON_SERVER_ERRORS, failOnHttp);
     }
@@ -1046,7 +1045,7 @@ public class RestSettings {
         CheckUtils.checkSetting(requestKeys.length == requestKeySelectors.length,
             "Request keys and request key selectors have different lengths: " + requestKeys.length + " <> "
                 + requestKeySelectors.length);
-        for (int i = 0; i < requestKeys.length; ++i) {
+        for (var i = 0; i < requestKeys.length; ++i) {
             m_requestHeaders.add(new RequestHeaderKeyItem(requestKeys[i], requestKeySelectors[i],
                 ReferenceType.valueOf(requestKeyKinds[i])));
         }
@@ -1064,9 +1063,9 @@ public class RestSettings {
             "Response header keys and output columns for them have different lengths: " + responseKeys.length + " <> "
                 + responseColumns.length);
         CheckUtils.checkSetting(responseKeys.length == responseTypes.length,
-                "Response header keys and output column types: they have different lengths: " + responseKeys.length + " <> "
+            "Response header keys and output column types: they have different lengths: " + responseKeys.length + " <> "
                         + responseTypes.length);
-        for (int i = 0; i < responseKeys.length; ++i) {
+        for (var i = 0; i < responseKeys.length; ++i) {
             m_extractFields.add(new ResponseHeaderItem(responseKeys[i], responseTypes[i], responseColumns[i]));
         }
         m_responseBodyColumn = settings.getString(BODY_COLUMN_NAME, DEFAULT_BODY_COLUMN_NAME);
