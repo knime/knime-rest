@@ -51,7 +51,6 @@ package org.knime.rest.nodes.common;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URI;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyManagementException;
@@ -75,8 +74,6 @@ import javax.net.ssl.TrustManager;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.cxf.jaxrs.client.WebClient;
-import org.apache.cxf.transport.http.HTTPConduit;
-import org.apache.cxf.transport.http.PatternBuilder;
 import org.apache.cxf.transport.http.asyncclient.AsyncHTTPConduit;
 import org.apache.cxf.transports.http.configuration.HTTPClientPolicy;
 import org.eclipse.e4.core.di.annotations.Execute;
@@ -156,7 +153,6 @@ import org.knime.rest.nodes.common.RestSettings.ReferenceType;
 import org.knime.rest.nodes.common.RestSettings.RequestHeaderKeyItem;
 import org.knime.rest.nodes.common.RestSettings.ResponseHeaderItem;
 import org.knime.rest.nodes.common.proxy.ProxyMode;
-import org.knime.rest.nodes.common.proxy.RestProxyConfig;
 import org.knime.rest.nodes.common.proxy.RestProxyConfigManager;
 import org.knime.rest.util.CooldownContext;
 import org.knime.rest.util.DelayPolicy;
@@ -1144,16 +1140,6 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         WebTarget target = client.target(targetUri);
         //Support relative redirects too, see https://tools.ietf.org/html/rfc7231#section-3.1.4.2
         target = target.property("http.redirect.relative.uri", true);
-
-        final var optProxyConfig = m_settings.getUpdatedProxyConfig();
-        // AP-20749: this prevents long living SelectorManager threads that can lead to out of memory errors
-        if (!usesHttpsThroughAuthenticatedProxy(target.getUri(), optProxyConfig.orElse(null))) {
-            target = target.property("force.urlconnection.http.conduit", true);
-        }
-
-        // IMPORTANT: don't access the HttpConduit before the request has been updated by an EachRequestAuthentication!
-        // Some implementations (e.g. NTLM) must configure the conduit but they cannot after it has been accessed.
-
         final Builder request = target.request();
 
         // AP-20968: for DELETE requests, the HttpClientHTTPConduit sends a 'Content-Type: text/xml' header
@@ -1174,6 +1160,9 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
             request.header(headerItem.getKey(), value);
         }
 
+        // IMPORTANT: don't access the HttpConduit before the request has been updated by an EachRequestAuthentication!
+        // Some implementations (e.g. NTLM) must configure the conduit but they cannot after it has been accessed.
+
         for (final EachRequestAuthentication era : enabledEachRequestAuthentications) {
             era.updateRequest(request, row, getCredentialsProvider(), getAvailableFlowVariables());
         }
@@ -1188,36 +1177,9 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         clientPolicy.setMaxRetransmits(MAX_RETRANSMITS);
 
         // Configures the proxy credentials for the request builder if needed.
+        final var optProxyConfig = m_settings.getUpdatedProxyConfig();
         getProxyManager().configureRequest(optProxyConfig, request, getCredentialsProvider());
         return Pair.create(request, client);
-    }
-
-    /**
-     * Checks whether the current request needs HTTPS tunneling over an authenticated proxy. This usecase is not covered
-     * by the old {@link java.net.HttpURLConnection}-based {@link HTTPConduit}, so we absolutely have to use the new one
-     * that leads to memory problems (see AP-20749).
-     *
-     * @param uri request URI
-     * @param proxyConfig proxy configuration
-     * @return {@code true} if new conduit has to be used, {@code false} otherwise
-     */
-    private static boolean usesHttpsThroughAuthenticatedProxy(final URI uri, final RestProxyConfig proxyConfig) {
-        if (!uri.getScheme().equals("https")                     // not HTTPS
-                || proxyConfig == null                           // no proxy settings available
-                || !proxyConfig.isUseAuthentication()) {         // proxy not authenticated
-            return false;
-        }
-
-        // taken from https://github.com/apache/cxf/blob/7e088f4a/rt/transports/http/src/main/java/org/apache/cxf/transport/http/ProxyFactory.java#L130-L138 // NOSONAR
-        if (proxyConfig.isExcludeHosts()) {
-            // Try to match the URL hostname with the exclusion pattern
-            final var pattern = PatternBuilder.build(proxyConfig.getExcludeHosts().orElseThrow());
-            if (pattern.matcher(uri.getHost()).matches()) {
-                // Excluded hostname -> no proxy
-                return false;
-            }
-        }
-        return true;
     }
 
     /**
