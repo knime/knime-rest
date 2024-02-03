@@ -50,6 +50,7 @@ package org.knime.rest.nodes.common;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
@@ -57,6 +58,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.regex.Pattern;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
@@ -75,6 +77,7 @@ import org.knime.core.util.ThreadLocalHTTPAuthenticator;
 import org.knime.core.util.ThreadLocalHTTPAuthenticator.AuthenticationCloseable;
 import org.knime.rest.util.CooldownContext;
 import org.knime.rest.util.DelayPolicy;
+import org.knime.rest.util.StatusOnlyResponse;
 
 import jakarta.ws.rs.ProcessingException;
 import jakarta.ws.rs.client.Client;
@@ -99,6 +102,8 @@ import jakarta.ws.rs.core.Response;
 public abstract class AbstractRequestExecutor<S extends RestSettings> extends AbstractCellFactory {
 
     private static final NodeLogger LOGGER = NodeLogger.getLogger(AbstractRequestExecutor.class);
+
+    private static final Pattern STATUS_IN_EXCEPTION = Pattern.compile("[1-5]\\d{2}");
 
     private static final String INVALID_URI_ERROR = "Invalid URI";
 
@@ -215,6 +220,37 @@ public abstract class AbstractRequestExecutor<S extends RestSettings> extends Ab
     // -- PERFORMING REQUEST CALLS --
 
     /**
+     * Due to the multi-layer response processing, exceptions can come from anywhere.
+     * For example, the {@link jdk.internal.net.http.PlainTunnelingConnection} wraps any non-200
+     * response in a 'Tunnel failed, got: XXX' exception and the {@link sun.net.www.protocol.http.HttpURLConnection}
+     * throws an exception for every non-407 proxy connection failure.
+     * <p>
+     * Since this is valuable information for the user which would get thrown away in an exception,
+     * this method parses and reconstructs a response from this 'XXX' status code,
+     * using the {@link StatusOnlyResponse} class.
+     *
+     * @param message cause message
+     * @return reconstructed response, most often null
+     */
+    private static Response tryReconstructResponse(final String message) {
+        for (var indicator : List.of("Tunnel failed, got", "Unable to tunnel through proxy. Proxy returns")) {
+            if (!StringUtils.startsWith(message, indicator)) {
+                continue;
+            }
+            final var matcher = STATUS_IN_EXCEPTION.matcher(message);
+            if (matcher.find()) {
+                try {
+                    final var statusCode = Integer.parseInt(matcher.group(0));
+                    return new StatusOnlyResponse(statusCode, message);
+                } catch (NumberFormatException nfe) {
+                    LOGGER.debug("Could not reconstruct response status from message", nfe);
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
      * Core of the REST request execution. Create a new {@link Invocation} object from the provided
      * {@link DataRow}, as well as a {@link Client}, and performs a single, synchronous request.
      * <p>
@@ -244,6 +280,7 @@ public abstract class AbstractRequestExecutor<S extends RestSettings> extends Ab
             if (m_settings.isFailOnConnectionProblems()) {
                 throw new ProcessingException(getReadableCauseMessage(cause, triple.uri()), cause);
             } else {
+                response = tryReconstructResponse(cause.getMessage());
                 missing = new MissingCell(cause.getMessage());
             }
         } catch (Exception e) {
