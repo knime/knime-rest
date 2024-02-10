@@ -78,6 +78,7 @@ import org.knime.core.data.def.StringCell;
 import org.knime.core.data.xml.XMLCell;
 import org.knime.core.data.xml.XMLCellFactory;
 import org.knime.core.node.ExecutionContext;
+import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeLogger;
 import org.knime.core.node.context.NodeCreationConfiguration;
 import org.knime.core.util.UniqueNameGenerator;
@@ -128,8 +129,8 @@ final class WebpageRetrieverNodeModel extends RestNodeModel<WebpageRetrieverSett
     }
 
     @Override
-    protected void addBodyValues(final List<DataCell> cells, final Response response, final DataCell missing) {
-        super.addBodyValues(cells, response, missing);
+    protected void addBodyValuesToCells(final List<DataCell> cells, final Response response, final DataCell missing) {
+        super.addBodyValuesToCells(cells, response, missing);
         // the last cell is the one either containing the body value or is missing
         final DataCell cell = cells.remove(cells.size() - 1);
         // we only want to output the html and optionally the cookies sent by the server
@@ -352,14 +353,14 @@ final class WebpageRetrieverNodeModel extends RestNodeModel<WebpageRetrieverSett
                 ListCell.getCollectionType(StringCell.TYPE));
             newSpecs.add(cookieColumn);
         }
-        maybeAddErrorCauseColSpec(newSpecs, uniqueNameGenerator);
+        updateErrorCauseColumnSpec(newSpecs, uniqueNameGenerator);
         return newSpecs.toArray(new DataColumnSpec[0]);
     }
 
     @Override
     protected void makeFirstCall(final DataRow row,
         final List<EachRequestAuthentication> enabledEachRequestAuthentications, final DataTableSpec spec,
-        final ExecutionContext exec) throws Exception {
+        final ExecutionContext exec) throws InvalidSettingsException {
         super.makeFirstCall(row, enabledEachRequestAuthentications, spec, exec);
         // we have to override this variable since it will define the output spec if no input is connected
         m_newColumnsBasedOnFirstCalls = createNewColumnsSpec(spec);

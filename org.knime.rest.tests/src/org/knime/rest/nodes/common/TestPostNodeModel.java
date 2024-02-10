@@ -130,9 +130,7 @@ public final class TestPostNodeModel extends RestWithBodyNodeModel<RestWithBodyS
      * @return array of DataCells
      */
     public DataCell[] getResponses() {
-        if (!m_firstCallValues.isEmpty()) {
-            return m_firstCallValues.get(0);
-        }
-        return new DataCell[0];
+        final var firstValues = m_parsedResponseValues.values().stream().findFirst();
+        return firstValues.orElseGet(() -> new DataCell[0]);
     }
 }
