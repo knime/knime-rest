@@ -51,6 +51,8 @@ package org.knime.rest.nodes.common;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyManagementException;
@@ -58,13 +60,12 @@ import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import java.util.Optional;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -72,7 +73,6 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 
 import org.apache.commons.io.IOUtils;
-import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.cxf.jaxrs.client.WebClient;
 import org.apache.cxf.transport.http.asyncclient.AsyncHTTPConduit;
 import org.apache.cxf.transports.http.configuration.HTTPClientPolicy;
@@ -88,9 +88,7 @@ import org.knime.core.data.DataType;
 import org.knime.core.data.IntValue;
 import org.knime.core.data.MissingCell;
 import org.knime.core.data.RowKey;
-import org.knime.core.data.StringValue;
 import org.knime.core.data.blob.BinaryObjectDataCell;
-import org.knime.core.data.container.AbstractCellFactory;
 import org.knime.core.data.container.CloseableRowIterator;
 import org.knime.core.data.container.ColumnRearranger;
 import org.knime.core.data.def.DefaultRow;
@@ -135,8 +133,6 @@ import org.knime.core.node.workflow.VariableType.IntType;
 import org.knime.core.node.workflow.VariableType.LongType;
 import org.knime.core.node.workflow.VariableType.StringType;
 import org.knime.core.util.Pair;
-import org.knime.core.util.ThreadLocalHTTPAuthenticator;
-import org.knime.core.util.ThreadLocalHTTPAuthenticator.AuthenticationCloseable;
 import org.knime.core.util.UniqueNameGenerator;
 import org.knime.core.util.proxy.DisabledSchemesChecker;
 import org.knime.credentials.base.Credential;
@@ -148,6 +144,7 @@ import org.knime.rest.generic.ResponseBodyParser;
 import org.knime.rest.generic.ResponseBodyParser.Default;
 import org.knime.rest.generic.ResponseBodyParser.Missing;
 import org.knime.rest.internals.HttpAuthorizationHeaderAuthentication;
+import org.knime.rest.nodes.common.AbstractRequestExecutor.MultiResponseHandler;
 import org.knime.rest.nodes.common.RestSettings.HttpMethod;
 import org.knime.rest.nodes.common.RestSettings.ReferenceType;
 import org.knime.rest.nodes.common.RestSettings.RequestHeaderKeyItem;
@@ -155,10 +152,8 @@ import org.knime.rest.nodes.common.RestSettings.ResponseHeaderItem;
 import org.knime.rest.nodes.common.proxy.ProxyMode;
 import org.knime.rest.nodes.common.proxy.RestProxyConfigManager;
 import org.knime.rest.util.CooldownContext;
-import org.knime.rest.util.DelayPolicy;
 import org.knime.rest.util.DelegatingX509TrustManager;
 
-import jakarta.ws.rs.ProcessingException;
 import jakarta.ws.rs.client.Client;
 import jakarta.ws.rs.client.ClientBuilder;
 import jakarta.ws.rs.client.Invocation;
@@ -175,9 +170,16 @@ import jakarta.ws.rs.core.Response;
  * @param <S> The actual type of the {@link RestSettings}.
  */
 public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
-    private static final int MAX_RETRANSMITS = 4;
 
     private static final NodeLogger LOGGER = NodeLogger.getLogger(RestNodeModel.class);
+
+    private static final int MAX_RETRANSMITS = 4;
+
+    /**
+     * If the constant URI is enabled, we can safely use the row with id 'Row0',
+     * it cannot be overwritten. Also compatible with the output table.
+     */
+    private static final RowKey CONSTANT_URI_KEY = RowKey.createRowKey(0L);
 
     /**
      * The settings of this node model.
@@ -189,12 +191,10 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
      */
     protected DataColumnSpec[] m_newColumnsBasedOnFirstCalls;
 
+    private AtomicLong m_consumedRows = new AtomicLong(0L);
+
     // Package scope needed for tests.
-    final List<DataCell[]> m_firstCallValues = new ArrayList<>();
-
-    private long m_consumedRows;
-
-    private List<RowKey> m_firstRows;
+    final Map<RowKey, DataCell[]> m_parsedResponseValues = new LinkedHashMap<>();
 
     private boolean m_readNonError;
 
@@ -279,6 +279,17 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
     }
 
     /**
+     * @param row data row to get the key for
+     * @return the row's key or a constant identifier for null
+     */
+    static RowKey getRowKey(final DataRow row) {
+        if (row == null) {
+            return CONSTANT_URI_KEY;
+        }
+        return row.getKey();
+    }
+
+    /**
      * @return The newly created {@link RestSettings} (derived class {@code <S>}) instance.
      */
     protected abstract S createSettings();
@@ -297,9 +308,32 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         return m_settings.getProxyManager();
     }
 
-    /**
-     * {@inheritDoc}
-     */
+    protected Optional<URI> getCurrentURI(final DataTableSpec spec, final DataRow row) {
+        CheckUtils.checkState(m_settings.isUseConstantURI() || row != null,
+                "Without the constant URI and input, it is not possible to call a REST service!");
+        final var columnIndex = spec == null ? -1 : spec.findColumnIndex(m_settings.getUriColumn());
+        String targetURI;
+        if (m_settings.isUseConstantURI()) {
+            targetURI = m_settings.getConstantURI();
+        } else {
+            CheckUtils.checkArgument(row != null && columnIndex >= 0,
+                "The URI column is not present: " + m_settings.getUriColumn());
+            @SuppressWarnings("null")
+            final var cell = row.getCell(columnIndex);
+            CheckUtils.checkArgument(!cell.isMissing(), String.format(
+                "The URI cannot be missing, but it is in row: %s", row.getKey()));
+            targetURI = cell instanceof URIDataValue uriValue ? uriValue.getURIContent().getURI().toString()
+                : ((StringCell)cell).getStringValue();
+        }
+        try {
+            return Optional.ofNullable(new URI(targetURI)) //
+                    .filter(uri -> "http".equals(uri.getScheme()) || "https".equals(uri.getScheme()));
+        } catch (URISyntaxException e) {
+            LOGGER.debug("Could not construct URI from '%s'".formatted(targetURI), e);
+            return Optional.empty();
+        }
+    }
+
     @Override
     protected DataTableSpec[] configure(final PortObjectSpec[] inSpecs) throws InvalidSettingsException {
         final DataTableSpec inputSpec = (DataTableSpec)inSpecs[0];
@@ -385,7 +419,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
             try (final CloseableRowIterator iterator = inTable.iterator()) {
                 while (!m_readNonError && iterator.hasNext()) {
                     makeFirstCall(iterator.next(), enabledEachRequestAuthentications, spec, exec);
-                    m_consumedRows++;
+                    m_consumedRows.getAndIncrement();
                 }
             }
             final var rearranger =
@@ -416,131 +450,13 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
      * @param enabledEachRequestAuthentications The single enabled authentication.
      * @param spec The {@link DataTableSpec}.
      * @param exec An {@link ExecutionContext}.
-     * @throws Exception if something went wrong during the call
+     * @throws InvalidSettingsException if the request could not be created
      */
-    protected void makeFirstCall(final DataRow row,
-        final List<EachRequestAuthentication> enabledEachRequestAuthentications, final DataTableSpec spec,
-        final ExecutionContext exec) throws Exception {
-        m_cooldownContext = new CooldownContext();  // reset context before execution.
-        if (row == null) {
-            m_firstRows = null;
-        } else {
-            if (m_firstRows == null) {
-                m_firstRows = new ArrayList<>();
-            }
-            m_firstRows.add(row.getKey());
-        }
-        Response response;
-        DataCell missing;
-        Pair<Builder, Client> requestBuilderPair =
-            createRequest(spec == null ? -1 : spec.findColumnIndex(m_settings.getUriColumn()),
-                enabledEachRequestAuthentications, row, spec);
-        try {
-            var invocation = invocation(requestBuilderPair.getFirst(), row, spec);
-            response =
-                DelayPolicy.doWithDelays(m_settings.getDelayPolicy(), m_cooldownContext, () -> invoke(invocation));
-            requestBuilderPair.getSecond().close();
-            missing = null;
-        } catch (ProcessingException procEx) {
-            LOGGER.warn("Call #" + (m_consumedRows + 1) + " failed: " + procEx.getMessage(), procEx);
-
-            var throwables = ExceptionUtils.getThrowableList(procEx);
-            var rootCause = throwables.get(throwables.size() - 1);
-            for (var t : throwables) {
-                if (t instanceof IOException) {
-                    rootCause = t;
-                    break;
-                }
-            }
-
-            if (m_settings.isFailOnConnectionProblems()) {
-                throw (rootCause instanceof Exception ex) ? ex : new ProcessingException(rootCause);
-            } else {
-                missing = new MissingCell(rootCause.getMessage());
-                response = null;
-            }
-        } finally {
-            var client = requestBuilderPair.getSecond();
-            client.close();
-        }
-        try {
-            final List<DataCell> cells;
-            final List<DataColumnSpec> specs = new ArrayList<>();
-            final var nameGenerator = new UniqueNameGenerator(spec == null ? new DataTableSpec() : spec);
-            if (m_responseHeaderKeys.isEmpty()) {
-                if (m_settings.isExtractAllResponseFields()) {
-                    Stream
-                        .concat(Stream.of(Pair.create(STATUS, IntCell.TYPE)),
-                            (response == null ? Collections.<String> emptyList() : response.getStringHeaders().keySet())
-                                .stream().map(header -> new Pair<String, DataType>(header, StringCell.TYPE)))
-                        .forEachOrdered(pair -> m_responseHeaderKeys.add(new ResponseHeaderItem(pair.getFirst(),
-                            pair.getSecond(), nameGenerator.newColumn(pair.getFirst(), pair.getSecond()).getName())));
-                } else {
-                    m_responseHeaderKeys.addAll(m_settings
-                        .getExtractFields().stream().map(rhi -> new ResponseHeaderItem(rhi.getHeaderKey(),
-                            rhi.getType(), nameGenerator.newName(rhi.getOutputColumnName())))
-                        .toList());
-                }
-            }
-            final var finalResponse = response;
-            cells = m_responseHeaderKeys.stream().map(rhi -> {
-                specs.add(new DataColumnSpecCreator(rhi.getOutputColumnName(), rhi.getType()).createSpec());
-                if (STATUS.equals(rhi.getHeaderKey()) && rhi.getType().isCompatible(IntValue.class)) {
-                    return finalResponse == null ? DataType.getMissingCell() : new IntCell(finalResponse.getStatus());
-                }
-                if (rhi.getType().isCompatible(IntValue.class)) {
-                    try {
-                        return finalResponse == null ? DataType.getMissingCell()
-                            : new IntCell(Integer.parseInt(finalResponse.getHeaderString(rhi.getHeaderKey())));
-                    } catch (RuntimeException e) { //NOSONAR
-                        return new MissingCell(e.getMessage());
-                    }
-                }
-                final var cellFactory = rhi.getType().getCellFactory(null).orElseGet(() -> FALLBACK);
-                if (cellFactory instanceof FromString fromString) {
-                    final String value =
-                        finalResponse == null ? null : finalResponse.getHeaderString(rhi.getHeaderKey());
-                    if (value != null) {
-                        return fromString.createCell(value);
-                    }
-                }
-                return DataType.getMissingCell();
-            }).collect(Collectors.toCollection(ArrayList<DataCell>::new));
-            examineResponse(response);
-            final var httpError = checkResponse(response);
-            final Map<ResponseHeaderItem, String> bodyColNames = new HashMap<>();
-            if (!httpError) {
-                for (final ResponseHeaderItem bodyCol : m_bodyColumns) {
-                    final DataColumnSpec newCol =
-                        nameGenerator.newColumn(bodyCol.getOutputColumnName(), bodyCol.getType());
-                    specs.add(newCol);
-                    bodyColNames.put(bodyCol, newCol.getName());
-                }
-                for (var i = 0; i < m_bodyColumns.size(); ++i) {
-                    m_bodyColumns.set(i, new ResponseHeaderItem(m_bodyColumns.get(i).getHeaderKey(),
-                        m_bodyColumns.get(i).getType(), bodyColNames.get(m_bodyColumns.get(i))));
-                }
-            } else {
-                if (response != null && response.getEntity() instanceof InputStream) {
-                    replace(m_bodyColumns, new ResponseHeaderItem(m_bodyColumns.get(0).getHeaderKey(),
-                        BinaryObjectDataCell.TYPE, m_bodyColumns.get(0).getHeaderKey()));
-                }
-            }
-            m_readNonError = !httpError;
-            addBodyValues(cells, response, missing);
-            maybeAddErrorCause(cells);
-            m_firstCallValues.add(cells.toArray(new DataCell[cells.size()]));
-            m_newColumnsBasedOnFirstCalls = specs.toArray(new DataColumnSpec[specs.size()]);
-        } finally {
-            if (response != null) {
-                try {
-                    // try to close, but there is a known NPE from within CXF that we catch here
-                    response.close();
-                } catch (NullPointerException e) { // NOSONAR avoid CXF bug
-                    LOGGER.warn("Closing the HTTP response failed with exception: " + e.getMessage(), e);
-                }
-            }
-        }
+    protected void makeFirstCall(final DataRow row, final List<EachRequestAuthentication> enabledEachRequestAuthentications,
+        final DataTableSpec spec, final ExecutionContext exec) throws InvalidSettingsException {
+        m_cooldownContext = new CooldownContext(); // reset context before execution.
+        final var executor = new RequestExecutor(spec, enabledEachRequestAuthentications, exec);
+        m_parsedResponseValues.put(getRowKey(row), executor.makeFirstCall(row));
     }
 
     /**
@@ -566,7 +482,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
      *
      * @param cells A list of cells which will ultimately determine the output for the current row.
      */
-    private void maybeAddErrorCause(final List<DataCell> cells) {
+    private void maybeAddErrorCauseColumn(final List<DataCell> cells) {
         if (m_settings.isOutputErrorCause().orElse(RestSettings.DEFAULT_OUTPUT_ERROR_CAUSE)) {
             List<String> errorCauses = cells.stream()//
                 .flatMap(cell -> ClassUtils.castOptional(MissingCell.class, cell).stream())//
@@ -600,24 +516,6 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
      * @return The created {@link Invocation}.
      */
     protected abstract Invocation invocation(final Builder request, final DataRow row, final DataTableSpec spec);
-
-    /**
-     * Invokes the {@code invocation}.
-     *
-     * @param invocation An {@link Invocation}.
-     * @return The response.
-     * @throws ProcessingException Some problem client-side.
-     */
-    protected Response invoke(final Invocation invocation) throws ProcessingException {
-        try (AuthenticationCloseable c = ThreadLocalHTTPAuthenticator.suppressAuthenticationPopups()) {
-            final Future<Response> responseFuture = invocation.submit(Response.class);
-            try {
-                return responseFuture.get(m_settings.getTimeoutInSeconds(), TimeUnit.SECONDS);
-            } catch (InterruptedException | ExecutionException | TimeoutException e) { //NOSONAR
-                throw new ProcessingException(e);
-            }
-        }
-    }
 
     /**
      * Creates the response body parsers.
@@ -673,9 +571,9 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         updateFirstCallColumnsOnHttpError(null);
         final var spec = new DataTableSpec(m_newColumnsBasedOnFirstCalls);
         final BufferedDataContainer container = exec.createDataContainer(spec, false);
-        for (var i = 0; i < m_firstCallValues.size(); i++) {
-            container.addRowToTable(new DefaultRow(RowKey.createRowKey((long)i), m_firstCallValues.get(i)));
-        }
+        m_parsedResponseValues.entrySet().forEach(e -> {
+            container.addRowToTable(new DefaultRow(e.getKey(), e.getValue()));
+        });
         container.close();
         return new BufferedDataTable[]{container.getTable()};
     }
@@ -685,21 +583,20 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
      *
      */
     private void updateFirstCallColumnsOnHttpError(final DataTableSpec inputSpec) {
-        if (!m_firstCallValues.isEmpty() && m_firstCallValues.get(0).length > m_newColumnsBasedOnFirstCalls.length) {
+        final var validFirstValues = m_parsedResponseValues.values().stream().findFirst() //
+                .filter(v -> !Objects.isNull(m_newColumnsBasedOnFirstCalls)) //
+                .filter(v -> v.length > m_newColumnsBasedOnFirstCalls.length);
+        if (validFirstValues.isPresent()) {
             m_newColumnsBasedOnFirstCalls = createNewColumnsSpec(inputSpec);
         }
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     protected void reset() {
         m_responseBodyParsers.clear();
         m_bodyColumns.clear();
-        m_consumedRows = 0L;
-        m_firstCallValues.clear();
-        m_firstRows = null;
+        m_consumedRows.set(0L);
+        m_parsedResponseValues.clear();
         m_readNonError = false;
         m_responseHeaderKeys.clear();
         m_newColumnsBasedOnFirstCalls = null;
@@ -733,106 +630,10 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
      * @return The {@link ColumnRearranger}.
      * @throws InvalidSettingsException Invalid internal state.
      */
-    private ColumnRearranger createColumnRearranger(
-        final List<EachRequestAuthentication> enabledEachRequestAuthentications, final DataTableSpec spec,
-        final ExecutionMonitor exec, final long tableSize) {
-        final DataColumnSpec[] newColumns = createNewColumnsSpec(spec);
-        final int uriColumn = spec.findColumnIndex(m_settings.getUriColumn());
-
-        final AbstractCellFactory factory = new AbstractCellFactory(newColumns) {
-            @Override
-            public DataCell[] getCells(final DataRow row) {
-                int firstRowIdx = m_firstRows.indexOf(row.getKey());
-                if (firstRowIdx >= 0) {
-                    return m_firstCallValues.get(firstRowIdx);
-                }
-                assert m_consumedRows > 0;
-                final List<DataCell> cells;
-                Pair<Builder, Client> requestBuilder = null;
-                DataCell missing = null;
-                try {
-                    Response response;
-                    try {
-                        // Creating the request can cause an ISE, see AP-20219.
-                        requestBuilder = createRequest(uriColumn, enabledEachRequestAuthentications, row, spec);
-                        var invocation = invocation(requestBuilder.getFirst(), row, spec);
-                        response = DelayPolicy.doWithDelays(m_settings.getDelayPolicy(), m_cooldownContext,
-                            () -> invoke(invocation));
-                    } catch (ProcessingException e) {
-                        LOGGER.debug("Call failed: " + e.getMessage(), e);
-
-                        var throwables = ExceptionUtils.getThrowableList(e);
-                        var rootCause = throwables.get(throwables.size() - 1);
-                        for (Throwable t : throwables) {
-                            if (t instanceof IOException) {
-                                rootCause = t;
-                                break;
-                            }
-                        }
-
-                        if (m_settings.isFailOnConnectionProblems()) {
-                            throw new RuntimeException(rootCause); //NOSONAR
-                        } else {
-                            missing = new MissingCell(rootCause.getMessage());
-                            response = null;
-                        }
-                    } catch (Exception e) {
-                        LOGGER.debug("Call failed: " + e.getMessage(), e);
-                        Throwable cause = ExceptionUtils.getRootCause(e);
-                        throw new RuntimeException(cause); //NOSONAR
-                    }
-                    try {
-                        final var finalResponse = response;
-                        checkResponse(response);
-                        cells = m_responseHeaderKeys.stream().map(rhi -> {
-                            if (STATUS.equals(rhi.getHeaderKey()) && rhi.getType().isCompatible(IntValue.class)) {
-                                return finalResponse == null ? DataType.getMissingCell()
-                                    : new IntCell(finalResponse.getStatus());
-                            }
-                            final var cellFactory = rhi.getType().getCellFactory(null).orElseGet(() -> FALLBACK);
-                            if (cellFactory instanceof FromString fromString) {
-                                String value =
-                                    finalResponse == null ? null : finalResponse.getHeaderString(rhi.getHeaderKey());
-                                if (value != null) {
-                                    return fromString.createCell(value);
-                                }
-                            }
-                            return DataType.getMissingCell();
-                        }).collect(Collectors.toCollection(ArrayList<DataCell>::new));
-                        addBodyValues(cells, response, missing);
-                        maybeAddErrorCause(cells);
-                    } finally {
-                        if (response != null) {
-                            response.close();
-                        }
-                    }
-                    //TODO wait only when we are requesting from the same domain?
-                    if (m_settings.isUseDelay()) {
-                        for (long wait = m_settings.getDelay(); wait > 0; wait -= 100L) {
-                            exec.setMessage("Waiting till next call: " + wait / 1000d + "s");
-                            try {
-                                Thread.sleep(Math.min(wait, 100L));
-                            } catch (InterruptedException e) { //NOSONAR
-                                exec.checkCanceled();
-                            }
-                        }
-                    }
-                } catch (CanceledExecutionException e) {
-                    //Cannot check for cancelled properly, so this workaround
-                    throw new IllegalStateException(e);
-                } finally {
-                    m_consumedRows++;
-                    if (requestBuilder != null) {
-                        requestBuilder.getSecond().close();
-                    }
-                }
-                if (exec != null) {
-                    setProgress(m_consumedRows, tableSize, row.getKey(), exec);
-                }
-                return cells.toArray(new DataCell[cells.size()]);
-            }
-
-        };
+    private ColumnRearranger createColumnRearranger(final List<EachRequestAuthentication> enabledEachRequestAuthentications,
+        final DataTableSpec spec, final ExecutionMonitor exec, final long tableSize) {
+        final var factory = new RequestExecutor(spec, enabledEachRequestAuthentications, exec);
+        factory.setKnownTableSize(tableSize);
         final int concurrency = Math.max(1, m_settings.getConcurrency());
         factory.setParallelProcessing(true, concurrency, 4 * concurrency);
         final var rearranger = new ColumnRearranger(spec);
@@ -865,7 +666,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         final PortObjectSpec[] inSpecs) throws InvalidSettingsException {
         CheckUtils.check(inSpecs.length > 0, InvalidSettingsException::new,
             () -> "Cannot find URI column, the node input is missing.");
-        return new PortObjectSpec[]{m_firstRows == null ? new DataTableSpec(m_newColumnsBasedOnFirstCalls)
+        return new PortObjectSpec[]{m_consumedRows.get() == 0 ? new DataTableSpec(m_newColumnsBasedOnFirstCalls)
             : createColumnRearranger(enabledAuthConfigs(), (DataTableSpec)inSpecs[0], null/*exec*/, -1L).createSpec()};
     }
 
@@ -889,7 +690,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
                     DataRow row;
                     while (!m_readNonError && (row = input.poll()) != null) {
                         makeFirstCall(row, authentications, inputSpec, exec);
-                        m_consumedRows++;
+                        m_consumedRows.getAndIncrement();
                     }
                 } else {
                     makeFirstCall(null/*row*/, authentications, null/*spec*/, exec);
@@ -905,9 +706,9 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
             @Override
             public void runFinal(final PortInput[] inputs, final PortOutput[] outputs, final ExecutionContext exec)
                 throws Exception {
-                if (m_firstRows == null) {
+                if (m_consumedRows.get() == 0) {
                     var rowOutput = (RowOutput)outputs[0];
-                    rowOutput.push(new DefaultRow(RowKey.createRowKey(0L), m_firstCallValues.get(0)));
+                    rowOutput.push(new DefaultRow(CONSTANT_URI_KEY, m_parsedResponseValues.get(CONSTANT_URI_KEY)));
                     rowOutput.close();
                 } else {
                     CheckUtils.check(inSpecs.length > 0, InvalidSettingsException::new,
@@ -934,7 +735,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
      * @return http error was returned.
      * @throws IllegalStateExcetion When the http status code is {@code 4xx} or {@code 5xx} and we have to check it.
      */
-    private boolean checkResponse(final Response response) {
+    private boolean checkResponseStatus(final Response response) {
         // a null response means something went wrong, return an error being detected
         if (response == null) {
             return true;
@@ -984,7 +785,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
      *
      * @param response A {@link Response} object.
      */
-    private void examineResponse(final Response response) {
+    private void checkResponseHeaders(final Response response) {
         if (response == null) {
             replace(m_bodyColumns,
                 new ResponseHeaderItem(m_settings.getResponseBodyColumn(), BinaryObjectDataCell.TYPE));
@@ -1116,27 +917,11 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
      * @return
      * @throws InvalidSettingsException
      */
-    @SuppressWarnings({"null", "resource"})
-    private Pair<Builder, Client> createRequest(final int uriColumn,
-        final List<EachRequestAuthentication> enabledEachRequestAuthentications, final DataRow row,
-        final DataTableSpec spec) throws InvalidSettingsException {
-
+    @SuppressWarnings({"resource"})
+    private Pair<Builder, Client> createRequest(final URI targetUri,
+        final List<EachRequestAuthentication> enabledEachRequestAuthentications, final DataRow row, final DataTableSpec spec)
+        throws InvalidSettingsException {
         final var client = createClient();
-        CheckUtils.checkState(m_settings.isUseConstantURI() || row != null,
-            "Without the constant uri and input, it is not possible to call a REST service!");
-
-        final String targetUri;
-        if (m_settings.isUseConstantURI()) {
-            targetUri = m_settings.getConstantURI();
-        } else {
-            CheckUtils.checkArgument(row != null && uriColumn >= 0,
-                "The URI column is not present: " + m_settings.getUriColumn());
-            final var cell = row.getCell(uriColumn);
-            CheckUtils.checkArgument(!cell.isMissing(), "The URI cannot be missing, but it is in row: " + row.getKey());
-            targetUri = cell instanceof URIDataValue uriValue ? uriValue.getURIContent().getURI().toString()
-                : ((StringValue)cell).getStringValue();
-        }
-
         WebTarget target = client.target(targetUri);
         //Support relative redirects too, see https://tools.ietf.org/html/rfc7231#section-3.1.4.2
         target = target.property("http.redirect.relative.uri", true);
@@ -1259,5 +1044,160 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         return m_settings.getAuthorizationConfigurations().parallelStream()
             .filter(euc -> euc.isEnabled() && euc.getUserConfiguration() instanceof EachRequestAuthentication)
             .map(euc -> (EachRequestAuthentication)euc.getUserConfiguration()).toList();
+    }
+
+    /**
+     * A REST request executor that has access to the entire configuration state of the node model.
+     * Compared to the {@link AbstractRequestExecutor}, it implements the invocation creation,
+     * involving utilizing currently enabled authentication methods, and validating the {@link URI}.
+     *
+     * @author Leon Wenzler, KNIME GmbH, Konstanz, Germany
+     */
+    private class RequestExecutor extends AbstractRequestExecutor<S> {
+
+        private final List<EachRequestAuthentication> m_enabledEachRequestAuthentications;
+
+        /**
+         * Implementation of the request executor.
+         *
+         * @param spec initial data table spec
+         * @param enabledEachRequestAuthentications currently available auth methods
+         * @param monitor an execution monitor for progress tracking
+         */
+        RequestExecutor(final DataTableSpec spec, final List<EachRequestAuthentication> enabledEachRequestAuthentications,
+            final ExecutionMonitor monitor) {
+            super(new ResponseHandler(), spec, createNewColumnsSpec(spec), m_settings, m_cooldownContext,
+                monitor, m_consumedRows);
+            m_enabledEachRequestAuthentications = enabledEachRequestAuthentications;
+        }
+
+        @Override
+        public Optional<InvocationTriple> createInvocationTriple(final DataRow row)
+                throws InvalidSettingsException {
+            final var spec = getTableSpec();
+            // cannot use Optional#map functions because of the thrown exception
+            final var maybeURI = getCurrentURI(spec, row);
+            if (maybeURI.isPresent()) {
+                // computing request builder and client on-demand for each new row
+                // could be improved in the future by re-using one client per execution (not per row)
+                final var currentURI = maybeURI.get();
+                final var builderClient = createRequest(currentURI, m_enabledEachRequestAuthentications, row, spec);
+                return Optional.of(new InvocationTriple(
+                    invocation(builderClient.getFirst(), row, spec),  // invocation
+                    currentURI,                                         // URI
+                    builderClient.getSecond()));                        // web client
+            }
+            return Optional.empty();
+        }
+    }
+
+    /**
+     * A REST implements the multi-stage response handling, dividing into handling the first,
+     * and then all following responses.
+     * <p>
+     * The first (successful) response initializes the response data format (see
+     * {@link RestNodeModel#m_responseHeaderKeys} and further responses fill up the cached
+     * parsed values (see {@link RestNodeModel#m_parsedResponseValues}).
+     *
+     * @author Leon Wenzler, KNIME GmbH, Konstanz, Germany
+     */
+    private class ResponseHandler implements MultiResponseHandler {
+        @Override
+        public DataCell[] handleFirstResponse(final DataTableSpec spec, final Response response,
+            final MissingCell missing) {
+            final List<DataCell> cells;
+            final List<DataColumnSpec> specs = new ArrayList<>();
+            final var nameGenerator = new UniqueNameGenerator(spec == null ? new DataTableSpec() : spec);
+            if (m_responseHeaderKeys.isEmpty()) {
+                if (m_settings.isExtractAllResponseFields()) {
+                    Stream
+                        .concat(Stream.of(Pair.create(STATUS, IntCell.TYPE)),
+                            (response == null ? Collections.<String> emptyList() : response.getStringHeaders().keySet())
+                                .stream().map(header -> new Pair<String, DataType>(header, StringCell.TYPE)))
+                        .forEachOrdered(pair -> m_responseHeaderKeys.add(new ResponseHeaderItem(pair.getFirst(),
+                            pair.getSecond(), nameGenerator.newColumn(pair.getFirst(), pair.getSecond()).getName())));
+                } else {
+                    m_responseHeaderKeys.addAll(
+                        m_settings.getExtractFields().stream().map(rhi -> new ResponseHeaderItem(rhi.getHeaderKey(),
+                            rhi.getType(), nameGenerator.newName(rhi.getOutputColumnName()))).toList());
+                }
+            }
+            cells = m_responseHeaderKeys.stream().map(rhi -> {
+                specs.add(new DataColumnSpecCreator(rhi.getOutputColumnName(), rhi.getType()).createSpec());
+                if (STATUS.equals(rhi.getHeaderKey()) && rhi.getType().isCompatible(IntValue.class)) {
+                    return response == null ? DataType.getMissingCell() : new IntCell(response.getStatus());
+                }
+                if (rhi.getType().isCompatible(IntValue.class)) {
+                    try {
+                        return response == null ? DataType.getMissingCell()
+                            : new IntCell(Integer.parseInt(response.getHeaderString(rhi.getHeaderKey())));
+                    } catch (RuntimeException e) { //NOSONAR
+                        return new MissingCell(e.getMessage());
+                    }
+                }
+                final var cellFactory = rhi.getType().getCellFactory(null).orElseGet(() -> FALLBACK);
+                if (cellFactory instanceof FromString fromString) {
+                    final String value = response == null ? null : response.getHeaderString(rhi.getHeaderKey());
+                    if (value != null) {
+                        return fromString.createCell(value);
+                    }
+                }
+                return DataType.getMissingCell();
+            }).collect(Collectors.toCollection(ArrayList<DataCell>::new));
+            checkResponseHeaders(response);
+            final var httpError = checkResponseStatus(response);
+            final Map<ResponseHeaderItem, String> bodyColNames = new HashMap<>();
+            if (!httpError) {
+                for (final ResponseHeaderItem bodyCol : m_bodyColumns) {
+                    final DataColumnSpec newCol =
+                        nameGenerator.newColumn(bodyCol.getOutputColumnName(), bodyCol.getType());
+                    specs.add(newCol);
+                    bodyColNames.put(bodyCol, newCol.getName());
+                }
+                for (var i = 0; i < m_bodyColumns.size(); ++i) {
+                    m_bodyColumns.set(i, new ResponseHeaderItem(m_bodyColumns.get(i).getHeaderKey(),
+                        m_bodyColumns.get(i).getType(), bodyColNames.get(m_bodyColumns.get(i))));
+                }
+            } else {
+                if (response != null && response.getEntity() instanceof InputStream) {
+                    replace(m_bodyColumns, new ResponseHeaderItem(m_bodyColumns.get(0).getHeaderKey(),
+                        BinaryObjectDataCell.TYPE, m_bodyColumns.get(0).getHeaderKey()));
+                }
+            }
+            m_readNonError = !httpError;
+            addBodyValues(cells, response, missing);
+            maybeAddErrorCauseColumn(cells);
+            m_newColumnsBasedOnFirstCalls = specs.toArray(new DataColumnSpec[specs.size()]);
+            return cells.toArray(DataCell[]::new);
+        }
+
+        @Override
+        public DataCell[] handleFollowingResponse(final DataRow row, final Response response,
+            final MissingCell missing) {
+            CheckUtils.checkState(m_consumedRows.get() > 0,
+                "First response hasn't been processed yet, cannot continue");
+            checkResponseStatus(response);
+            final List<DataCell> cells = m_responseHeaderKeys.stream().map(rhi -> {
+                if (STATUS.equals(rhi.getHeaderKey()) && rhi.getType().isCompatible(IntValue.class)) {
+                    return response == null ? DataType.getMissingCell() : new IntCell(response.getStatus());
+                }
+                final var cellFactory = rhi.getType().getCellFactory(null).orElseGet(() -> FALLBACK);
+                if (cellFactory instanceof FromString fromString) {
+                    String value = response == null ? null : response.getHeaderString(rhi.getHeaderKey());
+                    if (value != null) {
+                        return fromString.createCell(value);
+                    }
+                }
+                return DataType.getMissingCell();
+            }).collect(Collectors.toCollection(ArrayList<DataCell>::new));
+            addBodyValues(cells, response, missing);
+            maybeAddErrorCauseColumn(cells);
+            return cells.toArray(DataCell[]::new);
+        }
+
+        @Override
+        public Optional<DataCell[]> lookupResponseCache(final DataRow row) {
+            return Optional.ofNullable(m_parsedResponseValues.get(getRowKey(row)));
+        }
     }
 }

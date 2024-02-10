@@ -78,6 +78,7 @@ import org.knime.core.data.def.StringCell;
 import org.knime.core.data.xml.XMLCell;
 import org.knime.core.data.xml.XMLCellFactory;
 import org.knime.core.node.ExecutionContext;
+import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeLogger;
 import org.knime.core.node.context.NodeCreationConfiguration;
 import org.knime.core.util.UniqueNameGenerator;
@@ -359,7 +360,7 @@ final class WebpageRetrieverNodeModel extends RestNodeModel<WebpageRetrieverSett
     @Override
     protected void makeFirstCall(final DataRow row,
         final List<EachRequestAuthentication> enabledEachRequestAuthentications, final DataTableSpec spec,
-        final ExecutionContext exec) throws Exception {
+        final ExecutionContext exec) throws InvalidSettingsException {
         super.makeFirstCall(row, enabledEachRequestAuthentications, spec, exec);
         // we have to override this variable since it will define the output spec if no input is connected
         m_newColumnsBasedOnFirstCalls = createNewColumnsSpec(spec);
