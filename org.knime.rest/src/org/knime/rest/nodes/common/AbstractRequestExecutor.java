@@ -379,7 +379,7 @@ public abstract class AbstractRequestExecutor<S extends RestSettings> extends Ab
      *
      * @author Leon Wenzler, KNIME GmbH, Konstanz, Germany
      */
-    public interface MultiResponseHandler {
+    interface MultiResponseHandler {
         /**
          * Initializes the response data format from the first request.
          *
@@ -424,7 +424,7 @@ public abstract class AbstractRequestExecutor<S extends RestSettings> extends Ab
      * @param uri target URI
      * @param client underlying web client
      */
-    public record InvocationTriple(Invocation invocation, URI uri, Client client) {
+    record InvocationTriple(Invocation invocation, URI uri, Client client) {
     }
 
     /**
@@ -434,6 +434,6 @@ public abstract class AbstractRequestExecutor<S extends RestSettings> extends Ab
      * @param response the received HTTP response
      * @param missing nullable, data cell constructed from a possible error
      */
-    public record ResultPair(Response response, MissingCell missing) {
+    record ResultPair(Response response, MissingCell missing) {
     }
 }

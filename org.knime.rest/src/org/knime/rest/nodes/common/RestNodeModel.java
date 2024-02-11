@@ -198,9 +198,9 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
 
     private boolean m_readNonError;
 
-    private final ArrayList<ResponseHeaderItem> m_responseHeaderKeys = new ArrayList<>();
+    private final List<ResponseHeaderItem> m_responseHeaderKeys = new ArrayList<>();
 
-    private final ArrayList<ResponseHeaderItem> m_bodyColumns = new ArrayList<>();
+    private final List<ResponseHeaderItem> m_bodyColumns = new ArrayList<>();
 
     private boolean m_isContextSettingsFailed;
 
@@ -275,7 +275,29 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
      * @return true iff the response corresponds to a 429 (rate-limiting) HTTP status code.
      */
     public static boolean isRateLimitError(final Response res) {
-        return res.getStatus() == 429;
+        return res.getStatus() == Response.Status.TOO_MANY_REQUESTS.getStatusCode();
+    }
+
+    /**
+     * @param response
+     * @return
+     */
+    private static boolean isHttpError(final Response response) {
+        return response == null || (response.getStatus() >= 400 && response.getStatus() < 600);
+    }
+
+    /**
+     * Replaces the first element in the list by the given one. If the list is empty, it simply adds the element.
+     *
+     * @param list
+     * @param element
+     */
+    private static <T> void replaceFirst(final List<T> list, final T element) {
+        if (list.isEmpty()) {
+            list.add(element);
+        } else {
+            list.set(0, element);
+        }
     }
 
     /**
@@ -402,11 +424,9 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
      */
     @Execute
     @Override
-    protected PortObject[] execute(final PortObject[] inData, final ExecutionContext exec)
-        throws Exception {
+    protected PortObject[] execute(final PortObject[] inData, final ExecutionContext exec) throws Exception {
         BufferedDataTable inTable = (BufferedDataTable)inData[0];
-        final List<EachRequestAuthentication> enabledEachRequestAuthentications =
-            getAuthentications(getCredential(inData));
+        final List<EachRequestAuthentication> enabledAuthentications = getAuthentications(getCredential(inData));
         createResponseBodyParsers(exec);
         // Issue a warning if no proxy config came in from the global settings.
         if (m_settings.getProxyManager().getProxyMode() == ProxyMode.GLOBAL
@@ -416,21 +436,21 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         }
         if (inData.length > 0 && inData[0] != null) {
             if (inTable.size() == 0) {
-                //No calls to make.
+                // No calls to make.
                 return inData;
             }
+
             final var spec = inTable.getDataTableSpec();
             try (final CloseableRowIterator iterator = inTable.iterator()) {
                 while (!m_readNonError && iterator.hasNext()) {
-                    makeFirstCall(iterator.next(), enabledEachRequestAuthentications, spec, exec);
+                    makeFirstCall(iterator.next(), enabledAuthentications, spec, exec);
                     m_consumedRows.getAndIncrement();
                 }
             }
-            final var rearranger =
-                createColumnRearranger(enabledEachRequestAuthentications, spec, exec, inTable.size());
+            final var rearranger = createColumnRearranger(enabledAuthentications, spec, exec, inTable.size());
             return new BufferedDataTable[]{exec.createColumnRearrangeTable(inTable, rearranger, exec)};
         }
-        makeFirstCall(null/*row*/, enabledEachRequestAuthentications, null/*spec*/, exec);
+        makeFirstCall(null/*row*/, enabledAuthentications, null/*spec*/, exec);
         return createTableFromFirstCallData(exec);
     }
 
@@ -445,124 +465,6 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
     private static HttpAuthorizationHeaderCredentialValue getCredential(final CredentialPortObject portObject) {
         return (HttpAuthorizationHeaderCredentialValue)portObject.getCredential(Credential.class).orElseThrow(
             () -> new IllegalStateException("Credential is not available. Please re-execute the authenticator node."));
-    }
-
-    /**
-     * Makes the first call to the servers, this will create the structure of the output table.
-     *
-     * @param row The input row.
-     * @param enabledEachRequestAuthentications The single enabled authentication.
-     * @param spec The {@link DataTableSpec}.
-     * @param exec An {@link ExecutionContext}.
-     * @throws InvalidSettingsException if the request could not be created
-     */
-    protected void makeFirstCall(final DataRow row, final List<EachRequestAuthentication> enabledEachRequestAuthentications,
-        final DataTableSpec spec, final ExecutionContext exec) throws InvalidSettingsException {
-        m_cooldownContext = new CooldownContext(); // reset context before execution.
-        final var executor = new RequestExecutor(spec, enabledEachRequestAuthentications, exec);
-        m_parsedResponseValues.put(getRowKey(row), executor.makeFirstCall(row));
-    }
-
-    /**
-     * Add a column for error causes (String descriptions) to the given list of <code>DataColumnSpec</code>s, which will
-     * ultimately determine the node's output column specification. Do this only if the respective setting is enabled.
-     * Use the given <code>nameGenerator</code> to find a name for the new column.
-     *
-     * @param specs The list of <code>DataColumnSpec</code>s to add the newly created column spec to.
-     * @param nameGenerator The generator to use for finding a name for the column to be added.
-     */
-    protected void updateErrorCauseColumnSpec(final List<DataColumnSpec> specs,
-        final UniqueNameGenerator nameGenerator) {
-        if (m_settings.isOutputErrorCause().orElse(RestSettings.DEFAULT_OUTPUT_ERROR_CAUSE)) {
-            final DataColumnSpec errorCauseCol = nameGenerator.newColumn("Error Cause", StringCell.TYPE);
-            specs.add(errorCauseCol);
-        }
-    }
-
-    /**
-     * Construct a String cell containing the error cause description if there was an error while performing the
-     * request. Do this only if the respective user setting is enabled. In case the request was successful, a missing
-     * value is added.
-     *
-     * @param cells A list of cells which will ultimately determine the output for the current row.
-     */
-    private void addErrorCauseToCells(final List<DataCell> cells) {
-        if (m_settings.isOutputErrorCause().orElse(RestSettings.DEFAULT_OUTPUT_ERROR_CAUSE)) {
-            List<String> errorCauses = cells.stream()//
-                .flatMap(cell -> ClassUtils.castOptional(MissingCell.class, cell).stream())//
-                .map(MissingCell::getError)//
-                .toList();
-            if (!errorCauses.isEmpty()) {
-                String errorCausesReadable;
-                if (errorCauses.stream().allMatch(Objects::isNull)) {
-                    // We assume missing values always correspond to some error.
-                    errorCausesReadable = "Unknown error";
-                } else {
-                    // However, there are error scenarios in which only some columns have a missing value with a cause.
-                    // In this case we want to avoid printing "null" for the missing values with no associated cause,
-                    // but still do print all non-null causes.
-                    errorCausesReadable =
-                        errorCauses.stream().filter(Objects::nonNull).collect(Collectors.joining("\n"));
-                }
-                cells.add(new StringCell(errorCausesReadable));
-            } else {
-                cells.add(DataType.getMissingCell());
-            }
-        }
-    }
-
-    /**
-     * Creates an {@link Invocation} from the {@code request}.
-     *
-     * @param request A {@link Builder}.
-     * @param row A {@link DataRow} (which might contain the body value).
-     * @param spec The input {@link DataTableSpec} (to find the body column in the {@code row}).
-     * @return The created {@link Invocation}.
-     */
-    protected abstract Invocation invocation(final Builder request, final DataRow row, final DataTableSpec spec);
-
-    /**
-     * Creates the response body parsers.
-     *
-     * @param exec An {@link ExecutionContext}.
-     */
-    private void createResponseBodyParsers(final ExecutionContext exec) {
-        m_responseBodyParsers.clear();
-        for (final MediaType mediaType : new MediaType[]{MediaType.APPLICATION_JSON_TYPE,
-            MediaType.valueOf("application/vnd.mason+json")}) {
-            m_responseBodyParsers.add(new Default(mediaType, JSONCell.TYPE, exec));
-        }
-        m_responseBodyParsers.add(new Default(MediaType.valueOf("image/png"), PNGImageContent.TYPE, exec));
-        m_responseBodyParsers.add(new Default(MediaType.APPLICATION_SVG_XML_TYPE, SvgCell.TYPE, exec));
-        m_responseBodyParsers.add(new Default(MediaType.valueOf("image/svg+xml"), SvgCell.TYPE, exec));
-        for (final MediaType mediaType : new MediaType[]{MediaType.APPLICATION_ATOM_XML_TYPE,
-            MediaType.APPLICATION_XHTML_XML_TYPE, MediaType.APPLICATION_XML_TYPE, MediaType.TEXT_XML_TYPE}) {
-            m_responseBodyParsers.add(new Default(mediaType, XMLCell.TYPE, exec));
-        }
-        for (final MediaType mediaType : new MediaType[]{MediaType.TEXT_HTML_TYPE, MediaType.TEXT_PLAIN_TYPE}) {
-            m_responseBodyParsers.add(new Default(mediaType, StringCell.TYPE, exec));
-        }
-        for (final MediaType mediaType : new MediaType[]{MediaType.APPLICATION_OCTET_STREAM_TYPE,
-            MediaType.APPLICATION_FORM_URLENCODED_TYPE, MediaType.MULTIPART_FORM_DATA_TYPE/*TODO ??*/}) {
-            m_responseBodyParsers.add(new Default(mediaType, BinaryObjectDataCell.TYPE, exec));
-        }
-        //everything else is a file
-        m_responseBodyParsers.add(new Default(MediaType.WILDCARD_TYPE, BinaryObjectDataCell.TYPE, exec));
-
-        m_errorBodyParsers.addAll(m_responseBodyParsers.stream()
-            .filter(parser -> (MediaType.TEXT_PLAIN_TYPE.isCompatible(parser.supportedMediaType()) &&
-                !parser.supportedMediaType().isWildcardType()) ||
-                XMLCell.TYPE.equals(parser.producedDataType()) ||
-                JSONCell.TYPE.equals(parser.producedDataType()))
-            .map(Missing::new)//
-            .toList());
-        // Error codes for the rest of the content types
-        m_errorBodyParsers.add(new Default(MediaType.WILDCARD_TYPE, DataType.getMissingCell().getType(), exec) {
-            @Override
-            public DataCell create(final Response response) {
-                return new MissingCell(response.getStatusInfo().getReasonPhrase());
-            }
-        });
     }
 
     /**
@@ -584,7 +486,6 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
 
     /**
      * @param inputSpec the input spec or null (non connected optional input)
-     *
      */
     private void updateFirstCallColumnsOnHttpError(final DataTableSpec inputSpec) {
         final var validFirstValues = m_parsedResponseValues.values().stream().findFirst() //
@@ -608,272 +509,147 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         m_errorBodyParsers.clear();
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public InputPortRole[] getInputPortRoles() {
         return new InputPortRole[]{InputPortRole.NONDISTRIBUTED_STREAMABLE};
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public OutputPortRole[] getOutputPortRoles() {
         return new OutputPortRole[]{OutputPortRole.NONDISTRIBUTED};
     }
 
-    /**
-     * Creates the {@link ColumnRearranger}.
-     *
-     * @param enabledEachRequestAuthentications The selected authentication.
-     * @param spec The input {@link DataTableSpec}.
-     * @param exec {@link ExecutionMonitor}.
-     * @param tableSize The size of the table.
-     * @return The {@link ColumnRearranger}.
-     * @throws InvalidSettingsException Invalid internal state.
-     */
-    private ColumnRearranger createColumnRearranger(final List<EachRequestAuthentication> enabledEachRequestAuthentications,
-        final DataTableSpec spec, final ExecutionMonitor exec, final long tableSize) {
-        final var factory = new RequestExecutor(spec, enabledEachRequestAuthentications, exec);
-        factory.setKnownTableSize(tableSize);
-        final int concurrency = Math.max(1, m_settings.getConcurrency());
-        factory.setParallelProcessing(true, concurrency, 4 * concurrency);
-        final var rearranger = new ColumnRearranger(spec);
-        rearranger.append(factory);
-        return rearranger;
-    }
-
-    /**
-     * <p>Unused</p>
-     * {@inheritDoc}
-     */
-    @Override
-    public StreamableOperatorInternals createInitialStreamableOperatorInternals() {
-        return new SimpleStreamableOperatorInternals();
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public boolean iterate(final StreamableOperatorInternals internals) {
-        return !m_readNonError;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public PortObjectSpec[] computeFinalOutputSpecs(final StreamableOperatorInternals internals,
-        final PortObjectSpec[] inSpecs) throws InvalidSettingsException {
-        CheckUtils.check(inSpecs.length > 0, InvalidSettingsException::new,
-            () -> "Cannot find URI column, the node input is missing.");
-        return new PortObjectSpec[]{m_consumedRows.get() == 0 ? new DataTableSpec(m_newColumnsBasedOnFirstCalls)
-            : createColumnRearranger(enabledAuthConfigs(), (DataTableSpec)inSpecs[0], null/*exec*/, -1L).createSpec()};
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public StreamableOperator createStreamableOperator(final PartitionInfo partitionInfo,
-        final PortObjectSpec[] inSpecs) throws InvalidSettingsException {
-        return new StreamableOperator() {
-            /**
-             * {@inheritDoc}
-             */
-            @Override
-            public void runIntermediate(final PortInput[] inputs, final ExecutionContext exec) throws Exception {
-                createResponseBodyParsers(exec);
-                DataTableSpec inputSpec = null;
-                var authentications = getAuthentications(getCredential(inputs));
-                if (inputs.length > 0 && inputs[0] instanceof RowInput input) {
-                    inputSpec = input.getDataTableSpec();
-                    DataRow row;
-                    while (!m_readNonError && (row = input.poll()) != null) {
-                        makeFirstCall(row, authentications, inputSpec, exec);
-                        m_consumedRows.getAndIncrement();
-                    }
-                } else {
-                    makeFirstCall(null/*row*/, authentications, null/*spec*/, exec);
-                }
-                updateFirstCallColumnsOnHttpError(inputSpec);
-                //No more rows, so even if there are errors, m_readError should be true:
-                m_readNonError = true;
-            }
-
-            /**
-             * {@inheritDoc}
-             */
-            @Override
-            public void runFinal(final PortInput[] inputs, final PortOutput[] outputs, final ExecutionContext exec)
-                throws Exception {
-                if (m_consumedRows.get() == 0) {
-                    var rowOutput = (RowOutput)outputs[0];
-                    rowOutput.push(new DefaultRow(CONSTANT_URI_KEY, m_parsedResponseValues.get(CONSTANT_URI_KEY)));
-                    rowOutput.close();
-                } else {
-                    CheckUtils.check(inSpecs.length > 0, InvalidSettingsException::new,
-                        () -> "Cannot find URI column, the node input is missing.");
-                    createColumnRearranger(getAuthentications(getCredential(inputs)), (DataTableSpec)inSpecs[0], exec,
-                        -1L).createStreamableFunction().runFinal(inputs, outputs, exec);
-                }
-            }
-        };
-    }
-
-    private HttpAuthorizationHeaderCredentialValue getCredential(final PortInput[] inputs) {
-        if (m_credentialPortIdx > -1) {
-            return getCredential((CredentialPortObject)((PortObjectInput)inputs[m_credentialPortIdx]).getPortObject());
-        } else {
-            return null;
-        }
-    }
-
-    /**
-     * Checks the response code, returns {@code true} if the status code is 4XX or 5XX.
-     *
-         * @param response the {@link Response} object
-         * @return if HTTP error was detected
-         * @throws IllegalStateException if a 4XX status is detected and {@link RestSettings#isFailOnClientErrors()}
-         * or a 5XX status is detected {@link RestSettings#isFailOnServerErrors()} is enabled
-     */
-    private boolean checkResponseStatus(final Response response) {
-        // a null response means something went wrong, return an error being detected
-        if (response == null) {
-            return true;
-        }
-        boolean isServerError = isServerError(response);
-        boolean isClientError = isClientError(response);
-        // check whether to fail on error and extract cause
-        if ((m_settings.isFailOnClientErrors() && isClientError)
-            || (m_settings.isFailOnServerErrors() && isServerError)) {
-            // throw exception, will not be caught in callee and cause node to fail (i think)
-            Object entity = response.getEntity();
-            if (entity instanceof InputStream is) {
-                try {
-                    getLogger().debug("Failed location: " + response.getLocation());
-                    getLogger().debug(IOUtils.toString(is,
-                        Charset.isSupported("UTF-8") ? StandardCharsets.UTF_8 : Charset.defaultCharset()));
-                } catch (final IOException | NullPointerException e) { // NOSONAR - NPE in IOUtils#toString (CXF bug)
-                    getLogger().debug(e.getMessage(), e);
-                }
-            } else {
-                getLogger().debug(entity);
-            }
-            // only thrown if m_settings.isFailOnHttpError
-            throw new IllegalStateException(
-                "Wrong status: " + response.getStatus() + " " + response.getStatusInfo().getReasonPhrase());
-        }
-        // check if a needed System property is missing, added as part of AP-20585
-        if (response.getStatus() == Response.Status.PROXY_AUTHENTICATION_REQUIRED.getStatusCode()
-            && DisabledSchemesChecker.AuthenticationScheme.BASIC.isDisabled()) {
-            // a 407 response and BASIC auth being disabled points indicates the missing property
-            // to resolve it, jdk.http.auth.tunneling.disabledSchemes="" needs to be set
-            setWarningMessage(DisabledSchemesChecker.FAQ_MESSAGE);
-        }
-        return isServerError || isClientError;
-    }
-
-    /**
-     * @param response
-     * @return
-     */
-    private static boolean isHttpError(final Response response) {
-        return response == null || (response.getStatus() >= 400 && response.getStatus() < 600);
-    }
-
-    /**
-     * Checks the {@code response} object and adds the body columns.
-     *
-     * @param response A {@link Response} object.
-     */
-    private void checkResponseHeadersAndUpdateBodyValues(final Response response) {
-        if (response == null) {
-            replace(m_bodyColumns,
-                new ResponseHeaderItem(m_settings.getResponseBodyColumn(), BinaryObjectDataCell.TYPE));
-        } else {
-            boolean isHttpError = isHttpError(response);
-            final var mediaType = response.getMediaType();
-            DataType type = BinaryObjectDataCell.TYPE;
-            for (final ResponseBodyParser responseBodyParser : m_responseBodyParsers) {
-                if (!isHttpError && responseBodyParser.supportedMediaType().isCompatible(mediaType)) {
-                    type = responseBodyParser.producedDataType();
-                    break;
-                }
-            }
-            replace(m_bodyColumns, new ResponseHeaderItem(m_settings.getResponseBodyColumn(), type));
-        }
-    }
-
-    /**
-     * @param bodyColumns
-     * @param rhi
-     */
-    private static void replace(final List<ResponseHeaderItem> bodyColumns, final ResponseHeaderItem rhi) {
-        if (bodyColumns.isEmpty()) {
-            bodyColumns.add(rhi);
-        } else {
-            bodyColumns.set(0, rhi);
-        }
-    }
-
-    /**
-     * @param spec the input spec
-     * @return The new column specs.
-     */
-    protected DataColumnSpec[] createNewColumnsSpec(final DataTableSpec spec) {
-        var uniqueNameGenerator = new UniqueNameGenerator(spec);
-        List<DataColumnSpec> specs = Stream.concat(m_responseHeaderKeys.stream(), m_bodyColumns.stream())
-                .map(rhi -> uniqueNameGenerator.newCreator(rhi.getOutputColumnName(), rhi.getType()))
-                .map(DataColumnSpecCreator::createSpec)
-                .collect(Collectors.toCollection(ArrayList<DataColumnSpec>::new));
-        updateErrorCauseColumnSpec(specs, uniqueNameGenerator);
-        return specs.toArray(new DataColumnSpec[0]);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
     @Override
     protected void saveSettingsTo(final NodeSettingsWO settings) {
         m_settings.saveSettings(settings);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     protected void validateSettings(final NodeSettingsRO settings) throws InvalidSettingsException {
         createSettings().loadSettingsFrom(settings);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     protected void loadValidatedSettingsFrom(final NodeSettingsRO settings) throws InvalidSettingsException {
         m_settings.loadSettingsFrom(settings);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     protected void loadInternals(final File nodeInternDir, final ExecutionMonitor exec)
         throws IOException, CanceledExecutionException {
         //No internals
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     protected void saveInternals(final File nodeInternDir, final ExecutionMonitor exec)
         throws IOException, CanceledExecutionException {
         //No internals
+    }
+
+    // -- REQUEST PREPARATION --
+
+    /**
+     * Creates the response body parsers.
+     *
+     * @param exec An {@link ExecutionContext}.
+     */
+    private void createResponseBodyParsers(final ExecutionContext exec) {
+        m_responseBodyParsers.clear();
+        for (final MediaType mediaType : new MediaType[]{MediaType.APPLICATION_JSON_TYPE,
+            MediaType.valueOf("application/vnd.mason+json")}) {
+            m_responseBodyParsers.add(new Default(mediaType, JSONCell.TYPE, exec));
+        }
+        m_responseBodyParsers.add(new Default(MediaType.valueOf("image/png"), PNGImageContent.TYPE, exec));
+        m_responseBodyParsers.add(new Default(MediaType.APPLICATION_SVG_XML_TYPE, SvgCell.TYPE, exec));
+        m_responseBodyParsers.add(new Default(MediaType.valueOf("image/svg+xml"), SvgCell.TYPE, exec));
+        for (final MediaType mediaType : new MediaType[]{MediaType.APPLICATION_ATOM_XML_TYPE,
+            MediaType.APPLICATION_XHTML_XML_TYPE, MediaType.APPLICATION_XML_TYPE, MediaType.TEXT_XML_TYPE}) {
+            m_responseBodyParsers.add(new Default(mediaType, XMLCell.TYPE, exec));
+        }
+        for (final MediaType mediaType : new MediaType[]{MediaType.TEXT_HTML_TYPE, MediaType.TEXT_PLAIN_TYPE}) {
+            m_responseBodyParsers.add(new Default(mediaType, StringCell.TYPE, exec));
+        }
+        for (final MediaType mediaType : new MediaType[]{MediaType.APPLICATION_OCTET_STREAM_TYPE,
+            MediaType.APPLICATION_FORM_URLENCODED_TYPE, MediaType.MULTIPART_FORM_DATA_TYPE}) {
+            m_responseBodyParsers.add(new Default(mediaType, BinaryObjectDataCell.TYPE, exec));
+        }
+        // everything else is a file
+        m_responseBodyParsers.add(new Default(MediaType.WILDCARD_TYPE, BinaryObjectDataCell.TYPE, exec));
+
+        m_errorBodyParsers.addAll(m_responseBodyParsers.stream()
+            .filter(parser -> (MediaType.TEXT_PLAIN_TYPE.isCompatible(parser.supportedMediaType()) //
+                    && !parser.supportedMediaType().isWildcardType()) //
+                    || XMLCell.TYPE.equals(parser.producedDataType()) //
+                    || JSONCell.TYPE.equals(parser.producedDataType())) //
+            .map(Missing::new) //
+            .collect(Collectors.toCollection(ArrayList<ResponseBodyParser>::new)));
+        // error codes for the rest of the content types
+        m_errorBodyParsers.add(new Default(MediaType.WILDCARD_TYPE, DataType.getMissingCell().getType(), exec) {
+            @Override
+            public DataCell create(final Response response) {
+                return new MissingCell(response.getStatusInfo().getReasonPhrase());
+            }
+        });
+    }
+
+    /**
+     * Creates the request {@link Builder} based on input parameters.
+     *
+     * @param uriColumn The index of URI column.
+     * @param enabledAuthentications The authentications.
+     * @param row The input {@link DataRow}.
+     * @param spec The input table spec.
+     * @return
+     * @throws InvalidSettingsException
+     */
+    @SuppressWarnings({"resource"})
+    private Pair<Builder, Client> createRequest(final URI targetUri, // NOSONAR leave in outer class
+        final List<EachRequestAuthentication> enabledAuthentications, final DataRow row, final DataTableSpec spec)
+        throws InvalidSettingsException {
+        final var client = createClient();
+        WebTarget target = client.target(targetUri);
+        //Support relative redirects too, see https://tools.ietf.org/html/rfc7231#section-3.1.4.2
+        target = target.property("http.redirect.relative.uri", true);
+        final Builder request = target.request();
+
+        // AP-20968: for DELETE requests, the HttpClientHTTPConduit sends a 'Content-Type: text/xml' header
+        // when no content type was specified. We avoid this by explicitly setting to '*/*'.
+        // This default is overwritten below if request headers were specified in the node dialog.
+        if (m_settings.getMethod().orElse(null) == HttpMethod.DELETE) {
+            request.header(HttpHeaders.CONTENT_TYPE, "*/*");
+        }
+
+        for (final RequestHeaderKeyItem headerItem : m_settings.getRequestHeaders()) {
+            var value = extractHeaderValue(row, spec, headerItem);
+            // If a specified request header has no value, the REST node execution fails with an ISE.
+            if (Objects.isNull(value) && m_settings.isFailOnMissingHeaders()) {
+                client.close();
+                throw new InvalidSettingsException("The value of request header \"" + headerItem.getKey()
+                    + "\" is not available. Enter a non-empty value.");
+            }
+            request.header(headerItem.getKey(), value);
+        }
+
+        // IMPORTANT: don't access the HttpConduit before the request has been updated by an EachRequestAuthentication!
+        // Some implementations (e.g. NTLM) must configure the conduit but they cannot after it has been accessed.
+
+        for (final EachRequestAuthentication era : enabledAuthentications) {
+            era.updateRequest(request, row, getCredentialsProvider(), getAvailableFlowVariables());
+        }
+
+        final var clientConfig = WebClient.getConfig(request);
+
+        HTTPClientPolicy clientPolicy = clientConfig.getHttpConduit().getClient();
+        // Set HTTP version to 1.1 because by default HTTP/2 will be used. It's a) not supported by some sites
+        // and b) doesn't make sense in our context.
+        clientPolicy.setVersion("1.1");
+        clientPolicy.setAutoRedirect(m_settings.isFollowRedirects());
+        clientPolicy.setMaxRetransmits(MAX_RETRANSMITS);
+
+        // Configures the proxy credentials for the request builder if needed.
+        final var optProxyConfig = m_settings.getUpdatedProxyConfig();
+        getProxyManager().configureRequest(optProxyConfig, request, getCredentialsProvider());
+        return Pair.create(request, client);
     }
 
     /**
@@ -910,104 +686,6 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         clientBuilder.property(org.apache.cxf.message.Message.RECEIVE_TIMEOUT,
             m_settings.getTimeoutInSeconds() * 1000L);
         return clientBuilder.build();
-    }
-
-    /**
-     * Creates the request {@link Builder} based on input parameters.
-     *
-     * @param uriColumn The index of URI column.
-     * @param enabledEachRequestAuthentications The authentications.
-     * @param row The input {@link DataRow}.
-     * @param spec The input table spec.
-     * @return
-     * @throws InvalidSettingsException
-     */
-    @SuppressWarnings({"resource"})
-    private Pair<Builder, Client> createRequest(final URI targetUri,
-        final List<EachRequestAuthentication> enabledEachRequestAuthentications, final DataRow row, final DataTableSpec spec)
-        throws InvalidSettingsException {
-        final var client = createClient();
-        WebTarget target = client.target(targetUri);
-        //Support relative redirects too, see https://tools.ietf.org/html/rfc7231#section-3.1.4.2
-        target = target.property("http.redirect.relative.uri", true);
-        final Builder request = target.request();
-
-        // AP-20968: for DELETE requests, the HttpClientHTTPConduit sends a 'Content-Type: text/xml' header
-        // when no content type was specified. We avoid this by explicitly setting to '*/*'.
-        // This default is overwritten below if request headers were specified in the node dialog.
-        if (m_settings.getMethod().orElse(null) == HttpMethod.DELETE) {
-            request.header(HttpHeaders.CONTENT_TYPE, "*/*");
-        }
-
-        for (final RequestHeaderKeyItem headerItem : m_settings.getRequestHeaders()) {
-            var value = extractHeaderValue(row, spec, headerItem);
-            // If a specified request header has no value, the REST node execution fails with an ISE.
-            if (Objects.isNull(value) && m_settings.isFailOnMissingHeaders()) {
-                client.close();
-                throw new InvalidSettingsException("The value of request header \"" + headerItem.getKey()
-                    + "\" is not available. Enter a non-empty value.");
-            }
-            request.header(headerItem.getKey(), value);
-        }
-
-        // IMPORTANT: don't access the HttpConduit before the request has been updated by an EachRequestAuthentication!
-        // Some implementations (e.g. NTLM) must configure the conduit but they cannot after it has been accessed.
-
-        for (final EachRequestAuthentication era : enabledEachRequestAuthentications) {
-            era.updateRequest(request, row, getCredentialsProvider(), getAvailableFlowVariables());
-        }
-
-        final var clientConfig = WebClient.getConfig(request);
-
-        HTTPClientPolicy clientPolicy = clientConfig.getHttpConduit().getClient();
-        // Set HTTP version to 1.1 because by default HTTP/2 will be used. It's a) not supported by some sites
-        // and b) doesn't make sense in our context.
-        clientPolicy.setVersion("1.1");
-        clientPolicy.setAutoRedirect(m_settings.isFollowRedirects());
-        clientPolicy.setMaxRetransmits(MAX_RETRANSMITS);
-
-        // Configures the proxy credentials for the request builder if needed.
-        final var optProxyConfig = m_settings.getUpdatedProxyConfig();
-        getProxyManager().configureRequest(optProxyConfig, request, getCredentialsProvider());
-        return Pair.create(request, client);
-    }
-
-    /**
-     * Adds the body values.
-     *
-     * @param cells The input {@link DataCell}s.
-     * @param response The {@link Response} object.
-     * @param missing The missing cell with the error message.
-     */
-    protected void addBodyValuesToCells(final List<DataCell> cells, final Response response, final DataCell missing) {
-        m_bodyColumns.stream().forEachOrdered(rhi -> {
-            if (response != null) {
-                DataType expectedType = rhi.getType();
-                var mediaType = response.getMediaType();
-                if (mediaType == null) {
-                    cells.add(new MissingCell("Response does not have a media type"));
-                } else if (missing != null) {
-                    cells.add(missing);
-                } else {
-                    var wasAdded = false;
-                    for (ResponseBodyParser parser : isHttpError(response) ? m_errorBodyParsers
-                        : m_responseBodyParsers) {
-                        if (parser.producedDataType().isCompatible(expectedType.getPreferredValueClass())
-                            && parser.supportedMediaType().isCompatible(response.getMediaType())) {
-                            wasAdded = true;
-                            cells.add(parser.create(response));
-                            break;
-                        }
-                    }
-                    if (!wasAdded) {
-                        cells.add(new MissingCell("Could not parse the body because the body was "
-                            + response.getMediaType() + ", but was expecting: " + expectedType.getName()));
-                    }
-                }
-            } else {
-                cells.add(missing);
-            }
-        });
     }
 
     /**
@@ -1048,7 +726,36 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
     private List<EachRequestAuthentication> enabledAuthConfigs() {
         return m_settings.getAuthorizationConfigurations().parallelStream()
             .filter(euc -> euc.isEnabled() && euc.getUserConfiguration() instanceof EachRequestAuthentication)
-            .map(euc -> (EachRequestAuthentication)euc.getUserConfiguration()).toList();
+            .map(euc -> (EachRequestAuthentication)euc.getUserConfiguration()) //
+            .toList();
+    }
+
+    // -- STANDARD REQUEST EXECUTION --
+
+    /**
+     * Creates an {@link Invocation} from the {@code request}.
+     *
+     * @param request A {@link Builder}.
+     * @param row A {@link DataRow} (which might contain the body value).
+     * @param spec The input {@link DataTableSpec} (to find the body column in the {@code row}).
+     * @return The created {@link Invocation}.
+     */
+    protected abstract Invocation invocation(final Builder request, final DataRow row, final DataTableSpec spec);
+
+    /**
+     * Makes the first call to the servers, this will create the structure of the output table.
+     *
+     * @param row The input row.
+     * @param enabledAuthentications The single enabled authentication.
+     * @param spec The {@link DataTableSpec}.
+     * @param exec An {@link ExecutionContext}.
+     * @throws InvalidSettingsException if the request could not be created
+     */
+    protected void makeFirstCall(final DataRow row, final List<EachRequestAuthentication> enabledAuthentications,
+        final DataTableSpec spec, final ExecutionContext exec) throws InvalidSettingsException {
+        m_cooldownContext = new CooldownContext(); // reset context before execution.
+        final var executor = new RequestExecutor(spec, enabledAuthentications, exec);
+        m_parsedResponseValues.put(getRowKey(row), executor.makeFirstCall(row));
     }
 
     /**
@@ -1060,20 +767,20 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
      */
     private class RequestExecutor extends AbstractRequestExecutor<S> {
 
-        private final List<EachRequestAuthentication> m_enabledEachRequestAuthentications;
+        private final List<EachRequestAuthentication> m_enabledAuthentications;
 
         /**
          * Implementation of the request executor.
          *
          * @param spec initial data table spec
-         * @param enabledEachRequestAuthentications currently available auth methods
+         * @param enabledAuthentications currently available auth methods
          * @param monitor an execution monitor for progress tracking
          */
-        RequestExecutor(final DataTableSpec spec, final List<EachRequestAuthentication> enabledEachRequestAuthentications,
+        RequestExecutor(final DataTableSpec spec, final List<EachRequestAuthentication> enabledAuthentications,
             final ExecutionMonitor monitor) {
             super(new ResponseHandler(), spec, createNewColumnsSpec(spec), m_settings, m_cooldownContext,
                 monitor, m_consumedRows);
-            m_enabledEachRequestAuthentications = enabledEachRequestAuthentications;
+            m_enabledAuthentications = enabledAuthentications;
         }
 
         @SuppressWarnings("resource")
@@ -1084,7 +791,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
             final var currentURI = getCurrentURI(spec, row);
             // computing request builder and client on-demand for each new row
             // could be improved in the future by re-using one client per execution (not per row)
-            final var builderClient = createRequest(currentURI, m_enabledEachRequestAuthentications, row, spec);
+            final var builderClient = createRequest(currentURI, m_enabledAuthentications, row, spec);
             return new InvocationTriple(
                 invocation(builderClient.getFirst(), row, spec),    // invocation
                 currentURI,                                         // URI
@@ -1105,6 +812,199 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
                 }
             }
             return URI.create(m_settings.getConstantURI());
+        }
+    }
+
+    // -- STREAMING REQUEST EXECUTION --
+
+    /**
+     * Creates the {@link ColumnRearranger}.
+     *
+     * @param enabledAuthentications The selected authentication.
+     * @param spec The input {@link DataTableSpec}.
+     * @param exec {@link ExecutionMonitor}.
+     * @param tableSize The size of the table.
+     * @return The {@link ColumnRearranger}.
+     * @throws InvalidSettingsException Invalid internal state.
+     */
+    private ColumnRearranger createColumnRearranger(final List<EachRequestAuthentication> enabledAuthentications,
+        final DataTableSpec spec, final ExecutionMonitor exec, final long tableSize) {
+        final var factory = new RequestExecutor(spec, enabledAuthentications, exec);
+        factory.setKnownTableSize(tableSize);
+        final int concurrency = Math.max(1, m_settings.getConcurrency());
+        factory.setParallelProcessing(true, concurrency, 4 * concurrency);
+        final var rearranger = new ColumnRearranger(spec);
+        rearranger.append(factory);
+        return rearranger;
+    }
+
+    @Override
+    public StreamableOperatorInternals createInitialStreamableOperatorInternals() {
+        // unused method
+        return new SimpleStreamableOperatorInternals();
+    }
+
+    @Override
+    public boolean iterate(final StreamableOperatorInternals internals) {
+        return !m_readNonError;
+    }
+
+    @Override
+    public PortObjectSpec[] computeFinalOutputSpecs(final StreamableOperatorInternals internals,
+        final PortObjectSpec[] inSpecs) throws InvalidSettingsException {
+        CheckUtils.check(inSpecs.length > 0, InvalidSettingsException::new,
+            () -> "Cannot find URI column, the node input is missing.");
+        return new PortObjectSpec[]{m_consumedRows.get() == 0 ? new DataTableSpec(m_newColumnsBasedOnFirstCalls)
+            : createColumnRearranger(enabledAuthConfigs(), (DataTableSpec)inSpecs[0], null/*exec*/, -1L).createSpec()};
+    }
+
+    @Override
+    public StreamableOperator createStreamableOperator(final PartitionInfo partitionInfo,
+        final PortObjectSpec[] inSpecs) throws InvalidSettingsException {
+        return new StreamableOperator() {
+            @Override
+            public void runIntermediate(final PortInput[] inputs, final ExecutionContext exec) throws Exception {
+                createResponseBodyParsers(exec);
+                DataTableSpec inputSpec = null;
+                var authentications = getAuthentications(getCredential(inputs));
+                if (inputs.length > 0 && inputs[0] instanceof RowInput input) {
+                    inputSpec = input.getDataTableSpec();
+                    DataRow row;
+                    while (!m_readNonError && (row = input.poll()) != null) {
+                        makeFirstCall(row, authentications, inputSpec, exec);
+                        m_consumedRows.getAndIncrement();
+                    }
+                } else {
+                    makeFirstCall(null/*row*/, authentications, null/*spec*/, exec);
+                }
+                updateFirstCallColumnsOnHttpError(inputSpec);
+                // no more rows, so even if there are errors, m_readError should be true
+                m_readNonError = true;
+            }
+
+            @Override
+            public void runFinal(final PortInput[] inputs, final PortOutput[] outputs, final ExecutionContext exec)
+                throws Exception {
+                if (m_consumedRows.get() == 0) {
+                    var rowOutput = (RowOutput)outputs[0];
+                    rowOutput.push(new DefaultRow(CONSTANT_URI_KEY, m_parsedResponseValues.get(CONSTANT_URI_KEY)));
+                    rowOutput.close();
+                } else {
+                    CheckUtils.check(inSpecs.length > 0, InvalidSettingsException::new,
+                        () -> "Cannot find URI column, the node input is missing.");
+                    createColumnRearranger(getAuthentications(getCredential(inputs)), (DataTableSpec)inSpecs[0], exec,
+                        -1L).createStreamableFunction().runFinal(inputs, outputs, exec);
+                }
+            }
+        };
+    }
+
+    private HttpAuthorizationHeaderCredentialValue getCredential(final PortInput[] inputs) {
+        if (m_credentialPortIdx > -1) {
+            return getCredential((CredentialPortObject)((PortObjectInput)inputs[m_credentialPortIdx]).getPortObject());
+        } else {
+            return null;
+        }
+    }
+
+    /**
+     * @param spec the input spec
+     * @return The new column specs.
+     */
+    protected DataColumnSpec[] createNewColumnsSpec(final DataTableSpec spec) {
+        var uniqueNameGenerator = new UniqueNameGenerator(spec);
+        List<DataColumnSpec> specs = Stream.concat(m_responseHeaderKeys.stream(), m_bodyColumns.stream())
+            .map(rhi -> uniqueNameGenerator.newCreator(rhi.getOutputColumnName(), rhi.getType()))
+            .map(DataColumnSpecCreator::createSpec).collect(Collectors.toCollection(ArrayList<DataColumnSpec>::new));
+        updateErrorCauseColumnSpec(specs, uniqueNameGenerator);
+        return specs.toArray(new DataColumnSpec[0]);
+    }
+
+    // -- RESPONSE HANDLING --
+
+    /**
+     * Adds the body values.
+     *
+     * @param cells The input {@link DataCell}s.
+     * @param response The {@link Response} object.
+     * @param missing The missing cell with the error message.
+     */
+    protected void addBodyValuesToCells(final List<DataCell> cells, final Response response, final DataCell missing) {
+        m_bodyColumns.stream().forEachOrdered(rhi -> {
+            if (response != null) {
+                DataType expectedType = rhi.getType();
+                var mediaType = response.getMediaType();
+                if (mediaType == null) {
+                    cells.add(new MissingCell("Response does not have a media type"));
+                } else if (missing != null) {
+                    cells.add(missing);
+                } else {
+                    var wasAdded = false;
+                    for (ResponseBodyParser parser : isHttpError(response) ? m_errorBodyParsers
+                        : m_responseBodyParsers) {
+                        if (parser.producedDataType().isCompatible(expectedType.getPreferredValueClass())
+                            && parser.supportedMediaType().isCompatible(response.getMediaType())) {
+                            wasAdded = true;
+                            cells.add(parser.create(response));
+                            break;
+                        }
+                    }
+                    if (!wasAdded) {
+                        cells.add(new MissingCell("Could not parse the body because the body was "
+                            + response.getMediaType() + ", but was expecting: " + expectedType.getName()));
+                    }
+                }
+            } else {
+                cells.add(missing);
+            }
+        });
+    }
+
+    /**
+     * Add a column for error causes (String descriptions) to the given list of <code>DataColumnSpec</code>s, which will
+     * ultimately determine the node's output column specification. Do this only if the respective setting is enabled.
+     * Use the given <code>nameGenerator</code> to find a name for the new column.
+     *
+     * @param specs The list of <code>DataColumnSpec</code>s to add the newly created column spec to.
+     * @param nameGenerator The generator to use for finding a name for the column to be added.
+     */
+    protected void updateErrorCauseColumnSpec(final List<DataColumnSpec> specs,
+        final UniqueNameGenerator nameGenerator) {
+        if (m_settings.isOutputErrorCause().orElse(RestSettings.DEFAULT_OUTPUT_ERROR_CAUSE)) {
+            final DataColumnSpec errorCauseCol = nameGenerator.newColumn("Error Cause", StringCell.TYPE);
+            specs.add(errorCauseCol);
+        }
+    }
+
+    /**
+     * Construct a String cell containing the error cause description if there was an error while performing the
+     * request. Do this only if the respective user setting is enabled. In case the request was successful, a missing
+     * value is added.
+     *
+     * @param cells A list of cells which will ultimately determine the output for the current row.
+     */
+    private void addErrorCauseToCells(final List<DataCell> cells) { // NOSONAR leave in outer class
+        if (m_settings.isOutputErrorCause().orElse(RestSettings.DEFAULT_OUTPUT_ERROR_CAUSE)) {
+            List<String> errorCauses = cells.stream()//
+                .flatMap(cell -> ClassUtils.castOptional(MissingCell.class, cell).stream())//
+                .map(MissingCell::getError)//
+                .toList();
+            if (!errorCauses.isEmpty()) {
+                String errorCausesReadable;
+                if (errorCauses.stream().allMatch(Objects::isNull)) {
+                    // We assume missing values always correspond to some error.
+                    errorCausesReadable = "Unknown error";
+                } else {
+                    // However, there are error scenarios in which only some columns have a missing value with a cause.
+                    // In this case we want to avoid printing "null" for the missing values with no associated cause,
+                    // but still do print all non-null causes.
+                    errorCausesReadable =
+                        errorCauses.stream().filter(Objects::nonNull).collect(Collectors.joining("\n"));
+                }
+                cells.add(new StringCell(errorCausesReadable));
+            } else {
+                cells.add(DataType.getMissingCell());
+            }
         }
     }
 
@@ -1161,7 +1061,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
                 }
                 return DataType.getMissingCell();
             }).collect(Collectors.toCollection(ArrayList<DataCell>::new));
-            checkResponseHeadersAndUpdateBodyValues(response);
+            checkHeadersAndUpdateBodyValues(response);
             final var httpError = checkResponseStatus(response);
             final Map<ResponseHeaderItem, String> bodyColNames = new HashMap<>();
             if (!httpError) {
@@ -1172,12 +1072,13 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
                     bodyColNames.put(bodyCol, newCol.getName());
                 }
                 for (var i = 0; i < m_bodyColumns.size(); ++i) {
+                    // replace header name with deduplicated value from corresponding bodyColName
                     m_bodyColumns.set(i, new ResponseHeaderItem(m_bodyColumns.get(i).getHeaderKey(),
                         m_bodyColumns.get(i).getType(), bodyColNames.get(m_bodyColumns.get(i))));
                 }
             } else {
                 if (response != null && response.getEntity() instanceof InputStream) {
-                    replace(m_bodyColumns, new ResponseHeaderItem(m_bodyColumns.get(0).getHeaderKey(),
+                    replaceFirst(m_bodyColumns, new ResponseHeaderItem(m_bodyColumns.get(0).getHeaderKey(),
                         BinaryObjectDataCell.TYPE, m_bodyColumns.get(0).getHeaderKey()));
                 }
             }
@@ -1215,6 +1116,74 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         @Override
         public Optional<DataCell[]> lookupResponseCache(final DataRow row) {
             return Optional.ofNullable(m_parsedResponseValues.get(getRowKey(row)));
+        }
+
+        /**
+         * Checks the response code, returns {@code true} if the status code is 4XX or 5XX.
+         *
+         * @param response the {@link Response} object
+         * @return if HTTP error was detected
+         * @throws IllegalStateException if a 4XX status is detected and {@link RestSettings#isFailOnClientErrors()}
+         * or a 5XX status is detected {@link RestSettings#isFailOnServerErrors()} is enabled
+         */
+        private boolean checkResponseStatus(final Response response) {
+            // a null response means something went wrong, return an error being detected
+            if (response == null) {
+                return true;
+            }
+            boolean isServerError = isServerError(response);
+            boolean isClientError = isClientError(response);
+            // check whether to fail on error and extract cause
+            if ((m_settings.isFailOnClientErrors() && isClientError)
+                || (m_settings.isFailOnServerErrors() && isServerError)) {
+                // throw exception, will not be caught in callee and cause node to fail (i think)
+                Object entity = response.getEntity();
+                if (entity instanceof InputStream is) {
+                    try {
+                        getLogger().debug("Failed location: " + response.getLocation());
+                        getLogger().debug(IOUtils.toString(is,
+                            Charset.isSupported("UTF-8") ? StandardCharsets.UTF_8 : Charset.defaultCharset()));
+                    } catch (final IOException | NullPointerException e) { // NOSONAR - NPE in IOUtils#toString (CXF bug)
+                        getLogger().debug(e.getMessage(), e);
+                    }
+                } else {
+                    getLogger().debug(entity);
+                }
+                // only thrown if m_settings.isFailOnHttpError
+                throw new IllegalStateException(
+                    "Wrong status: " + response.getStatus() + " " + response.getStatusInfo().getReasonPhrase());
+            }
+            // check if a needed System property is missing, added as part of AP-20585
+            if (response.getStatus() == Response.Status.PROXY_AUTHENTICATION_REQUIRED.getStatusCode()
+                && DisabledSchemesChecker.AuthenticationScheme.BASIC.isDisabled()) {
+                // a 407 response and BASIC auth being disabled points indicates the missing property
+                // to resolve it, jdk.http.auth.tunneling.disabledSchemes="" needs to be set
+                setWarningMessage(DisabledSchemesChecker.FAQ_MESSAGE);
+            }
+            return isServerError || isClientError;
+        }
+
+        /**
+         * Checks the {@code response} object and adds the body columns.
+         *
+         * @param response A {@link Response} object.
+         */
+        private void checkHeadersAndUpdateBodyValues(final Response response) {
+            if (response == null) {
+                replaceFirst(m_bodyColumns,
+                    new ResponseHeaderItem(m_settings.getResponseBodyColumn(), BinaryObjectDataCell.TYPE));
+            } else {
+                boolean isHttpError = isHttpError(response);
+                final var mediaType = response.getMediaType();
+                DataType type = BinaryObjectDataCell.TYPE;
+                for (final ResponseBodyParser responseBodyParser : m_responseBodyParsers) {
+                    if (!isHttpError && responseBodyParser.supportedMediaType().isCompatible(mediaType)) {
+                        type = responseBodyParser.producedDataType();
+                        break;
+                    }
+                }
+                replaceFirst(m_bodyColumns, new ResponseHeaderItem(m_settings.getResponseBodyColumn(), type));
+            }
         }
     }
 }
