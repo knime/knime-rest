@@ -160,7 +160,7 @@ final class WebpageRetrieverNodeModel extends RestNodeModel<WebpageRetrieverSett
         final String bodyValue = ((StringValue)cell).getStringValue();
         if (m_baseURI == null) {
             // should never happen
-            throw new IllegalStateException("The base URI must not be null.");
+            throw new IllegalStateException("The base URL must not be null.");
         }
         final Document htmlDocument = Jsoup.parse(bodyValue, m_baseURI.toString());
 

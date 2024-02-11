@@ -78,6 +78,7 @@ import org.apache.cxf.jaxrs.client.WebClient;
 import org.apache.cxf.transport.http.asyncclient.AsyncHTTPConduit;
 import org.apache.cxf.transports.http.configuration.HTTPClientPolicy;
 import org.eclipse.e4.core.di.annotations.Execute;
+import org.knime.base.data.filter.row.FilterRowGenerator;
 import org.knime.base.data.xml.SvgCell;
 import org.knime.core.data.DataCell;
 import org.knime.core.data.DataCellFactory.FromString;
@@ -90,7 +91,6 @@ import org.knime.core.data.IntValue;
 import org.knime.core.data.MissingCell;
 import org.knime.core.data.RowKey;
 import org.knime.core.data.blob.BinaryObjectDataCell;
-import org.knime.core.data.container.CloseableRowIterator;
 import org.knime.core.data.container.ColumnRearranger;
 import org.knime.core.data.def.DefaultRow;
 import org.knime.core.data.def.IntCell;
@@ -154,6 +154,7 @@ import org.knime.rest.nodes.common.proxy.ProxyMode;
 import org.knime.rest.nodes.common.proxy.RestProxyConfigManager;
 import org.knime.rest.util.CooldownContext;
 import org.knime.rest.util.DelegatingX509TrustManager;
+import org.knime.rest.util.RowFilterUtil;
 
 import jakarta.ws.rs.client.Client;
 import jakarta.ws.rs.client.ClientBuilder;
@@ -353,9 +354,22 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
     }
 
     /**
+     * @param spec the input data table spec
+     * @return an {@link FilterRowGenerator} conforming to the current invalid URI policy
+     */
+    protected FilterRowGenerator getRowFilter(final DataTableSpec spec) {
+        if (m_settings.isUseConstantURI()) {
+            return row -> true;
+        }
+        CheckUtils.checkArgumentNotNull(spec);
+        final var columnIndex = spec.findColumnIndex(m_settings.getUriColumn());
+        return m_settings.getInvalidURIPolicy().createRowFilter(columnIndex);
+    }
+
+    /**
      * Retrieves the {@link URI} value for a given {@link DataRow} and its column index.
      * If parsing the URI from the stored string value fails or the URI value does not represent
-     * an HTTP or HTTPS address, {@link Optional#empty()} is returned.
+     * an HTTP or HTTPS address, an exception is thrown.
      *
      * @param row data row
      * @param columnIndex index of the URI column
@@ -363,10 +377,10 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
      * @throws URISyntaxException if the provided URI is not a valid HTTP(S) address
      */
     public static URI getURIFromRow(final DataRow row, final int columnIndex) throws URISyntaxException {
-        CheckUtils.checkNotNull(row, "URI cannot determined, given row is null");
+        CheckUtils.checkNotNull(row, "URL cannot determined, given row is null");
         final var cell = row.getCell(columnIndex);
         CheckUtils.checkArgument(!cell.isMissing(), String.format(
-            "The URI cannot be missing, but it is in row: %s", row.getKey()));
+            "The URL cannot be missing, but it is in row: %s", row.getKey()));
         final var uriString = cell instanceof URIDataValue uriValue //
                 ? uriValue.getURIContent().getURI().toString() //
                 : ((StringCell)cell).getStringValue();
@@ -377,7 +391,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         // avoiding NPEs in favor of URISyntaxExceptions
         final var uri = new URI(Objects.requireNonNullElse(uriString, "")); //
         if (!"http".equals(uri.getScheme()) && !"https".equals(uri.getScheme())) {
-            throw new URISyntaxException(uriString, "Not an HTTP or HTTPS URI in input");
+            throw new URISyntaxException(uriString, "Not an HTTP or HTTPS URL in input");
         }
         return uri;
     }
@@ -447,33 +461,37 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
     @Execute
     @Override
     protected PortObject[] execute(final PortObject[] inData, final ExecutionContext exec) throws Exception {
-        BufferedDataTable inTable = (BufferedDataTable)inData[0];
         final List<EachRequestAuthentication> enabledAuthentications = getAuthentications(getCredential(inData));
         createResponseBodyParsers(exec);
         // Issue a warning if no proxy config came in from the global settings.
         if (m_settings.getProxyManager().getProxyMode() == ProxyMode.GLOBAL
             && m_settings.getUpdatedProxyConfig().isEmpty()) {
-            LOGGER.warn("The KNIME-wide proxy settings are activated but none were specified. "
+            LOGGER.info("The KNIME-wide proxy settings are activated but none were specified. "
                 + "Defaulting to using no proxy.");
         }
-        if (inData.length > 0 && inData[0] != null) {
-            if (inTable.size() == 0) {
-                // No calls to make.
-                return inData;
-            }
-
-            final var spec = inTable.getDataTableSpec();
-            try (final CloseableRowIterator iterator = inTable.iterator()) {
-                while (!m_readNonError && iterator.hasNext()) {
-                    makeFirstCall(iterator.next(), enabledAuthentications, spec, exec);
-                    m_consumedRows.getAndIncrement();
-                }
-            }
-            final var rearranger = createColumnRearranger(enabledAuthentications, spec, exec, inTable.size());
-            return new BufferedDataTable[]{exec.createColumnRearrangeTable(inTable, rearranger, exec)};
+        if (inData.length == 0 || inData[0] == null) {
+            // Constant URL mode.
+            makeFirstCall(null/*row*/, enabledAuthentications, null/*spec*/, exec);
+            return createTableFromFirstCallData(exec);
         }
-        makeFirstCall(null/*row*/, enabledAuthentications, null/*spec*/, exec);
-        return createTableFromFirstCallData(exec);
+        final var inTable = (BufferedDataTable)inData[0];
+        if (inTable.size() == 0) {
+            // No calls to make.
+            return inData;
+        }
+
+        final var spec = inTable.getDataTableSpec();
+        final var filteredTable = RowFilterUtil.filterBufferedDataTable(inTable, getRowFilter(spec), exec);
+        try (var iterator = filteredTable.iterator()) {
+            while (!m_readNonError && iterator.hasNext()) {
+                makeFirstCall(iterator.next(), enabledAuthentications, spec, exec);
+                m_consumedRows.getAndIncrement();
+
+            }
+        }
+        final var rearranger = createColumnRearranger(enabledAuthentications, spec, exec, filteredTable.size());
+        return new BufferedDataTable[]{exec.createColumnRearrangeTable( //
+            filteredTable, rearranger, exec)};
     }
 
     private HttpAuthorizationHeaderCredentialValue getCredential(final PortObject[] portObjects) {
@@ -497,11 +515,16 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
      */
     private BufferedDataTable[] createTableFromFirstCallData(final ExecutionContext exec) {
         updateFirstCallColumnsOnHttpError(null);
-        final var spec = new DataTableSpec(m_newColumnsBasedOnFirstCalls);
+        final var spec = m_newColumnsBasedOnFirstCalls != null //
+                ? new DataTableSpec(m_newColumnsBasedOnFirstCalls) //
+                : new DataTableSpec();
         final BufferedDataContainer container = exec.createDataContainer(spec, false);
+        // contains only one "row" being the result from a single constant-URI invocation
         m_parsedResponseValues.entrySet().forEach(e -> {
             final var cells = e.getValue();
-            container.addRowToTable(new DefaultRow(e.getKey(), formatDataCells(cells)));
+            if (!Arrays.equals(cells, AbstractRequestExecutor.EMPTY_RESPONSE)) {
+                container.addRowToTable(new DefaultRow(e.getKey(), formatDataCells(cells)));
+            }
         });
         container.close();
         return new BufferedDataTable[]{container.getTable()};
@@ -809,7 +832,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         @SuppressWarnings("resource")
         @Override
         public InvocationTriple createInvocationTriple(final DataRow row)
-                throws InvalidSettingsException {
+                throws InvalidSettingsException, URISyntaxException {
             final var spec = getTableSpec();
             final var currentURI = getCurrentURI(spec, row);
             // computing request builder and client on-demand for each new row
@@ -821,20 +844,16 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
                 builderClient.getSecond());                         // web client
         }
 
-        private URI getCurrentURI(final DataTableSpec spec, final DataRow row) {
+        private URI getCurrentURI(final DataTableSpec spec, final DataRow row) throws URISyntaxException {
             CheckUtils.checkState(m_settings.isUseConstantURI() || row != null,
-                    "Without the constant URI and input, it is not possible to call a REST service!");
+                    "Without the constant URL and input, it is not possible to call a REST service!");
             if (!m_settings.isUseConstantURI()) {
                 final var columnIndex = spec == null ? -1 : spec.findColumnIndex(m_settings.getUriColumn());
                 CheckUtils.checkArgument(row != null && columnIndex >= 0,
-                        "The URI column is not present: " + m_settings.getUriColumn());
-                try {
-                    return getURIFromRow(row, columnIndex);
-                } catch (URISyntaxException ignored) { // NOSONAR for now...
-                    return null;
-                }
+                        "The URL column is not present: " + m_settings.getUriColumn());
+                return getURIFromRow(row, columnIndex); // NOSONAR 'row' is not null
             }
-            return URI.create(m_settings.getConstantURI());
+            return validateURIString(m_settings.getConstantURI());
         }
     }
 
@@ -876,7 +895,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
     public PortObjectSpec[] computeFinalOutputSpecs(final StreamableOperatorInternals internals,
         final PortObjectSpec[] inSpecs) throws InvalidSettingsException {
         CheckUtils.check(inSpecs.length > 0, InvalidSettingsException::new,
-            () -> "Cannot find URI column, the node input is missing.");
+            () -> "Cannot find URL column, the node input is missing.");
         return new PortObjectSpec[]{m_consumedRows.get() == 0 ? new DataTableSpec(m_newColumnsBasedOnFirstCalls)
             : createColumnRearranger(enabledAuthConfigs(), (DataTableSpec)inSpecs[0], null/*exec*/, -1L).createSpec()};
     }
@@ -911,13 +930,18 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
                 if (m_consumedRows.get() == 0) {
                     var rowOutput = (RowOutput)outputs[0];
                     final var cells = m_parsedResponseValues.get(CONSTANT_URI_KEY);
-                    rowOutput.push(new DefaultRow(CONSTANT_URI_KEY, formatDataCells(cells)));
+                    if (!Arrays.equals(cells, AbstractRequestExecutor.EMPTY_RESPONSE)) {
+                        rowOutput.push(new DefaultRow(CONSTANT_URI_KEY, formatDataCells(cells)));
+                    }
                     rowOutput.close();
                 } else {
                     CheckUtils.check(inSpecs.length > 0, InvalidSettingsException::new,
-                        () -> "Cannot find URI column, the node input is missing.");
-                    createColumnRearranger(getAuthentications(getCredential(inputs)), (DataTableSpec)inSpecs[0], exec,
-                        -1L).createStreamableFunction().runFinal(inputs, outputs, exec);
+                        () -> "Cannot find URL column, the node input is missing.");
+                    final var spec = (DataTableSpec)inSpecs[0];
+                    final var enabledAuthentications = getAuthentications(getCredential(inputs));
+                    final var rearranger = createColumnRearranger(enabledAuthentications, spec, exec, -1L);
+                    RowFilterUtil.filterStreamableFunction(rearranger.createStreamableFunction(), getRowFilter(spec))
+                        .runFinal(inputs, outputs, exec);
                 }
             }
         };

@@ -107,7 +107,6 @@ import javax.swing.KeyStroke;
 import javax.swing.SpinnerNumberModel;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
-import javax.swing.border.TitledBorder;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.table.DefaultTableCellRenderer;
@@ -129,10 +128,12 @@ import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.NotConfigurableException;
 import org.knime.core.node.context.NodeCreationConfiguration;
 import org.knime.core.node.defaultnodesettings.DialogComponentButtonGroup;
+import org.knime.core.node.defaultnodesettings.SettingsModelString;
 import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.node.util.ColumnSelectionPanel;
 import org.knime.core.node.util.StringHistoryPanel;
 import org.knime.core.util.Pair;
+import org.knime.core.util.proxy.ProxyProtocol;
 import org.knime.rest.generic.EnablableUserConfiguration;
 import org.knime.rest.generic.UserConfiguration;
 import org.knime.rest.internals.BasicAuthentication;
@@ -140,10 +141,10 @@ import org.knime.rest.nodes.common.RequestTableModel.Columns;
 import org.knime.rest.nodes.common.RestSettings.ReferenceType;
 import org.knime.rest.nodes.common.RestSettings.RequestHeaderKeyItem;
 import org.knime.rest.nodes.common.proxy.ProxyMode;
-import org.knime.core.util.proxy.ProxyProtocol;
 import org.knime.rest.nodes.common.proxy.RestProxyConfig;
 import org.knime.rest.nodes.common.proxy.RestProxyConfigManager;
 import org.knime.rest.util.DelayPolicy;
+import org.knime.rest.util.InvalidURIPolicy;
 
 /**
  * Common dialog for the REST nodes. It adds the following tabs by default:
@@ -193,6 +194,12 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
     private final StringHistoryPanel m_constantUri = new StringHistoryPanel(getClass().getName());
 
     private final ColumnSelectionPanel m_uriColumn = new ColumnSelectionPanel(StringValue.class, URIDataValue.class);
+
+    private final DialogComponentButtonGroup m_invalidURIPolicySelector = new DialogComponentButtonGroup( //
+        InvalidURIPolicy.createSettingsModel(), //
+        "Invalid URL handling", //
+        false, //
+        InvalidURIPolicy.values());
 
     private final JCheckBox m_useDelay = new JCheckBox("Delay (ms): ");
 
@@ -433,8 +440,13 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         ret.add(m_uriColumn, gbc);
         gbc.gridx = 0;
         gbc.gridy++;
-        gbc.weightx = 0;
-        gbc.gridwidth = 1;
+        gbc.gridwidth = 3;
+        gbc.weightx = 1;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        final var uriPanel = m_invalidURIPolicySelector.getComponentPanel();
+        uriPanel.setLayout(new BoxLayout(uriPanel, BoxLayout.PAGE_AXIS));
+        ret.add(uriPanel, gbc);
+        gbc.gridy++;
         ret.add(m_useDelay, gbc);
         gbc.gridx++;
         gbc.weightx = 0;
@@ -457,7 +469,7 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         gbc.weightx = 1;
         gbc.fill = GridBagConstraints.HORIZONTAL;
         final var sslPanel = new JPanel();
-        sslPanel.setBorder(new TitledBorder("SSL"));
+        sslPanel.setBorder(BorderFactory.createTitledBorder(BorderFactory.createEtchedBorder(), "SSL"));
         sslPanel.setLayout(new BoxLayout(sslPanel, BoxLayout.PAGE_AXIS));
         sslPanel.add(m_sslIgnoreHostnameMismatches);
         sslPanel.add(m_sslTrustAll);
@@ -1327,6 +1339,7 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
             m_constantUri.commitSelectedToHistory();
         }
         m_settings.setUriColumn(m_uriColumn.getSelectedColumn());
+        m_settings.setInvalidURIPolicy(((SettingsModelString)m_invalidURIPolicySelector.getModel()).getStringValue());
         m_settings.setUseDelay(m_useDelay.isSelected());
         m_settings.setDelay(((Number)m_delay.getValue()).longValue());
         m_settings.setConcurrency(((Number)m_concurrency.getValue()).intValue());
@@ -1446,6 +1459,8 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
                 m_uriColumn.setEnabled(nrSelectableColumns > 0);
             }
         }
+        ((SettingsModelString)m_invalidURIPolicySelector.getModel())
+            .setStringValue(m_settings.getInvalidURIPolicy().name());
         m_useDelay.setSelected(m_settings.isUseDelay());
         m_delay.setValue(m_settings.getDelay());
         m_delay.setEnabled(m_useDelay.isSelected());

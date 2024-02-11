@@ -50,6 +50,7 @@ package org.knime.rest.nodes.common;
 
 import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -77,6 +78,7 @@ import org.knime.core.node.NodeLogger;
 import org.knime.core.util.ThreadLocalHTTPAuthenticator;
 import org.knime.rest.util.CooldownContext;
 import org.knime.rest.util.DelayPolicy;
+import org.knime.rest.util.InvalidURIPolicy;
 import org.knime.rest.util.StatusOnlyResponse;
 
 import jakarta.ws.rs.ProcessingException;
@@ -93,8 +95,8 @@ import jakarta.ws.rs.core.Response;
  * defines the {@link MultiResponseHandler} interface, one of which is required upon creating
  * a {@link AbstractRequestExecutor} instance.
  * <p>
- * Additionally, this executor only conforms to the JAX-RS specification and does not use CXF specifics.
- * This decouples from the implementation, possibly allowing to replace the REST library.
+ * Additionally, this executor only conforms to the JAX-RS specification.
+ * This decouples from implementation specifics, possibly allowing to replace the REST library.
  *
  * @param <S> generic type of the REST settings used
  * @author Leon Wenzler, KNIME GmbH, Konstanz, Germany
@@ -107,7 +109,7 @@ public abstract class AbstractRequestExecutor<S extends RestSettings> extends Ab
 
     private static final long CHECK_INTERVAL_MS = 100L;
 
-    private static final String INVALID_URI_ERROR = "Invalid URI";
+    static final DataCell[] EMPTY_RESPONSE = new DataCell[0];
 
     private final DataTableSpec m_tableSpec;
 
@@ -196,8 +198,10 @@ public abstract class AbstractRequestExecutor<S extends RestSettings> extends Ab
      * @param row the data row currently processed
      * @return the invocation and client object if successful
      * @throws InvalidSettingsException if the invocation object could not be created
+     * @throws URISyntaxException if the invocation creation failed due to an invalid URI
      */
-    public abstract InvocationTriple createInvocationTriple(final DataRow row) throws InvalidSettingsException;
+    public abstract InvocationTriple createInvocationTriple(final DataRow row)
+            throws InvalidSettingsException, URISyntaxException;
 
     /**
      * Tells the executor how large the table to process is.
@@ -268,7 +272,8 @@ public abstract class AbstractRequestExecutor<S extends RestSettings> extends Ab
      * @throws ProcessingException
      */
     @SuppressWarnings("resource")
-    private ResultPair performSingleRequest(final DataRow row) throws InvalidSettingsException, ProcessingException {
+    private ResultPair performSingleRequest(final DataRow row)
+            throws InvalidSettingsException, URISyntaxException, ProcessingException {
         // creating the request invocation can cause an ISE, see AP-20219
         final var triple = createInvocationTriple(row);
         Response response = null;
@@ -307,9 +312,23 @@ public abstract class AbstractRequestExecutor<S extends RestSettings> extends Ab
      *
      * @throws InvalidSettingsException if something went wrong in configuration
      */
-    @SuppressWarnings("resource")
     public DataCell[] makeFirstCall(final DataRow row) throws InvalidSettingsException {
-        final var result = performSingleRequest(row);
+        ResultPair result;
+        try {
+            result = performSingleRequest(row);
+        } catch (URISyntaxException e) {
+            // handle early abort due to invalid URI
+            if (abortDueToInvalidURI(row, e)) {
+                return EMPTY_RESPONSE;
+            }
+            result = new ResultPair(null, new MissingCell(String.format("%s: %s", //
+                InvalidURIPolicy.INVALID_URI_ERROR, e.getMessage())));
+        }
+        return firstResponseToDataCells(result);
+    }
+
+    @SuppressWarnings("resource")
+    private DataCell[] firstResponseToDataCells(final ResultPair result) {
         final var response = result.response();
         try {
             return m_responseHandler.handleFirstResponse(getTableSpec(), response, result.missing());
@@ -338,11 +357,28 @@ public abstract class AbstractRequestExecutor<S extends RestSettings> extends Ab
      * @param row the first data row to process
      * @return array of produced response data cells
      */
-    @SuppressWarnings("resource")
     public DataCell[] makeFollowingCall(final DataRow row) {
+        ResultPair result;
+        try {
+            result = performSingleRequest(row);
+        } catch (URISyntaxException e) {
+            // handle early abort due to invalid URI
+            if (abortDueToInvalidURI(row, e)) {
+                return EMPTY_RESPONSE;
+            }
+            result = new ResultPair(null, new MissingCell(String.format("%s: %s", //
+                InvalidURIPolicy.INVALID_URI_ERROR, e.getMessage())));
+        } catch (InvalidSettingsException e) {
+            // should not occur since first calls would already have thrown an ISE
+            throw new IllegalStateException(e);
+        }
+        return followingResponseToDataCells(result, row);
+    }
+
+    @SuppressWarnings("resource")
+    private DataCell[] followingResponseToDataCells(final ResultPair result, final DataRow row) {
         final DataCell[] cells;
         try {
-            final var result = performSingleRequest(row);
             final var response = result.response();
             try {
                 cells = m_responseHandler.handleFollowingResponse(getTableSpec(), response, result.missing());
@@ -356,9 +392,8 @@ public abstract class AbstractRequestExecutor<S extends RestSettings> extends Ab
                     return false; // wait entire time, no wake up condition
                 });
             }
-        } catch (CanceledExecutionException | InvalidSettingsException e) {
-            // (1) cannot check for cancelled properly, so this workaround
-            // (2) ISE should not occur since first calls would already have thrown
+        } catch (CanceledExecutionException e) {
+            // cannot check for cancelled properly, so this workaround
             throw new IllegalStateException(e);
         } finally {
             m_consumedRows.getAndIncrement();
@@ -400,6 +435,32 @@ public abstract class AbstractRequestExecutor<S extends RestSettings> extends Ab
         }
     }
 
+    /**
+     * Checks whether the request was aborted early due to an invalid URI.
+     * If this is the case, it is handled according to {@link RestSettings#getInvalidURIPolicy()}.
+     *
+     * @param row current data row
+     * @param missing the missing value cell, containing a possible error
+     * @return whether to abort (i.e. not handling the response)
+     */
+    private boolean abortDueToInvalidURI(final DataRow row, final URISyntaxException exception) {
+        if (exception != null) {
+            if (m_settings.getInvalidURIPolicy() == InvalidURIPolicy.FAIL) {
+                throw new IllegalStateException(row == null //
+                        ? "You entered an invalid URL" //
+                        : "Found invalid URL in row: %s".formatted(row.getKey()));
+            }
+            /*
+             * If false, m_settings.getInvalidURIPolicy() must be InvalidURIPolicy.MISSING,
+             * and request-making will handle response and insert missing value.
+             * Note: row has to be null (i.e. no table input, URI is constant).
+             * For an the entire table input, a row filter is applied in all execution modes.
+             */
+            return m_settings.getInvalidURIPolicy() == InvalidURIPolicy.SKIP && row == null;
+        }
+        return false;
+    }
+
     private void sleepWithMonitor(final long delay, final LongPredicate condition)
             throws CanceledExecutionException {
         m_monitor.checkCanceled();
@@ -421,12 +482,6 @@ public abstract class AbstractRequestExecutor<S extends RestSettings> extends Ab
         }
     }
 
-    /**
-     * Progress tracker, abstract method since there might be many additional parameters in its definition,
-     * for example the initial table size and an {@link ExecutionMonitor}.
-     *
-     * @param row the current data row
-     */
     private void addProgress(final DataRow row) {
         setProgress(m_consumedRows.get(), m_tableSize, RestNodeModel.getRowKey(row), m_monitor);
     }

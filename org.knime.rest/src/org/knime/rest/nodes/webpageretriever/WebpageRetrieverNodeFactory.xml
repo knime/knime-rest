@@ -59,6 +59,12 @@
 				table that contains the URLs that you
 				want to request and parse.
 			</option>
+			<option name="Invalid URL handling">Specifies how invalid URLs are handled. Depending on the selected mode,
+				this node either inserts missing values as responses, fails the node execution on encountering the 
+				first invalid URL, or skips such rows. The latter option filters rows based on URL validity of the URL column. 
+				For REST client nodes, all URLs conforming to <a href="https://www.rfc-editor.org/rfc/rfc3986">RFC 3986</a> 
+				and using the HTTP or HTTPS protocol are considered valid.
+			</option>
 			<option name="Delay (ms)">Here you specify a delay between two consecutive
 				requests, e.g. in order to avoid
 				overloading the web service.
