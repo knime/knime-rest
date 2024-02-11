@@ -59,6 +59,7 @@ import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IConfigurationElement;
 import org.eclipse.core.runtime.Platform;
 import org.knime.core.data.DataType;
+import org.knime.core.data.MissingCell;
 import org.knime.core.data.def.IntCell;
 import org.knime.core.data.def.StringCell;
 import org.knime.core.node.InvalidSettingsException;
@@ -75,6 +76,7 @@ import org.knime.rest.internals.NoAuthentication;
 import org.knime.rest.nodes.common.proxy.RestProxyConfig;
 import org.knime.rest.nodes.common.proxy.RestProxyConfigManager;
 import org.knime.rest.util.DelayPolicy;
+import org.knime.rest.util.InvalidURIPolicy;
 
 /**
  * Common settings for the REST nodes.
@@ -256,6 +258,8 @@ public class RestSettings {
     private int m_timeoutInSeconds = DEFAULT_TIMEOUT;
 
     private Optional<DelayPolicy> m_delayPolicy = Optional.empty();
+
+    private InvalidURIPolicy m_invalidURIPolicy = InvalidURIPolicy.DEFAULT_POLICY;
 
     private boolean m_isFailOnMissingHeaders = DEFAULT_FAIL_MISSING_HEADERS;
 
@@ -721,6 +725,20 @@ public class RestSettings {
         m_failOnConnectionProblems = failOnConnectionProblems;
     }
 
+    /**
+     * @return how to handle invalid URIs (instead of always generating a {@link MissingCell}
+     */
+    protected InvalidURIPolicy getInvalidURIPolicy() {
+        return m_invalidURIPolicy;
+    }
+
+    /**
+     * @param policy
+     */
+    protected void setInvalidURIPolicy(final String policy) {
+        m_invalidURIPolicy = InvalidURIPolicy.valueOf(policy);
+    }
+
     protected boolean isFailOnClientErrors() {
         return m_failOnClientErrors;
     }
@@ -926,6 +944,7 @@ public class RestSettings {
         settings.addBoolean(FAIL_ON_CLIENT_ERRORS, m_failOnClientErrors);
         m_outputErrorCause.ifPresent(value -> settings.addBoolean(OUTPUT_ERROR_CAUSE_KEY, value));
         m_allowChunking.ifPresent(allowChunking -> settings.addBoolean(ALLOW_CHUNKING_KEY, allowChunking));
+        m_invalidURIPolicy.saveSettingsTo(settings);
         settings.addBoolean(FAIL_MISSING_HEADERS_KEY, m_isFailOnMissingHeaders);
         m_proxyManager.saveSettings(m_currentProxyConfig.orElse(null), settings);
     }
@@ -994,6 +1013,7 @@ public class RestSettings {
         } catch (InvalidSettingsException e) { // NOSONAR
             // noop
         }
+        m_invalidURIPolicy = InvalidURIPolicy.loadSettingsFrom(settings);
         /* Backwards compatibility: if not present, missing headers are ignored.
          * Otherwise, the new default (see DEFAULT_FAIL_MISSING_HEADERS) is to fail. */
         m_isFailOnMissingHeaders = settings.getBoolean(FAIL_MISSING_HEADERS_KEY, false);
@@ -1092,6 +1112,7 @@ public class RestSettings {
         } catch (InvalidSettingsException e) { // NOSONAR
             // noop
         }
+        m_invalidURIPolicy = InvalidURIPolicy.loadSettingsFrom(settings);
         /* Backwards compatibility: if not present, missing headers are ignored.
          * Otherwise, the new default (see DEFAULT_FAIL_MISSING_HEADERS) is to fail. */
         m_isFailOnMissingHeaders = settings.getBoolean(FAIL_MISSING_HEADERS_KEY, false);

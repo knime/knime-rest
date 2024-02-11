@@ -49,7 +49,9 @@
 package org.knime.rest.nodes.common;
 
 import java.io.IOException;
+import java.net.MalformedURLException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -77,6 +79,7 @@ import org.knime.core.node.NodeLogger;
 import org.knime.core.util.ThreadLocalHTTPAuthenticator;
 import org.knime.rest.util.CooldownContext;
 import org.knime.rest.util.DelayPolicy;
+import org.knime.rest.util.InvalidURIPolicy;
 import org.knime.rest.util.StatusOnlyResponse;
 
 import jakarta.ws.rs.ProcessingException;
@@ -86,16 +89,15 @@ import jakarta.ws.rs.core.Response;
 
 /**
  * Houses the REST request execution logic for client nodes. This class is initialized
- * with the entire REST "execution context", and requires implementing {@link #createInvocationTriple(DataRow)}
- * and {@link #addProgress(DataRow)}.
+ * with the entire REST "execution context", and requires implementing {@link #createInvocationTriple(DataRow)}.
  * <p>
  * Fetching responses subject to two stages: the first call (initializing the response data format),
  * and subsequent requests, filling the data table. To provide both operations, this class also
  * defines the {@link MultiResponseHandler} interface, one of which is required upon creating
  * a {@link AbstractRequestExecutor} instance.
  * <p>
- * Additionally, this executor only conforms to the JAX-RS specification and does not use CXF specifics.
- * This decouples from the implementation, possibly allowing to replace the REST library.
+ * Additionally, this executor only conforms to the JAX-RS specification.
+ * This decouples from implementation specifics, possibly allowing to replace the REST library.
  *
  * @param <S> generic type of the REST settings used
  * @author Leon Wenzler, KNIME GmbH, Konstanz, Germany
@@ -108,8 +110,8 @@ public abstract class AbstractRequestExecutor<S extends RestSettings> extends Ab
 
     private static final long CHECK_INTERVAL_MS = 100L;
 
-    private static final String INVALID_URI_ERROR = "Invalid URI";
-    
+    static final DataCell[] EMPTY_RESPONSE = new DataCell[0];
+
     private final DataTableSpec m_tableSpec;
 
     private final S m_settings;
@@ -210,6 +212,24 @@ public abstract class AbstractRequestExecutor<S extends RestSettings> extends Ab
     }
 
     /**
+     * Creates a {@link MissingCell} from the exception message. If the exception is caused by an
+     * invalid {@link URI}, it prefixes the missing error with {@value InvalidURIPolicy#INVALID_URI_ERROR}.
+     *
+     * @param cause exception cause of the failed REST request
+     * @return missing cell with corresponding error message
+     */
+    private static MissingCell createMissingCell(final Throwable cause) {
+        final var message = cause.getMessage();
+        if (cause instanceof URISyntaxException || cause instanceof MalformedURLException) {
+            final var error = InvalidURIPolicy.INVALID_URI_ERROR;
+            return new MissingCell(StringUtils.isNotBlank(message) //
+                ? String.format("%s: %s", error, message) //
+                : error);
+        }
+        return new MissingCell(cause.getMessage());
+    }
+
+    /**
      * Core of the REST request execution. Create a new {@link Invocation} object from
      * the provided {@link DataRow}, as well as a {@link Client}, and performs a
      * single, synchronous request.
@@ -229,9 +249,10 @@ public abstract class AbstractRequestExecutor<S extends RestSettings> extends Ab
     private ResultPair performSingleRequest(final DataRow row)
             throws InvalidSettingsException, ProcessingException {
         // creating the request invocation can cause an ISE, see AP-20219
+        // if it is empty, the cause is an invalid URI
         final var maybeTriple = createInvocationTriple(row);
         if (maybeTriple.isEmpty()) {
-            return new ResultPair(null, new MissingCell(INVALID_URI_ERROR));
+            return new ResultPair(null, new MissingCell(InvalidURIPolicy.INVALID_URI_ERROR));
         }
         final var triple = maybeTriple.get();
         Response response = null;
@@ -246,7 +267,7 @@ public abstract class AbstractRequestExecutor<S extends RestSettings> extends Ab
                 throw new ProcessingException(getReadableIOCauseMessage(cause, triple.uri()), cause);
             } else {
                 response = tryReconstructResponse(cause.getMessage());
-                missing = new MissingCell(cause.getMessage());
+                missing = createMissingCell(cause);
             }
         } catch (Exception e) {
             LOGGER.debug("Call #%s failed: %s".formatted(m_consumedRows.get() + 1, e.getMessage()), e);
@@ -273,13 +294,10 @@ public abstract class AbstractRequestExecutor<S extends RestSettings> extends Ab
         Future<Response> responseFuture = null;
         try (var c = ThreadLocalHTTPAuthenticator.suppressAuthenticationPopups()) {
             /*
-             * The CXF implementation of Invocation#submit() is always blocking (not how futures are
-             * supposed to work), hence waiting for the future is somewhat pointless, even in the case:
-             *   - org.apache.cxf.transport.http.forceURLConnection=FALSE
-             *   - use.async.http.conduit=TRUE
-             *   - org.apache.cxf.transport.http.async.usePolicy=ALWAYS
-             * Generally, and for future implementation changes, it makes sense to have an interval-based
-             * check-up on the response, since the user could have canceled the node execution.
+             * Currently, we use a sync HTTP client, hence Invocation#submit() is always blocking, and
+             * there is no way for the user to cancel the node execution (and the REST request).
+             * For potential future changes to an async client, it makes sense to have an interval-based
+             * check-up on the response for the node execution to be cancelable.
              */
             final var future = invocation.submit(Response.class);
             responseFuture = Objects.requireNonNull(future);
@@ -299,6 +317,9 @@ public abstract class AbstractRequestExecutor<S extends RestSettings> extends Ab
     /**
      * Creates a REST {@link Invocation} object from the data row input. Encapsulates
      * the row's data (e.g. in the form of a target URI), and an underlying {@link Client}.
+     * <p>
+     * Will be {@link Optional#empty()}, if the invocation creation fails. As of now, this
+     * can only happen if the {@link URI} is invalid.
      *
      * @param row the data row currently processed
      * @return the invocation and client object if successful
@@ -337,6 +358,10 @@ public abstract class AbstractRequestExecutor<S extends RestSettings> extends Ab
     @SuppressWarnings("resource")
     public DataCell[] makeFirstCall(final DataRow row) throws InvalidSettingsException {
         final var result = performSingleRequest(row);
+        // handle early abort due to invalid URI
+        if (abortDueToInvalidURI(row, result.missing())) {
+            return EMPTY_RESPONSE;
+        }
         final var response = result.response();
         try {
             return m_responseHandler.handleFirstResponse(getTableSpec(), response, result.missing());
@@ -351,6 +376,33 @@ public abstract class AbstractRequestExecutor<S extends RestSettings> extends Ab
             }
         }
     }
+
+    /**
+     * Checks whether the request was aborted early due to an invalid URI.
+     * If this is the case, it is handled according to {@link RestSettings#getInvalidURIPolicy()}.
+     *
+     * @param row current data row
+     * @param missing the missing value cell, containing a possible error
+     * @return whether to abort (i.e. not handling the response)
+     */
+    private boolean abortDueToInvalidURI(final DataRow row, final MissingCell missing) {
+        if (missing != null && InvalidURIPolicy.isCausedByInvalidURI(missing)) {
+            if (m_settings.getInvalidURIPolicy() == InvalidURIPolicy.FAIL) {
+                throw new IllegalStateException(row == null //
+                        ? "You entered an invalid URI" //
+                        : "Found invalid URI in row: %s".formatted(row.getKey()));
+            }
+            /*
+             * If false, m_settings.getInvalidURIPolicy() must be InvalidURIPolicy.MISSING,
+             * and request-making will handle response and insert missing value.
+             * Note: row has to be null (i.e. no table input, URI is constant).
+             * For an the entire table input, a row filter is applied in all execution modes.
+             */
+            return m_settings.getInvalidURIPolicy() == InvalidURIPolicy.SKIP && row == null;
+        }
+        return false;
+    }
+
 
     /**
      * Multi-row request execution and response handling.
@@ -377,6 +429,10 @@ public abstract class AbstractRequestExecutor<S extends RestSettings> extends Ab
         final DataCell[] cells;
         try {
             final var result = performSingleRequest(row);
+            // handle early abort due to invalid URI
+            if (abortDueToInvalidURI(row, result.missing())) {
+                return EMPTY_RESPONSE;
+            }
             final var response = result.response();
             try {
                 cells = m_responseHandler.handleFollowingResponse(row, response, result.missing());

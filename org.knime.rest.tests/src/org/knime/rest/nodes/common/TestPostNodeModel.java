@@ -131,6 +131,6 @@ public final class TestPostNodeModel extends RestWithBodyNodeModel<RestWithBodyS
      */
     public DataCell[] getResponses() {
         final var firstValues = m_parsedResponseValues.values().stream().findFirst();
-        return firstValues.orElseGet(() -> new DataCell[0]);
+        return firstValues.orElseGet(() -> AbstractRequestExecutor.EMPTY_RESPONSE);
     }
 }

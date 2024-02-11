@@ -145,6 +145,6 @@ public final class TestGetNodeModel extends RestNodeModel<RestSettings> {
      */
     public DataCell[] getResponses() {
         final var firstValues = m_parsedResponseValues.values().stream().findFirst();
-        return firstValues.orElseGet(() -> new DataCell[0]);
+        return firstValues.orElseGet(() -> AbstractRequestExecutor.EMPTY_RESPONSE);
     }
 }
