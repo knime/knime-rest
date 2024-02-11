@@ -51,7 +51,6 @@ package org.knime.rest.nodes.common;
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
 import java.awt.Component;
-import java.awt.Container;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Frame;
@@ -59,7 +58,6 @@ import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.awt.KeyboardFocusManager;
-import java.awt.Window;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.FocusEvent;
@@ -85,14 +83,12 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import javax.swing.AbstractAction;
-import javax.swing.ActionMap;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.ButtonGroup;
 import javax.swing.DefaultCellEditor;
 import javax.swing.DefaultListCellRenderer;
-import javax.swing.InputMap;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
@@ -189,7 +185,7 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
     private final ErrorCausePanel m_errorCausePanel = new ErrorCausePanel();
 
     {
-        final ButtonGroup group = new ButtonGroup();
+        final var group = new ButtonGroup();
         group.add(m_constantUriOption);
         group.add(m_uriColumnOption);
     }
@@ -357,9 +353,8 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
             public Component getListCellRendererComponent(final JList<?> list, final Object value, final int index,
                 final boolean isSelected, final boolean cellHasFocus) {
                 setToolTipText(value.toString());
-                final Component res = super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
-                if (res instanceof JLabel) {
-                    final JLabel label = (JLabel)res;
+                final var res = super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+                if (res instanceof JLabel label) {
                     label.setFont(getFont().deriveFont(10f));
                 }
                 return res;
@@ -412,8 +407,8 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
      * @return Connection tab.
      */
     protected JPanel createConnectionSettingsTab() {
-        final JPanel ret = new JPanel(new GridBagLayout());
-        final GridBagConstraints gbc = new GridBagConstraints();
+        final var ret = new JPanel(new GridBagLayout());
+        final var gbc = new GridBagConstraints();
         gbc.anchor = GridBagConstraints.FIRST_LINE_START;
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.insets = new Insets(2, 4, 2, 4);
@@ -443,7 +438,7 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         ret.add(m_useDelay, gbc);
         gbc.gridx++;
         gbc.weightx = 0;
-        final Dimension preferredSpinnerSize = new Dimension(75, 20);
+        final var preferredSpinnerSize = new Dimension(75, 20);
         gbc.fill = GridBagConstraints.NONE;
         m_delay.setPreferredSize(preferredSpinnerSize);
         ret.add(m_delay, gbc);
@@ -461,7 +456,7 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         gbc.gridwidth = 3;
         gbc.weightx = 1;
         gbc.fill = GridBagConstraints.HORIZONTAL;
-        final JPanel sslPanel = new JPanel();
+        final var sslPanel = new JPanel();
         sslPanel.setBorder(new TitledBorder("SSL"));
         sslPanel.setLayout(new BoxLayout(sslPanel, BoxLayout.PAGE_AXIS));
         sslPanel.add(m_sslIgnoreHostnameMismatches);
@@ -521,10 +516,10 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         if (selectedRow < 0) {
             return;
         }
-        final Window windowAncestor = SwingUtilities.getWindowAncestor(getPanel());
-        final Frame frame = windowAncestor instanceof Frame ? (Frame)windowAncestor : null;
-        final JDialog dialog = new JDialog(frame, "Edit", true);
-        Dimension dimension = new Dimension(550, 200);
+        final var windowAncestor = SwingUtilities.getWindowAncestor(getPanel());
+        final var frame = windowAncestor instanceof Frame f ? f : null;
+        final var dialog = new JDialog(frame, "Edit", true);
+        final var dimension = new Dimension(550, 200);
         dialog.setPreferredSize(dimension);
         dialog.setLocationRelativeTo(frame);
         if (frame != null) {
@@ -532,9 +527,9 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
                 (int)(frame.getLocationOnScreen().getX() + frame.getWidth() / 2 - dimension.getWidth() / 2),
                 (int)(frame.getLocationOnScreen().getY() + frame.getHeight() / 2 - dimension.getHeight() / 2));
         }
-        final Container cp = dialog.getContentPane();
-        final JPanel outer = new JPanel(new BorderLayout());
-        final JPanel panel = new JPanel(new GridBagLayout());
+        final var cp = dialog.getContentPane();
+        final var outer = new JPanel(new BorderLayout());
+        final var panel = new JPanel(new GridBagLayout());
         addRequestSettingControls(panel);
         m_requestHeaderKeyPopup.setSelectedItem(
             m_requestHeadersModel.getValueAt(selectedRow, RequestTableModel.Columns.headerKey.ordinal()));
@@ -543,7 +538,7 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         m_requestHeaderValueTypePopup
             .setSelectedItem(m_requestHeadersModel.getValueAt(selectedRow, RequestTableModel.Columns.kind.ordinal()));
         outer.add(panel, BorderLayout.CENTER);
-        final JPanel controls = new JPanel();
+        final var controls = new JPanel();
         outer.add(controls, BorderLayout.SOUTH);
         cp.add(outer);
         controls.setLayout(new BoxLayout(controls, BoxLayout.LINE_AXIS));
@@ -552,8 +547,7 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
             @Override
             public void actionPerformed(final ActionEvent e) {
                 Object source = e.getSource();
-                if (source instanceof JComponent) {
-                    final JComponent comp = (JComponent)source;
+                if (source instanceof JComponent comp) {
                     comp.grabFocus();
                 }
                 SwingUtilities.invokeLater(() -> {
@@ -598,10 +592,10 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         if (selectedRow < 0) {
             return;
         }
-        final Window windowAncestor = SwingUtilities.getWindowAncestor(getPanel());
-        final Frame frame = windowAncestor instanceof Frame ? (Frame)windowAncestor : null;
-        final JDialog dialog = new JDialog(frame, "Edit", true);
-        final Dimension dimension = new Dimension(550, 200);
+        final var windowAncestor = SwingUtilities.getWindowAncestor(getPanel());
+        final var frame = windowAncestor instanceof Frame f ? f : null;
+        final var dialog = new JDialog(frame, "Edit", true);
+        final var dimension = new Dimension(550, 200);
         dialog.setPreferredSize(dimension);
         dialog.setLocationRelativeTo(frame);
         if (frame != null) {
@@ -609,9 +603,9 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
                 (int)(frame.getLocationOnScreen().getX() + frame.getWidth() / 2 - dimension.getWidth() / 2),
                 (int)(frame.getLocationOnScreen().getY() + frame.getHeight() / 2 - dimension.getHeight() / 2));
         }
-        final Container cp = dialog.getContentPane();
-        final JPanel outer = new JPanel(new BorderLayout());
-        final JPanel panel = new JPanel(new GridBagLayout());
+        final var cp = dialog.getContentPane();
+        final var outer = new JPanel(new BorderLayout());
+        final var panel = new JPanel(new GridBagLayout());
         addResponseSettingControls(panel);
         m_responseHeaderKey.setText(
             (String)m_responseHeadersModel.getValueAt(selectedRow, ResponseTableModel.Columns.headerKey.ordinal()));
@@ -620,7 +614,7 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         m_responseValueType.setSelectedItem(((Pair<?, ?>)m_responseHeadersModel.getValueAt(selectedRow,
             ResponseTableModel.Columns.outputColumn.ordinal())).getSecond());
         outer.add(panel, BorderLayout.CENTER);
-        final JPanel controls = new JPanel();
+        final var controls = new JPanel();
         outer.add(controls, BorderLayout.SOUTH);
         cp.add(outer);
         controls.setLayout(new BoxLayout(controls, BoxLayout.LINE_AXIS));
@@ -652,7 +646,7 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
      * @param panel The panel to be used to add the request settings.
      */
     protected void addRequestSettingControls(final JPanel panel) {
-        GridBagConstraints gbc = new GridBagConstraints();
+        final var gbc = new GridBagConstraints();
         gbc.insets = new Insets(4, 4, 4, 4);
         gbc.anchor = GridBagConstraints.FIRST_LINE_START;
         gbc.gridy = 0;
@@ -684,7 +678,7 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
      * @param panel The panel to be used for response settings.
      */
     protected void addResponseSettingControls(final JPanel panel) {
-        GridBagConstraints gbc = new GridBagConstraints();
+        final var gbc = new GridBagConstraints();
         gbc.insets = new Insets(4, 4, 4, 4);
         gbc.anchor = GridBagConstraints.FIRST_LINE_START;
         gbc.gridy = 0;
@@ -715,18 +709,18 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
      * @return The authentication tab.
      */
     protected JPanel createAuthenticationTab() {
-        final JPanel ret = new JPanel();
+        final var ret = new JPanel();
         ret.setLayout(new BoxLayout(ret, BoxLayout.PAGE_AXIS));
-        final JPanel radioButtons = new JPanel(new FlowLayout());
+        final var radioButtons = new JPanel(new FlowLayout());
         ret.add(radioButtons);
-        final JPanel tabs = new JPanel(new CardLayout());
-        final ButtonGroup buttonGroup = new ButtonGroup();
+        final var tabs = new JPanel(new CardLayout());
+        final var buttonGroup = new ButtonGroup();
         for (final EnablableUserConfiguration<UserConfiguration> euc : m_settings.getAuthorizationConfigurations()) {
-            final JPanel tabPanel = new JPanel();
-            final JScrollPane scrollPane = new JScrollPane(tabPanel);
-            final UserConfiguration userConfiguration = euc.getUserConfiguration();
+            final var tabPanel = new JPanel();
+            final var scrollPane = new JScrollPane(tabPanel);
+            final var userConfiguration = euc.getUserConfiguration();
             tabs.add(euc.getName(), scrollPane);
-            final JRadioButton radioButton = new JRadioButton(euc.getName());
+            final var radioButton = new JRadioButton(euc.getName());
             buttonGroup.add(radioButton);
             radioButtons.add(radioButton);
             radioButton.setAction(new AbstractAction(euc.getName()) {
@@ -862,8 +856,8 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
     }
 
     private Component createErrorHandlingTab() {
-        final JPanel container = new JPanel(new GridBagLayout());
-        GridBagConstraints gbc = FramedPanel.initGridBagConstraints();
+        final var container = new JPanel(new GridBagLayout());
+        final var gbc = FramedPanel.initGridBagConstraints();
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.anchor = GridBagConstraints.FIRST_LINE_START;
         container.add(m_connectionErrorPanel, gbc);
@@ -895,7 +889,7 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         final ActionListener updateRequestValueAlternatives = al -> updateRequestValueAlternatives(m_requestHeaderKey,
             m_requestHeaderValue, m_requestHeaderValueType, false);
         m_requestHeaderKey.addActionListener(updateRequestValueAlternatives);
-        final TableColumn keyCol = new TableColumn(RequestTableModel.Columns.headerKey.ordinal(), 67,
+        final var keyCol = new TableColumn(RequestTableModel.Columns.headerKey.ordinal(), 67,
             new DefaultTableCellRenderer(), new FixedCellEditorForComboBoxes(m_requestHeaderKey));
         keyCol.setHeaderValue("Header Key");
         m_requestHeaders.getColumnModel().addColumn(keyCol);
@@ -905,7 +899,7 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
             new DefaultCellEditor(m_requestHeaderValueType)));
         m_requestHeaders.setRowHeight(20);
         m_requestHeaderValueType.addActionListener(updateRequestValueAlternatives);
-        final ButtonCell deleteRequestRow = new ButtonCell();
+        final var deleteRequestRow = new ButtonCell();
         deleteRequestRow.setAction(new AbstractAction(" X ") {
             private static final long serialVersionUID = 1369259160048695493L;
 
@@ -916,7 +910,7 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
                 }
             }
         });
-        final TableColumn deleteRowColumn =
+        final var deleteRowColumn =
             new TableColumn(RequestTableModel.Columns.delete.ordinal(), 15, deleteRequestRow, deleteRequestRow);
         deleteRowColumn.setMaxWidth(25);
         m_requestHeaders.getColumnModel().addColumn(deleteRowColumn);
@@ -954,7 +948,7 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
             .setToolTipText("Merge the template values with the current settings (adds rows not present)");
         m_requestHeaderTemplateMerge.addActionListener(e -> {
             final Set<String> keysPresent = new HashSet<>();
-            for (int i = 0; i < m_requestHeadersModel.getRowCount(); ++i) {
+            for (var i = 0; i < m_requestHeadersModel.getRowCount(); ++i) {
                 keysPresent.add((String)m_requestHeadersModel.getValueAt(i, 0));
             }
             updateRequestHeaderKeys();
@@ -975,15 +969,15 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
             }
         });
 
-        final JPanel ret = new JPanel(new GridBagLayout());
-        final GridBagConstraints gbc = new GridBagConstraints();
+        final var ret = new JPanel(new GridBagLayout());
+        final var gbc = new GridBagConstraints();
         gbc.anchor = GridBagConstraints.FIRST_LINE_START;
         gbc.insets = new Insets(2, 4, 2, 4);
         gbc.weightx = 0;
         gbc.gridx = 0;
         gbc.gridy = 0;
         gbc.fill = GridBagConstraints.BOTH;
-        final JLabel templateLabel = new JLabel("Template:");
+        final var templateLabel = new JLabel("Template:");
         templateLabel.setHorizontalAlignment(SwingConstants.RIGHT);
         templateLabel.setVerticalAlignment(SwingConstants.CENTER);
         ret.add(templateLabel, gbc);
@@ -1079,8 +1073,7 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
                             .ifPresent(values -> values.forEach(requestHeaderValue::addItem)));
                 }
                 break;
-            case CredentialName://Intentional fall through
-            case CredentialPassword:
+            case CredentialName, CredentialPassword:
                 for (final String credential : m_credentials) {
                     requestHeaderValue.addItem(credential);
                 }
@@ -1125,9 +1118,10 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
 
     @SuppressWarnings("serial")
     private void deleteAndInsertRowRequestHeaderActions() {
-        final ActionMap actionMap = m_requestHeaders.getActionMap();
-        final String delete = "deleteRow", insert = "insertRow";
-        final InputMap inputMap = m_requestHeaders.getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT);
+        final var actionMap = m_requestHeaders.getActionMap();
+        final var delete = "deleteRow";
+        final var insert = "insertRow";
+        final var inputMap = m_requestHeaders.getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT);
         inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, 0), delete);
         inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_INSERT, 0), insert);
         inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "escape");
@@ -1178,7 +1172,7 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
                 .removeColumn(m_responseHeaders.getColumnModel().getColumns().nextElement());
         }
         m_responseHeaderKeyCellRenderer = new DefaultTableCellRenderer();
-        final TableColumn keyCol =
+        final var keyCol =
             new TableColumn(0, 67, m_responseHeaderKeyCellRenderer, new DefaultCellEditor(m_responseHeaderKey));
         keyCol.setHeaderValue("Key");
         m_responseHeaders.getColumnModel().addColumn(keyCol);
@@ -1189,16 +1183,14 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
             @Override
             public Component getTableCellRendererComponent(final JTable table, final Object value,
                 final boolean isSelected, final boolean hasFocus, final int row, final int column) {
-                final Component orig =
+                final var orig =
                     super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
-                if (value instanceof Pair<?, ?>) {
-                    final Pair<?, ?> rawPair = (Pair<?, ?>)value;
-                    final Object firstObject = rawPair.getFirst(), secondObject = rawPair.getSecond();
-                    if (firstObject instanceof String) {
-                        final String colName = (String)firstObject;
+                if (value instanceof Pair<?, ?> rawPair) {
+                    final var firstObject = rawPair.getFirst();
+                    final var secondObject = rawPair.getSecond();
+                    if (firstObject instanceof String colName) {
                         setText(colName);
-                        if (secondObject instanceof DataType) {
-                            final DataType type = (DataType)secondObject;
+                        if (secondObject instanceof DataType type) {
                             setIcon(type.getIcon());
                         }
                     }
@@ -1213,12 +1205,11 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
             @Override
             public Object getCellEditorValue() {
                 final Object orig = super.getCellEditorValue();
-                if (orig instanceof Pair<?, ?>) {
-                    final Pair<?, ?> pairRaw = (Pair<?, ?>)orig;
-                    if (pairRaw.getFirst() instanceof String) {
-                        return pairRaw.getFirst();
+                if (orig instanceof Pair<?, ?> rawPair) {
+                    if (rawPair.getFirst() instanceof String) {
+                        return rawPair.getFirst();
                     }
-                    assert false : pairRaw.getFirst();
+                    assert false : rawPair.getFirst();
                 }
                 return orig;
             }
@@ -1229,14 +1220,13 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
             @Override
             public Component getTableCellEditorComponent(final JTable table, final Object value,
                 final boolean isSelected, final int row, final int column) {
-                if (value instanceof Pair<?, ?>) {
-                    final Pair<?, ?> pairRaw = (Pair<?, ?>)value;
-                    return super.getTableCellEditorComponent(table, pairRaw.getFirst(), isSelected, row, column);
+                if (value instanceof Pair<?, ?> rawPair) {
+                    return super.getTableCellEditorComponent(table, rawPair.getFirst(), isSelected, row, column);
                 }
                 return super.getTableCellEditorComponent(table, value, isSelected, row, column);
             }
         };
-        final TableColumn columnColumn =
+        final var columnColumn =
             new TableColumn(1, 67, m_responseHeaderValueCellRenderer, m_responseValueCellEditor);
         columnColumn.setHeaderValue("Column");
         m_responseHeaders.getColumnModel().addColumn(columnColumn);
@@ -1251,8 +1241,8 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
             .addActionListener(e -> m_responseHeadersModel.removeRow(m_responseHeaders.getSelectedRow()));
         m_responseEditRow.addActionListener(e -> editResponseHeader(m_responseHeaders.getSelectedRow()));
 
-        final JPanel ret = new JPanel(new GridBagLayout());
-        final GridBagConstraints gbc = new GridBagConstraints();
+        final var ret = new JPanel(new GridBagLayout());
+        final var gbc = new GridBagConstraints();
         gbc.insets = new Insets(2, 4, 2, 4);
         gbc.gridx = 0;
         gbc.gridy = 0;
@@ -1359,7 +1349,7 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         for (final EnablableUserConfiguration<UserConfiguration> euc : m_settings.getAuthorizationConfigurations()) {
             euc.getUserConfiguration().updateSettings();
         }
-        DelayPolicy delayPolicy =
+        var delayPolicy =
             new DelayPolicy(m_serverErrorPanel.getRetryDelay(), m_serverErrorPanel.getNumRetries(),
                 m_rateLimitPanel.getDelay(), m_serverErrorPanel.isRetryEnabled(), m_rateLimitPanel.isActive());
         m_settings.setDelayPolicy(delayPolicy);
@@ -1444,7 +1434,7 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
                 }
             }
         } else {
-            DataTableSpec dummySpec = new DataTableSpec();
+            var dummySpec = new DataTableSpec();
             m_uriColumn.update(dummySpec, m_settings.getUriColumn(), false, true);
             if (!m_settings.isUseConstantURI()) {
                 m_uriColumnOption.setSelected(true);
@@ -1467,7 +1457,7 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         m_serverErrorPanel.setFailOnError(m_settings.isFailOnServerErrors());
         m_clientErrorPanel.setFailOnError(m_settings.isFailOnClientErrors());
 
-        DelayPolicy delayPolicy = m_settings.getDelayPolicy();
+        var delayPolicy = m_settings.getDelayPolicy();
 
         m_serverErrorPanel.setActive(delayPolicy.isRetriesEnabled());
         m_serverErrorPanel.setRetryDelay(delayPolicy.getRetryBase());
@@ -1481,14 +1471,14 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         m_followRedirects.setSelected(m_settings.isFollowRedirects());
         m_timeoutInSeconds.setValue(m_settings.getTimeoutInSeconds());
         m_requestHeadersModel.clear();
-        for (int i = 0; i < m_settings.getRequestHeaders().size(); ++i) {
+        for (var i = 0; i < m_settings.getRequestHeaders().size(); ++i) {
             m_requestHeadersModel.addRow(m_settings.getRequestHeaders().get(i));
         }
         enableRequestHeaderChangeControls(!m_settings.getRequestHeaders().isEmpty());
         m_failOnMissingHeaderCheck.setSelected(m_settings.isFailOnMissingHeaders());
         m_extractAllHeaders.setSelected(m_settings.isExtractAllResponseFields());
         m_responseHeadersModel.clear();
-        for (int i = 0; i < m_settings.getExtractFields().size(); ++i) {
+        for (var i = 0; i < m_settings.getExtractFields().size(); ++i) {
             m_responseHeadersModel.addRow(m_settings.getExtractFields().get(i));
         }
         m_settings.isAllowChunking().ifPresent(m_allowChunking::setSelected);
