@@ -58,6 +58,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.LongPredicate;
 import java.util.regex.Pattern;
 
 import org.apache.commons.lang3.StringUtils;
@@ -74,7 +75,6 @@ import org.knime.core.node.ExecutionMonitor;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeLogger;
 import org.knime.core.util.ThreadLocalHTTPAuthenticator;
-import org.knime.core.util.ThreadLocalHTTPAuthenticator.AuthenticationCloseable;
 import org.knime.rest.util.CooldownContext;
 import org.knime.rest.util.DelayPolicy;
 import org.knime.rest.util.StatusOnlyResponse;
@@ -105,6 +105,8 @@ public abstract class AbstractRequestExecutor<S extends RestSettings> extends Ab
 
     private static final Pattern STATUS_IN_EXCEPTION = Pattern.compile("[1-5]\\d{2}");
 
+    private static final long CHECK_INTERVAL_MS = 100L;
+
     private static final String INVALID_URI_ERROR = "Invalid URI";
 
     private final DataTableSpec m_tableSpec;
@@ -132,7 +134,7 @@ public abstract class AbstractRequestExecutor<S extends RestSettings> extends Ab
         m_settings = settings;
         m_responseHandler = handler;
         m_cooldownContext = cooldown;
-        m_monitor = monitor;
+        m_monitor = Objects.requireNonNullElseGet(monitor, ExecutionMonitor::new);
         m_consumedRows = consumedRows;
     }
 
@@ -349,9 +351,10 @@ public abstract class AbstractRequestExecutor<S extends RestSettings> extends Ab
             }
             // future improvement: only when we are requesting from the same domain
             if (m_settings.isUseDelay()) {
-                for (long waitTime = m_settings.getDelay(); waitTime > 0; waitTime -= 100L) {
-                    sleepWithMonitor(waitTime);
-                }
+                sleepWithMonitor(m_settings.getDelay(), t -> {
+                    m_monitor.setMessage("Waiting until next call: %ss".formatted(TimeUnit.MILLISECONDS.toSeconds(t)));
+                    return false; // wait entire time, no wake up condition
+                });
             }
         } catch (CanceledExecutionException | InvalidSettingsException e) {
             // (1) cannot check for cancelled properly, so this workaround
@@ -374,25 +377,47 @@ public abstract class AbstractRequestExecutor<S extends RestSettings> extends Ab
      * @throws ProcessingException Some problem client-side.
      */
     private Response invoke(final Invocation invocation) throws ProcessingException {
-        try (AuthenticationCloseable c = ThreadLocalHTTPAuthenticator.suppressAuthenticationPopups()) {
-            final Future<Response> responseFuture = invocation.submit(Response.class);
-            try {
-                return responseFuture.get(m_settings.getTimeoutInSeconds(), TimeUnit.SECONDS);
-            } catch (InterruptedException | ExecutionException | TimeoutException e) { //NOSONAR
-                if (e.getCause() instanceof ProcessingException pe) {
-                    throw pe;
-                }
-                throw new ProcessingException(e);
+        Future<Response> responseFuture = null;
+        try (var c = ThreadLocalHTTPAuthenticator.suppressAuthenticationPopups()) {
+            /*
+             * Currently, we use a sync HTTP client (AP-20585 and AP-21786), hence Invocation#submit() is
+             * always blocking, and there is no way for the user to cancel the node execution (and REST request).
+             * For potential future changes to an async client, it makes sense to have an interval-based
+             * check-up on the response for the node execution to be cancelable.
+             */
+            final var future = invocation.submit(Response.class);
+            responseFuture = Objects.requireNonNull(future);
+            sleepWithMonitor(TimeUnit.SECONDS.toMillis(m_settings.getTimeoutInSeconds()), t -> future.isDone());
+            return future.get(0, TimeUnit.SECONDS);
+        } catch (CanceledExecutionException e) {
+            responseFuture.cancel(true);
+            throw new ProcessingException(e);
+        } catch (InterruptedException | ExecutionException | TimeoutException e) { // NOSONAR
+            if (e.getCause() instanceof ProcessingException pe) {
+                throw pe;
             }
+            throw new ProcessingException(e);
         }
     }
 
-    private void sleepWithMonitor(final long waitTime) throws CanceledExecutionException {
-        m_monitor.setMessage("Waiting till next call: " + waitTime / 1000d + "s");
-        try {
-            Thread.sleep(Math.min(waitTime, 100L));
-        } catch (InterruptedException e) { //NOSONAR
-            m_monitor.checkCanceled();
+    private void sleepWithMonitor(final long delay, final LongPredicate condition)
+            throws CanceledExecutionException {
+        m_monitor.checkCanceled();
+        final var t0 = System.currentTimeMillis();
+        var waited = 0L;
+        while (waited < delay) {
+            try {
+                Thread.sleep(Math.min(delay - waited, CHECK_INTERVAL_MS));
+                m_monitor.checkCanceled();
+                waited = System.currentTimeMillis() - t0;
+                if (condition.test(waited)) {
+                    return;
+                }
+            } catch (InterruptedException e) { // NOSONAR
+                m_monitor.checkCanceled();
+                LOGGER.debug("Thread has been interrupted while waiting for next REST call to make", e);
+            }
+
         }
     }
 
@@ -403,9 +428,7 @@ public abstract class AbstractRequestExecutor<S extends RestSettings> extends Ab
      * @param row the current data row
      */
     private void addProgress(final DataRow row) {
-        if (m_monitor != null) {
-            setProgress(m_consumedRows.get(), m_tableSize, RestNodeModel.getRowKey(row), m_monitor);
-        }
+        setProgress(m_consumedRows.get(), m_tableSize, RestNodeModel.getRowKey(row), m_monitor);
     }
 
     // -- HANDLER & RESULT DECLARATIONS --
