@@ -105,7 +105,7 @@ public class AuthenticationWithProxyTest {
      */
     @Test
     void noAuthHttpTest() {
-        assertRequestFor("http://www.neverssl.com", null);
+        assertRequestFor("http://httpbin.testing.knime.com/anything", null);
     }
 
     /**
