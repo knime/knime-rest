@@ -48,8 +48,8 @@
  */
 package org.knime.rest.util;
 
-import java.net.URI;
-import java.net.URISyntaxException;
+import java.net.MalformedURLException;
+import java.net.URL;
 
 import org.knime.base.data.filter.row.FilterRowGenerator;
 import org.knime.core.data.DataRow;
@@ -62,11 +62,11 @@ import org.knime.core.node.util.ButtonGroupEnumInterface;
 import org.knime.rest.nodes.common.RestNodeModel;
 
 /**
- * Describes all options for invalid URI handling in REST client nodes.
+ * Describes all options for invalid URL handling in REST client nodes.
  *
  * @author Leon Wenzler, KNIME GmbH, Konstanz, Germany
  */
-public enum InvalidURIPolicy implements ButtonGroupEnumInterface {
+public enum InvalidURLPolicy implements ButtonGroupEnumInterface {
         /** Inserts a {@link MissingCell} */
         MISSING {
             @Override
@@ -74,7 +74,7 @@ public enum InvalidURIPolicy implements ButtonGroupEnumInterface {
                 return "Insert missing value";
             }
         },
-        /** Fails on encountering at least one invalid URI. */
+        /** Fails on encountering at least one invalid URL. */
         FAIL {
             @Override
             public String getText() {
@@ -91,16 +91,16 @@ public enum InvalidURIPolicy implements ButtonGroupEnumInterface {
 
     /**
      * The error which indicates that a REST invocation could not be created
-     * due to an invalid, supplied {@link URI}.
+     * due to an invalid, supplied {@link URL}.
      */
-    public static final String INVALID_URI_ERROR = "Invalid URL";
+    public static final String INVALID_URL_ERROR = "Invalid URL";
 
     /**
-     * The default value of the invalid URI policy.
+     * The default value of the invalid URL policy.
      */
-    public static final InvalidURIPolicy DEFAULT_POLICY = InvalidURIPolicy.MISSING;
+    public static final InvalidURLPolicy DEFAULT_POLICY = InvalidURLPolicy.MISSING;
 
-    private static final String SETTINGS_KEY = "Invalid URI handling";
+    private static final String SETTINGS_KEY = "Invalid URL handling";
 
     /**
      * Creates a settings model, representing this type.
@@ -112,18 +112,18 @@ public enum InvalidURIPolicy implements ButtonGroupEnumInterface {
     }
 
     /**
-     * Identifies the URI policy from the settings.
+     * Identifies the URL policy from the settings.
      *
      * @param settings NodeSettings
-     * @return InvalidURIPolicy
+     * @return InvalidURLPolicy
      */
-    public static InvalidURIPolicy loadSettingsFrom(final NodeSettingsRO settings) {
+    public static InvalidURLPolicy loadSettingsFrom(final NodeSettingsRO settings) {
         try {
             final var model = createSettingsModel();
             model.loadSettingsFrom(settings);
-            return InvalidURIPolicy.valueOf(model.getStringValue());
+            return InvalidURLPolicy.valueOf(model.getStringValue());
         } catch (InvalidSettingsException | IllegalArgumentException ignored) { // NOSONAR
-            /* Backwards compatibility (introduced with 5.3): if not present, invalid URIs insert missing. */
+            /* Backwards compatibility (introduced with 5.3): if not present, invalid URLs insert missing. */
             return DEFAULT_POLICY;
         }
     }
@@ -157,29 +157,29 @@ public enum InvalidURIPolicy implements ButtonGroupEnumInterface {
     /**
      * Returns the policy-corresponding {@link FilterRowGenerator} for data tables.
      *
-     * @param columnIndex URI column index
-     * @return row filter, filtering rows where an invalid URI was detected
+     * @param columnIndex URL column index
+     * @return row filter, filtering rows where an invalid URL was detected
      */
     public FilterRowGenerator createRowFilter(final int columnIndex) {
         if (this != SKIP) {
             return row -> true;
         }
-        return row -> isValidURIPresent(row, columnIndex);
+        return row -> isValidURLPresent(row, columnIndex);
     }
 
     /**
-     * Checks whether a valid HTTP(S) URI is present is the specified data cell by checking if retrieving
-     * the {@link URI} object throws a {@link URISyntaxException}.
+     * Checks whether a valid HTTP(S) URL is present is the specified data cell by checking if retrieving
+     * the {@link URL} object throws a {@link URLSyntaxException}.
      *
      * @param row data row
-     * @param columnIndex index of the URI column
-     * @return is a valid URI present?
+     * @param columnIndex index of the URL column
+     * @return is a valid URL present?
      */
-    private static boolean isValidURIPresent(final DataRow row, final int columnIndex) {
+    private static boolean isValidURLPresent(final DataRow row, final int columnIndex) {
         try {
-            RestNodeModel.getURIFromRow(row, columnIndex);
+            RestNodeModel.getURLFromRow(row, columnIndex);
             return true;
-        } catch (URISyntaxException ignored) { // NOSONAR presence of exception is indicator
+        } catch (MalformedURLException ignored) { // NOSONAR presence of exception is indicator
             return false;
         }
     }

@@ -144,7 +144,7 @@ import org.knime.rest.nodes.common.proxy.ProxyMode;
 import org.knime.rest.nodes.common.proxy.RestProxyConfig;
 import org.knime.rest.nodes.common.proxy.RestProxyConfigManager;
 import org.knime.rest.util.DelayPolicy;
-import org.knime.rest.util.InvalidURIPolicy;
+import org.knime.rest.util.InvalidURLPolicy;
 
 /**
  * Common dialog for the REST nodes. It adds the following tabs by default:
@@ -171,9 +171,9 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
 
     private final S m_settings = createSettings();
 
-    private final JRadioButton m_constantUriOption = new JRadioButton("URL: ");
+    private final JRadioButton m_constantURLOption = new JRadioButton("URL: ");
 
-    private final JRadioButton m_uriColumnOption = new JRadioButton("URL column: ");
+    private final JRadioButton m_urlColumnOption = new JRadioButton("URL column: ");
 
     private final ConnectionErrorPanel m_connectionErrorPanel = new ConnectionErrorPanel();
 
@@ -187,19 +187,19 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
 
     {
         final var group = new ButtonGroup();
-        group.add(m_constantUriOption);
-        group.add(m_uriColumnOption);
+        group.add(m_constantURLOption);
+        group.add(m_urlColumnOption);
     }
 
-    private final StringHistoryPanel m_constantUri = new StringHistoryPanel(getClass().getName());
+    private final StringHistoryPanel m_constantURL = new StringHistoryPanel(getClass().getName());
 
-    private final ColumnSelectionPanel m_uriColumn = new ColumnSelectionPanel(StringValue.class, URIDataValue.class);
+    private final ColumnSelectionPanel m_urlColumn = new ColumnSelectionPanel(StringValue.class, URIDataValue.class);
 
-    private final DialogComponentButtonGroup m_invalidURIPolicySelector = new DialogComponentButtonGroup( //
-        InvalidURIPolicy.createSettingsModel(), //
-        "Invalid URL handling", //
+    private final DialogComponentButtonGroup m_invalidURLPolicySelector = new DialogComponentButtonGroup( //
+        InvalidURLPolicy.createSettingsModel(), //
+        "Handling of invalid URLs", //
         false, //
-        InvalidURIPolicy.values());
+        InvalidURLPolicy.values());
 
     private final JCheckBox m_useDelay = new JCheckBox("Delay (ms): ");
 
@@ -423,29 +423,29 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         gbc.gridy = 0;
         gbc.weightx = 0;
         gbc.weighty = 0;
-        ret.add(m_constantUriOption, gbc);
+        ret.add(m_constantURLOption, gbc);
         gbc.gridx++;
         gbc.weightx = 1;
         gbc.gridwidth = 2;
-        ret.add(m_constantUri, gbc);
+        ret.add(m_constantURL, gbc);
         gbc.gridx = 0;
         gbc.gridy++;
         gbc.gridwidth = 1;
         gbc.weightx = 0;
-        ret.add(m_uriColumnOption, gbc);
+        ret.add(m_urlColumnOption, gbc);
         gbc.gridx++;
         gbc.weightx = 1;
-        m_uriColumn.setBorder(null);
+        m_urlColumn.setBorder(null);
         gbc.gridwidth = 2;
-        ret.add(m_uriColumn, gbc);
+        ret.add(m_urlColumn, gbc);
         gbc.gridx = 0;
         gbc.gridy++;
         gbc.gridwidth = 3;
         gbc.weightx = 1;
         gbc.fill = GridBagConstraints.HORIZONTAL;
-        final var uriPanel = m_invalidURIPolicySelector.getComponentPanel();
-        uriPanel.setLayout(new BoxLayout(uriPanel, BoxLayout.PAGE_AXIS));
-        ret.add(uriPanel, gbc);
+        final var urlPanel = m_invalidURLPolicySelector.getComponentPanel();
+        urlPanel.setLayout(new BoxLayout(urlPanel, BoxLayout.PAGE_AXIS));
+        ret.add(urlPanel, gbc);
         gbc.gridy++;
         ret.add(m_useDelay, gbc);
         gbc.gridx++;
@@ -503,17 +503,17 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         ret.add(new JPanel(), gbc);
 
         m_useDelay.addActionListener(e -> m_delay.setEnabled(m_useDelay.isSelected()));
-        m_constantUriOption.addActionListener(e -> {
-            m_constantUri.setEnabled(m_constantUriOption.isSelected());
-            m_uriColumn.setEnabled(!m_constantUriOption.isSelected());
+        m_constantURLOption.addActionListener(e -> {
+            m_constantURL.setEnabled(m_constantURLOption.isSelected());
+            m_urlColumn.setEnabled(!m_constantURLOption.isSelected());
         });
-        m_uriColumnOption.addActionListener(e -> {
-            m_uriColumn.setEnabled(m_uriColumnOption.isSelected());
-            m_constantUri.setEnabled(!m_uriColumnOption.isSelected());
+        m_urlColumnOption.addActionListener(e -> {
+            m_urlColumn.setEnabled(m_urlColumnOption.isSelected());
+            m_constantURL.setEnabled(!m_urlColumnOption.isSelected());
         });
-        m_constantUriOption.setSelected(true);
-        m_uriColumn.setEnabled(false);
-        m_uriColumn.setRequired(false);
+        m_constantURLOption.setSelected(true);
+        m_urlColumn.setEnabled(false);
+        m_urlColumn.setRequired(false);
         m_delay.setEnabled(false);
         return ret;
     }
@@ -1333,13 +1333,13 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
                 euc.setEnabled(m_authenticationTabTitles.get(euc.getName()).isSelected());
             }
         }
-        m_settings.setUseConstantURI(m_constantUriOption.isSelected());
-        m_settings.setConstantURI(m_constantUri.getSelectedString());
-        if (m_constantUriOption.isSelected()) {
-            m_constantUri.commitSelectedToHistory();
+        m_settings.setUseConstantURL(m_constantURLOption.isSelected());
+        m_settings.setConstantURL(m_constantURL.getSelectedString());
+        if (m_constantURLOption.isSelected()) {
+            m_constantURL.commitSelectedToHistory();
         }
-        m_settings.setUriColumn(m_uriColumn.getSelectedColumn());
-        m_settings.setInvalidURIPolicy(((SettingsModelString)m_invalidURIPolicySelector.getModel()).getStringValue());
+        m_settings.setURLColumn(m_urlColumn.getSelectedColumn());
+        m_settings.setInvalidURLPolicy(((SettingsModelString)m_invalidURLPolicySelector.getModel()).getStringValue());
         m_settings.setUseDelay(m_useDelay.isSelected());
         m_settings.setDelay(((Number)m_delay.getValue()).longValue());
         m_settings.setConcurrency(((Number)m_concurrency.getValue()).intValue());
@@ -1426,41 +1426,41 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         m_flowVariables.addAll(getAvailableFlowVariables().keySet());
         m_credentials.clear();
         m_credentials.addAll(getCredentialsNames());
-        m_constantUriOption.setSelected(m_settings.isUseConstantURI());
-        m_constantUri.updateHistory();
-        m_constantUri.setSelectedString(m_settings.getConstantURI());
-        m_constantUri.setEnabled(m_settings.isUseConstantURI());
+        m_constantURLOption.setSelected(m_settings.isUseConstantURL());
+        m_constantURL.updateHistory();
+        m_constantURL.setSelectedString(m_settings.getConstantURL());
+        m_constantURL.setEnabled(m_settings.isUseConstantURL());
         if (specs[0] != null) {
             int inSpecSize = ((DataTableSpec)specs[0]).getNumColumns();
-            if (inSpecSize == 0 && m_settings.getUriColumn() == null) {
-                m_uriColumnOption.setEnabled(false);
-                m_uriColumn.setEnabled(false);
+            if (inSpecSize == 0 && m_settings.getURLColumn() == null) {
+                m_urlColumnOption.setEnabled(false);
+                m_urlColumn.setEnabled(false);
             } else {
-                m_uriColumnOption.setEnabled(true);
-                m_uriColumnOption.setSelected(!m_settings.isUseConstantURI());
-                m_uriColumn.setEnabled(m_uriColumnOption.isSelected());
+                m_urlColumnOption.setEnabled(true);
+                m_urlColumnOption.setSelected(!m_settings.isUseConstantURL());
+                m_urlColumn.setEnabled(m_urlColumnOption.isSelected());
                 try {
-                    m_uriColumn.update((DataTableSpec)specs[0], m_settings.getUriColumn(), false, true);
+                    m_urlColumn.update((DataTableSpec)specs[0], m_settings.getURLColumn(), false, true);
                 } catch (final NotConfigurableException e) {
-                    m_uriColumn.setEnabled(false);
-                    m_uriColumnOption.setEnabled(false);
+                    m_urlColumn.setEnabled(false);
+                    m_urlColumnOption.setEnabled(false);
                 }
             }
         } else {
             var dummySpec = new DataTableSpec();
-            m_uriColumn.update(dummySpec, m_settings.getUriColumn(), false, true);
-            if (!m_settings.isUseConstantURI()) {
-                m_uriColumnOption.setSelected(true);
-                m_uriColumnOption.setEnabled(true);
-                m_uriColumn.setEnabled(true);
+            m_urlColumn.update(dummySpec, m_settings.getURLColumn(), false, true);
+            if (!m_settings.isUseConstantURL()) {
+                m_urlColumnOption.setSelected(true);
+                m_urlColumnOption.setEnabled(true);
+                m_urlColumn.setEnabled(true);
             } else {
-                int nrSelectableColumns = m_uriColumn.getNrItemsInList();
-                m_uriColumnOption.setEnabled(nrSelectableColumns > 0);
-                m_uriColumn.setEnabled(nrSelectableColumns > 0);
+                int nrSelectableColumns = m_urlColumn.getNrItemsInList();
+                m_urlColumnOption.setEnabled(nrSelectableColumns > 0);
+                m_urlColumn.setEnabled(nrSelectableColumns > 0);
             }
         }
-        ((SettingsModelString)m_invalidURIPolicySelector.getModel())
-            .setStringValue(m_settings.getInvalidURIPolicy().name());
+        ((SettingsModelString)m_invalidURLPolicySelector.getModel())
+            .setStringValue(m_settings.getInvalidURLPolicy().name());
         m_useDelay.setSelected(m_settings.isUseDelay());
         m_delay.setValue(m_settings.getDelay());
         m_delay.setEnabled(m_useDelay.isSelected());

@@ -55,7 +55,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.net.URISyntaxException;
+import java.net.MalformedURLException;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.commons.lang3.StringUtils;
@@ -68,7 +68,7 @@ import org.knime.core.data.MissingCell;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.rest.nodes.common.RestSettings.HttpMethod;
 import org.knime.rest.util.CooldownContext;
-import org.knime.rest.util.InvalidURIPolicy;
+import org.knime.rest.util.InvalidURLPolicy;
 
 import jakarta.ws.rs.client.ClientBuilder;
 import jakarta.ws.rs.core.Response;
@@ -94,8 +94,10 @@ class AbstractRequestExecutorTest {
 
     @Test
     void testFailingResponseHandling() {
+        // technically, a ProcessingException should be thrown but we added URL validation on configure
+        // and if the executor encounters one in the settings (which we have below), it throws an IllegalStateException
         assertThrows(IllegalStateException.class, () -> new ErrorThrowingExecutor(null).makeFirstCall(null), // NOSONAR
-            "Request execution should have failed with due to an invalid URI");
+            "Request execution should have failed with due to an invalid URL");
     }
 
     /**
@@ -103,7 +105,7 @@ class AbstractRequestExecutorTest {
      */
     private static class SucceedingExecutor extends AbstractRequestExecutor<RestSettings> {
 
-        private static final String TARGET_URI = "https://httpbin.testing.knime.com/get";
+        private static final String TARGET_URL = "https://httpbin.testing.knime.com/get";
 
         SucceedingExecutor(final DataTableSpec inSpec) {
             super(new Handler(), inSpec, new DataColumnSpec[0], createSettings(), new CooldownContext(), null,
@@ -112,18 +114,18 @@ class AbstractRequestExecutorTest {
 
         private static RestSettings createSettings() {
             final var settings = new RestSettings(HttpMethod.GET);
-            settings.setUseConstantURI(true);
-            settings.setConstantURI(TARGET_URI);
+            settings.setUseConstantURL(true);
+            settings.setConstantURL(TARGET_URL);
             return settings;
         }
 
         @SuppressWarnings("resource")
         @Override
         public InvocationTriple createInvocationTriple(final DataRow row)
-            throws InvalidSettingsException, URISyntaxException {
+            throws InvalidSettingsException, MalformedURLException {
             final var client = ClientBuilder.newBuilder().build();
-            final var target = client.target(TARGET_URI);
-            return new InvocationTriple(target.request().buildGet(), target.getUri(), client);
+            final var target = client.target(TARGET_URL);
+            return new InvocationTriple(target.request().buildGet(), target.getUri().toURL(), client);
         }
 
         private static void assertResponse(final Response response, final MissingCell missing) {
@@ -162,16 +164,16 @@ class AbstractRequestExecutorTest {
 
         @Override
         public InvocationTriple createInvocationTriple(final DataRow row)
-            throws InvalidSettingsException, URISyntaxException {
-            // using an invalid URI signal to execute nothing
-            throw new URISyntaxException("test input", "this fails");
+            throws InvalidSettingsException, MalformedURLException {
+            // using an invalid URL signal to execute nothing
+            throw new MalformedURLException("this should fail");
         }
 
         private static void assertResponse(final Response response, final MissingCell missing) {
             assertNull(response, "GET request response should be null since no request was executed");
             assertTrue(
-                missing != null && StringUtils.startsWith(missing.getError(), InvalidURIPolicy.INVALID_URI_ERROR), //
-                "GET request should have generated a missing cell specifying an invalid URI as cause");
+                missing != null && StringUtils.startsWith(missing.getError(), InvalidURLPolicy.INVALID_URL_ERROR), //
+                "GET request should have generated a missing cell specifying an invalid URL as cause");
         }
 
         private static class Handler implements MultiResponseHandler {
@@ -192,11 +194,11 @@ class AbstractRequestExecutorTest {
     }
 
     /**
-     * Models request execution that throws an exception during the request, hence response handling is never reached.
+     * Models request execution that throws an exception dURLng the request, hence response handling is never reached.
      */
     private class ErrorThrowingExecutor extends AbstractRequestExecutor<RestSettings> {
 
-        private static final String TARGET_URI = "invalidprotocol://httpbin.testing.knime.com/get";
+        private static final String TARGET_URL = "invalidprotocol://httpbin.testing.knime.com/get";
 
         ErrorThrowingExecutor(final DataTableSpec inSpec) {
             super(new Handler(), inSpec, new DataColumnSpec[0], createSettings(), new CooldownContext(), null,
@@ -205,33 +207,33 @@ class AbstractRequestExecutorTest {
 
         private static RestSettings createSettings() {
             final var settings = new RestSettings(HttpMethod.GET);
-            settings.setUseConstantURI(true);
-            settings.setConstantURI(TARGET_URI);
-            // failing on invalid URIs which the TARGET_URI is one
-            settings.setInvalidURIPolicy("FAIL");
+            settings.setUseConstantURL(true);
+            settings.setConstantURL(TARGET_URL);
+            // failing on invalid URLs which the TARGET_URL is one
+            settings.setInvalidURLPolicy("FAIL");
             return settings;
         }
 
         @SuppressWarnings("resource")
         @Override
         public InvocationTriple createInvocationTriple(final DataRow row)
-            throws InvalidSettingsException, URISyntaxException {
+            throws InvalidSettingsException, MalformedURLException {
             final var client = ClientBuilder.newBuilder().build();
-            final var target = client.target(RestNodeModel.validateURIString(TARGET_URI));
-            return new InvocationTriple(target.request().buildGet(), target.getUri(), client);
+            final var target = client.target(RestNodeModel.validateURLString(TARGET_URL).toString());
+            return new InvocationTriple(target.request().buildGet(), target.getUri().toURL(), client);
         }
 
         private static class Handler implements MultiResponseHandler {
             @Override
             public DataCell[] handleFirstResponse(final DataTableSpec spec, final Response response,
                 final MissingCell missing) {
-                throw new AssertionError("Should not have reached here as invalid URI aborts response handling");
+                throw new AssertionError("Should not have reached here as invalid URL aborts response handling");
             }
 
             @Override
-            public DataCell[] handleFollowingResponse(final DataRow row, final Response response,
+            public DataCell[] handleFollowingResponse(final DataTableSpec spec, final Response response,
                 final MissingCell missing) {
-                throw new AssertionError("Should not have reached here as invalid URI aborts response handling");
+                throw new AssertionError("Should not have reached here as invalid URL aborts response handling");
             }
         }
     }

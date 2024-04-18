@@ -49,8 +49,8 @@
 package org.knime.rest.nodes.common;
 
 import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -78,7 +78,7 @@ import org.knime.core.node.NodeLogger;
 import org.knime.core.util.ThreadLocalHTTPAuthenticator;
 import org.knime.rest.util.CooldownContext;
 import org.knime.rest.util.DelayPolicy;
-import org.knime.rest.util.InvalidURIPolicy;
+import org.knime.rest.util.InvalidURLPolicy;
 import org.knime.rest.util.StatusOnlyResponse;
 
 import jakarta.ws.rs.ProcessingException;
@@ -158,16 +158,16 @@ public abstract class AbstractRequestExecutor<S extends RestSettings> extends Ab
 
     /**
      * Optionally appends a prefix to the given {@link Throwable}'s cause message,
-     * detailing which {@link URI} was to be request when the exception was thrown.
+     * detailing which {@link URL} was to be request when the exception was thrown.
      *
      * @param cause the determined error cause
-     * @param currentURI URI to be requested
+     * @param currentURL URL to be requested
      * @return
      */
-    private static String getReadableCauseMessage(final Throwable cause, final URI currentURI) {
+    private static String getReadableCauseMessage(final Throwable cause, final URL currentURL) {
         final var message = Objects.requireNonNullElse(cause.getMessage(), "");
         /*
-         * Want to provide a helpful message here by appending which URI the request
+         * Want to provide a helpful message here by appending which URL the request
          * was made to. The same is already done in CXF's HTTPConduit, but we don't
          * know where the exception is from. Hence, we add the 'helpful' message
          * only if it is not already there.
@@ -175,7 +175,7 @@ public abstract class AbstractRequestExecutor<S extends RestSettings> extends Ab
         final var parts = StringUtils.split(message, " ", 3);
         final var prefix = parts.length >= 3 && "invoking".equals(parts[1]) //
             ? "" //
-            : "%s invoking %s: ".formatted(cause.getClass().getSimpleName(), currentURI);
+            : "%s invoking %s: ".formatted(cause.getClass().getSimpleName(), currentURL);
         return prefix + message;
     }
 
@@ -193,15 +193,15 @@ public abstract class AbstractRequestExecutor<S extends RestSettings> extends Ab
 
     /**
      * Creates a REST {@link Invocation} object from the data row input.
-     * Encapsulates the row's data (e.g. in the form of a target URI), and an underlying {@link Client}.
+     * Encapsulates the row's data (e.g. in the form of a target URL), and an underlying {@link Client}.
      *
      * @param row the data row currently processed
      * @return the invocation and client object if successful
      * @throws InvalidSettingsException if the invocation object could not be created
-     * @throws URISyntaxException if the invocation creation failed due to an invalid URI
+     * @throws MalformedURLException if the invocation creation failed due to an invalid URL
      */
     public abstract InvocationTriple createInvocationTriple(final DataRow row)
-            throws InvalidSettingsException, URISyntaxException;
+            throws InvalidSettingsException, MalformedURLException;
 
     /**
      * Tells the executor how large the table to process is.
@@ -273,7 +273,7 @@ public abstract class AbstractRequestExecutor<S extends RestSettings> extends Ab
      */
     @SuppressWarnings("resource")
     private ResultPair performSingleRequest(final DataRow row)
-            throws InvalidSettingsException, URISyntaxException, ProcessingException {
+            throws InvalidSettingsException, MalformedURLException, ProcessingException {
         // creating the request invocation can cause an ISE, see AP-20219
         final var triple = createInvocationTriple(row);
         Response response = null;
@@ -285,7 +285,7 @@ public abstract class AbstractRequestExecutor<S extends RestSettings> extends Ab
             LOGGER.warn("Call #%s failed: %s".formatted(m_consumedRows.get() + 1, e.getMessage()), e);
             final var cause = getRootCause(e);
             if (m_settings.isFailOnConnectionProblems()) {
-                throw new ProcessingException(getReadableCauseMessage(cause, triple.uri()), cause);
+                throw new ProcessingException(getReadableCauseMessage(cause, triple.url()), cause);
             } else {
                 response = tryReconstructResponse(cause.getMessage());
                 missing = new MissingCell(cause.getMessage());
@@ -305,24 +305,25 @@ public abstract class AbstractRequestExecutor<S extends RestSettings> extends Ab
     }
 
     /**
-     * First request to the REST API.
+     * First request to the REST API. This is a manual invocation of the request which can result
+     * in any state, including errorneous ones. This is in constrast to {@link #makeFollowingCall(DataRow)}
+     * which assumes that all unexpected exceptional cases have already been handled.
      *
      * @param row the first data row to process
      * @return list of data cells, containing the parsed data
      *
      * @throws InvalidSettingsException if something went wrong in configuration
+     * @throws MalformedURLException if the URL was invalid
      */
-    public DataCell[] makeFirstCall(final DataRow row) throws InvalidSettingsException {
+    public DataCell[] makeFirstCall(final DataRow row) throws InvalidSettingsException, MalformedURLException {
         ResultPair result;
         try {
             result = performSingleRequest(row);
-        } catch (URISyntaxException e) {
-            // handle early abort due to invalid URI
-            if (abortDueToInvalidURI(row, e)) {
-                return EMPTY_RESPONSE;
-            }
+        } catch (MalformedURLException e) {
+            // handle early abort due to invalid URL (throws exception if != MISSING)
+            abortDueToInvalidURL(row, e);
             result = new ResultPair(null, new MissingCell(String.format("%s: %s", //
-                InvalidURIPolicy.INVALID_URI_ERROR, e.getMessage())));
+                InvalidURLPolicy.INVALID_URL_ERROR, e.getMessage())));
         }
         return firstResponseToDataCells(result);
     }
@@ -352,7 +353,8 @@ public abstract class AbstractRequestExecutor<S extends RestSettings> extends Ab
     }
 
     /**
-     * Next request to the REST API.
+     * Next request to the REST API. Assumes to-be-skipped rows are not passed in here,
+     * and required (spec) initializations have been done already.
      *
      * @param row the first data row to process
      * @return array of produced response data cells
@@ -361,13 +363,15 @@ public abstract class AbstractRequestExecutor<S extends RestSettings> extends Ab
         ResultPair result;
         try {
             result = performSingleRequest(row);
-        } catch (URISyntaxException e) {
-            // handle early abort due to invalid URI
-            if (abortDueToInvalidURI(row, e)) {
-                return EMPTY_RESPONSE;
+        } catch (MalformedURLException e1) {
+            // handle early abort due to invalid URL
+            try {
+                abortDueToInvalidURL(row, e1);
+            } catch (MalformedURLException e2) {
+                throw new IllegalStateException("Found a URL to skip which should have been filtered already", e2);
             }
             result = new ResultPair(null, new MissingCell(String.format("%s: %s", //
-                InvalidURIPolicy.INVALID_URI_ERROR, e.getMessage())));
+                InvalidURLPolicy.INVALID_URL_ERROR, e1.getMessage())));
         } catch (InvalidSettingsException e) {
             // should not occur since first calls would already have thrown an ISE
             throw new IllegalStateException(e);
@@ -436,29 +440,32 @@ public abstract class AbstractRequestExecutor<S extends RestSettings> extends Ab
     }
 
     /**
-     * Checks whether the request was aborted early due to an invalid URI.
-     * If this is the case, it is handled according to {@link RestSettings#getInvalidURIPolicy()}.
+     * Checks whether the request was aborted early due to an invalid URL.
+     * If this is the case, it is handled according to {@link RestSettings#getInvalidURLPolicy()}.
      *
      * @param row current data row
-     * @param missing the missing value cell, containing a possible error
-     * @return whether to abort (i.e. not handling the response)
+     * @param exception the exception caused by an invalid URL/URL
+     * @throws MalformedURLException if aborting due to invalid URL (i.e. not handling the response)
      */
-    private boolean abortDueToInvalidURI(final DataRow row, final URISyntaxException exception) {
-        if (exception != null) {
-            if (m_settings.getInvalidURIPolicy() == InvalidURIPolicy.FAIL) {
-                throw new IllegalStateException(row == null //
-                        ? "You entered an invalid URL" //
-                        : "Found invalid URL in row: %s".formatted(row.getKey()));
-            }
-            /*
-             * If false, m_settings.getInvalidURIPolicy() must be InvalidURIPolicy.MISSING,
-             * and request-making will handle response and insert missing value.
-             * Note: row has to be null (i.e. no table input, URI is constant).
-             * For an the entire table input, a row filter is applied in all execution modes.
-             */
-            return m_settings.getInvalidURIPolicy() == InvalidURIPolicy.SKIP && row == null;
+    private void abortDueToInvalidURL(final DataRow row, final MalformedURLException exception)
+            throws MalformedURLException {
+        if (exception == null) {
+            return;
         }
-        return false;
+        if (m_settings.getInvalidURLPolicy() == InvalidURLPolicy.FAIL) {
+            if (m_settings.isUseConstantURL()) {
+                // we validate the constant URL on configure, if it fails here something went wrong
+                throw new IllegalStateException("The URL is invalid although it should not be", exception);
+            } else {
+                // is thrown up to node execution, makes node fail
+                throw new ProcessingException("Found invalid URL in row: %s".formatted(row.getKey()), exception);
+            }
+        }
+        if (m_settings.getInvalidURLPolicy() == InvalidURLPolicy.SKIP) {
+            // only occurs for constant URLs, for table input, a row filter is applied prior
+            throw new MalformedURLException(exception.getMessage());
+        }
+        // if the invalid URL policy is MISSING, do nothing and handle empty (or 'null') response
     }
 
     private void sleepWithMonitor(final long delay, final LongPredicate condition)
@@ -536,10 +543,10 @@ public abstract class AbstractRequestExecutor<S extends RestSettings> extends Ab
      * Triple holding the entire state for a single REST request.
      *
      * @param invocation the 'executable' object, performing the request
-     * @param uri target URI
+     * @param url target URL
      * @param client underlying web client
      */
-    record InvocationTriple(Invocation invocation, URI uri, Client client) {
+    record InvocationTriple(Invocation invocation, URL url, Client client) {
     }
 
     /**

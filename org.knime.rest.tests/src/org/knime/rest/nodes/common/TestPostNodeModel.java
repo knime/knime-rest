@@ -91,8 +91,8 @@ public final class TestPostNodeModel extends RestWithBodyNodeModel<RestWithBodyS
      * @param targetURI
      */
     public void setRequestTarget(final String targetURI) {
-        m_settings.setUseConstantURI(true);
-        m_settings.setConstantURI(targetURI);
+        m_settings.setUseConstantURL(true);
+        m_settings.setConstantURL(targetURI);
     }
 
     /**

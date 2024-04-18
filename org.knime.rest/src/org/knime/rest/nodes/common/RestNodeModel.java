@@ -51,8 +51,10 @@ package org.knime.rest.nodes.common;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.URL;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyManagementException;
@@ -74,6 +76,7 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.cxf.jaxrs.client.WebClient;
 import org.apache.cxf.transport.http.asyncclient.AsyncHTTPConduit;
 import org.apache.cxf.transports.http.configuration.HTTPClientPolicy;
@@ -154,6 +157,7 @@ import org.knime.rest.nodes.common.proxy.ProxyMode;
 import org.knime.rest.nodes.common.proxy.RestProxyConfigManager;
 import org.knime.rest.util.CooldownContext;
 import org.knime.rest.util.DelegatingX509TrustManager;
+import org.knime.rest.util.InvalidURLPolicy;
 import org.knime.rest.util.RowFilterUtil;
 
 import jakarta.ws.rs.client.Client;
@@ -178,10 +182,10 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
     private static final int MAX_RETRANSMITS = 4;
 
     /**
-     * If the constant URI is enabled, we can safely use the row with id 'Row0',
+     * If the constant URL is enabled, we can safely use the row with id 'Row0',
      * it cannot be overwritten. Also compatible with the output table.
      */
-    private static final RowKey CONSTANT_URI_KEY = RowKey.createRowKey(0L);
+    private static final RowKey CONSTANT_URL_KEY = RowKey.createRowKey(0L);
 
     /**
      * The settings of this node model.
@@ -266,7 +270,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
      */
     static RowKey getRowKey(final DataRow row) {
         if (row == null) {
-            return CONSTANT_URI_KEY;
+            return CONSTANT_URL_KEY;
         }
         return row.getKey();
     }
@@ -301,7 +305,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
      * @return
      */
     private static boolean isHttpError(final Response response) {
-        return response == null || (response.getStatus() >= 400 && response.getStatus() < 600);
+        return isClientError(response) || isServerError(response);
     }
 
     /**
@@ -355,60 +359,72 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
 
     /**
      * @param spec the input data table spec
-     * @return an {@link FilterRowGenerator} conforming to the current invalid URI policy
+     * @return an {@link FilterRowGenerator} conforming to the current invalid URL policy
      */
     protected FilterRowGenerator getRowFilter(final DataTableSpec spec) {
-        if (m_settings.isUseConstantURI()) {
+        if (m_settings.isUseConstantURL()) {
             return row -> true;
         }
         CheckUtils.checkArgumentNotNull(spec);
-        final var columnIndex = spec.findColumnIndex(m_settings.getUriColumn());
-        return m_settings.getInvalidURIPolicy().createRowFilter(columnIndex);
+        final var columnIndex = spec.findColumnIndex(m_settings.getURLColumn());
+        return m_settings.getInvalidURLPolicy().createRowFilter(columnIndex);
     }
 
     /**
-     * Retrieves the {@link URI} value for a given {@link DataRow} and its column index.
-     * If parsing the URI from the stored string value fails or the URI value does not represent
+     * Retrieves the {@link URL} value for a given {@link DataRow} and its column index.
+     * If parsing the URL from the stored string value fails or the URL value does not represent
      * an HTTP or HTTPS address, an exception is thrown.
      *
      * @param row data row
-     * @param columnIndex index of the URI column
-     * @return maybe parsed URI value
-     * @throws URISyntaxException if the provided URI is not a valid HTTP(S) address
+     * @param columnIndex index of the URL column
+     * @return maybe parsed URL value
+     * @throws MalformedURLException if the provided URL is not a valid HTTP(S) address
      */
-    public static URI getURIFromRow(final DataRow row, final int columnIndex) throws URISyntaxException {
+    public static URL getURLFromRow(final DataRow row, final int columnIndex) throws MalformedURLException {
         CheckUtils.checkNotNull(row, "URL cannot determined, given row is null");
         final var cell = row.getCell(columnIndex);
         CheckUtils.checkArgument(!cell.isMissing(), String.format(
             "The URL cannot be missing, but it is in row: %s", row.getKey()));
-        final var uriString = cell instanceof URIDataValue uriValue //
-                ? uriValue.getURIContent().getURI().toString() //
+        final var urlString = cell instanceof URIDataValue urlValue //
+                ? urlValue.getURIContent().getURI().toString() //
                 : ((StringCell)cell).getStringValue();
-        return validateURIString(uriString);
+        return validateURLString(urlString);
     }
 
-    static URI validateURIString(final String uriString) throws URISyntaxException {
-        // avoiding NPEs in favor of URISyntaxExceptions
-        final var uri = new URI(Objects.requireNonNullElse(uriString, "")); //
-        if (!"http".equals(uri.getScheme()) && !"https".equals(uri.getScheme())) {
-            throw new URISyntaxException(uriString, "Not an HTTP or HTTPS URL in input");
+    static URL validateURLString(final String urlString) throws MalformedURLException {
+        URL url;
+        try {
+            /*
+             * Parsing twice since URIs do not appear to be a strict superset of URLs.
+             * For example, 'https://' is a valid URL, but not URI. Also, URLs permit spaces
+             * while these must be URL-encoded (%20) for URIs.
+             */
+            url = new URI(Objects.requireNonNull(urlString)).toURL();
+        } catch (URISyntaxException | IllegalArgumentException e) { // NOSONAR cannot rethrow with MUE
+            throw new MalformedURLException(StringUtils.replace(e.getMessage(), "URI", "URL"));
         }
-        return uri;
+        final var protocol = url.getProtocol();
+        if (!"http".equalsIgnoreCase(protocol) && !"https".equalsIgnoreCase(protocol)) {
+            throw new MalformedURLException(String.format(
+                "Not an HTTP(S) protocol in input URL, got protocol \"%s\" in input \"%s\"",
+                protocol, urlString));
+        }
+        return url;
     }
 
     @Override
     protected DataTableSpec[] configure(final PortObjectSpec[] inSpecs) throws InvalidSettingsException {
         final DataTableSpec inputSpec = (DataTableSpec)inSpecs[0];
-        if (!m_settings.isUseConstantURI()) {
-            String uriColumn = m_settings.getUriColumn();
+        if (!m_settings.isUseConstantURL()) {
+            String urlColumn = m_settings.getURLColumn();
             if (inputSpec == null) {
                 throw new InvalidSettingsException(
-                    "Input table required to execute. The node is configured to use a URL from the column '" + uriColumn
+                    "Input table required to execute. The node is configured to use a URL from the column '" + urlColumn
                         + "' of the input table.");
             } else {
-                if (!inputSpec.containsName(uriColumn)) {
+                if (!inputSpec.containsName(urlColumn)) {
                     throw new InvalidSettingsException(
-                        "The configured URL column '" + uriColumn + "' is missing in the input table.");
+                        "The configured URL column '" + urlColumn + "' is missing in the input table.");
                 }
             }
         }
@@ -519,7 +535,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
                 ? new DataTableSpec(m_newColumnsBasedOnFirstCalls) //
                 : new DataTableSpec();
         final BufferedDataContainer container = exec.createDataContainer(spec, false);
-        // contains only one "row" being the result from a single constant-URI invocation
+        // contains only one "row" being the result from a single constant-URL invocation
         m_parsedResponseValues.entrySet().forEach(e -> {
             final var cells = e.getValue();
             if (!Arrays.equals(cells, AbstractRequestExecutor.EMPTY_RESPONSE)) {
@@ -572,7 +588,31 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
 
     @Override
     protected void validateSettings(final NodeSettingsRO settings) throws InvalidSettingsException {
-        createSettings().loadSettingsFrom(settings);
+        final var s = createSettings();
+        s.loadSettingsFrom(settings);
+        validateURLSettings(s);
+    }
+
+    /**
+     * Check URL validity on configure instead of execute if {@link InvalidURLPolicy#FAIL}.
+     * <p>
+     * If {@link AbstractRequestExecutor#abortDueToInvalidURI(DataRow, MalformedURLException)} encounters
+     * an invalid URL on execute (with the condition checked here), it throws an illegal state exception.
+     *
+     * @param settings freshly loaded {@link RestSettings}
+     * @throws InvalidSettingsException if the URL is invalid
+     */
+    private void validateURLSettings(final S settings) throws InvalidSettingsException {
+        if (settings.getInvalidURLPolicy() == InvalidURLPolicy.FAIL && settings.isUseConstantURL()) {
+            if (StringUtils.isEmpty(settings.getConstantURL())) {
+                throw new InvalidSettingsException("The URL cannot be empty");
+            }
+            try {
+                validateURLString(settings.getConstantURL());
+            } catch (MalformedURLException e) {
+                throw new InvalidSettingsException("The URL is invalid", e);
+            }
+        }
     }
 
     @Override
@@ -641,7 +681,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
     /**
      * Creates the request {@link Builder} based on input parameters.
      *
-     * @param uriColumn The index of URI column.
+     * @param URLColumn The index of URL column.
      * @param enabledAuthentications The authentications.
      * @param row The input {@link DataRow}.
      * @param spec The input table spec.
@@ -801,13 +841,21 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         final DataTableSpec spec, final ExecutionContext exec) throws InvalidSettingsException {
         m_cooldownContext = new CooldownContext(); // reset context before execution.
         final var executor = new RequestExecutor(spec, enabledAuthentications, exec);
-        m_parsedResponseValues.put(getRowKey(row), executor.makeFirstCall(row));
+        final var rowKey = getRowKey(row);
+        try {
+            m_parsedResponseValues.put(rowKey, executor.makeFirstCall(row));
+        } catch (MalformedURLException e) {
+            // use empty response as signal that this row was processed but is to be skipped
+            // when writing out to buffered data table (or being streamed)
+            m_parsedResponseValues.put(rowKey, AbstractRequestExecutor.EMPTY_RESPONSE);
+        }
+
     }
 
     /**
      * A REST request executor that has access to the entire configuration state of the node model.
      * Compared to the {@link AbstractRequestExecutor}, it implements the invocation creation,
-     * involving utilizing currently enabled authentication methods, and validating the {@link URI}.
+     * involving utilizing currently enabled authentication methods, and validating the {@link URL}.
      *
      * @author Leon Wenzler, KNIME GmbH, Konstanz, Germany
      */
@@ -832,28 +880,35 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         @SuppressWarnings("resource")
         @Override
         public InvocationTriple createInvocationTriple(final DataRow row)
-                throws InvalidSettingsException, URISyntaxException {
+                throws InvalidSettingsException, MalformedURLException {
             final var spec = getTableSpec();
-            final var currentURI = getCurrentURI(spec, row);
+            final var currentURL = getCurrentURL(spec, row);
+            // need to convert to URI for request creation, CXF only accepts those
+            URI currentURI;
+            try {
+                currentURI = currentURL.toURI();
+            } catch (URISyntaxException e) { // NOSONAR cannot occur, see #validateURLString
+                throw new MalformedURLException(e.getMessage());
+            }
             // computing request builder and client on-demand for each new row
             // could be improved in the future by re-using one client per execution (not per row)
             final var builderClient = createRequest(currentURI, m_enabledAuthentications, row, spec);
             return new InvocationTriple(
                 invocation(builderClient.getFirst(), row, spec),    // invocation
-                currentURI,                                         // URI
+                currentURL,                                         // URL
                 builderClient.getSecond());                         // web client
         }
 
-        private URI getCurrentURI(final DataTableSpec spec, final DataRow row) throws URISyntaxException {
-            CheckUtils.checkState(m_settings.isUseConstantURI() || row != null,
+        private URL getCurrentURL(final DataTableSpec spec, final DataRow row) throws MalformedURLException {
+            CheckUtils.checkState(m_settings.isUseConstantURL() || row != null,
                     "Without the constant URL and input, it is not possible to call a REST service!");
-            if (!m_settings.isUseConstantURI()) {
-                final var columnIndex = spec == null ? -1 : spec.findColumnIndex(m_settings.getUriColumn());
+            if (!m_settings.isUseConstantURL()) {
+                final var columnIndex = spec == null ? -1 : spec.findColumnIndex(m_settings.getURLColumn());
                 CheckUtils.checkArgument(row != null && columnIndex >= 0,
-                        "The URL column is not present: " + m_settings.getUriColumn());
-                return getURIFromRow(row, columnIndex); // NOSONAR 'row' is not null
+                        "The URL column is not present: " + m_settings.getURLColumn());
+                return getURLFromRow(row, columnIndex); // NOSONAR 'row' is not null
             }
-            return validateURIString(m_settings.getConstantURI());
+            return validateURLString(m_settings.getConstantURL());
         }
     }
 
@@ -896,7 +951,11 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         final PortObjectSpec[] inSpecs) throws InvalidSettingsException {
         CheckUtils.check(inSpecs.length > 0, InvalidSettingsException::new,
             () -> "Cannot find URL column, the node input is missing.");
-        return new PortObjectSpec[]{m_consumedRows.get() == 0 ? new DataTableSpec(m_newColumnsBasedOnFirstCalls)
+        updateFirstCallColumnsOnHttpError(null);
+        final var spec = m_newColumnsBasedOnFirstCalls != null //
+                ? new DataTableSpec(m_newColumnsBasedOnFirstCalls) //
+                : new DataTableSpec();
+        return new PortObjectSpec[]{m_consumedRows.get() == 0 ? spec
             : createColumnRearranger(enabledAuthConfigs(), (DataTableSpec)inSpecs[0], null/*exec*/, -1L).createSpec()};
     }
 
@@ -929,9 +988,9 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
                 throws Exception {
                 if (m_consumedRows.get() == 0) {
                     var rowOutput = (RowOutput)outputs[0];
-                    final var cells = m_parsedResponseValues.get(CONSTANT_URI_KEY);
+                    final var cells = m_parsedResponseValues.get(CONSTANT_URL_KEY);
                     if (!Arrays.equals(cells, AbstractRequestExecutor.EMPTY_RESPONSE)) {
-                        rowOutput.push(new DefaultRow(CONSTANT_URI_KEY, formatDataCells(cells)));
+                        rowOutput.push(new DefaultRow(CONSTANT_URL_KEY, formatDataCells(cells)));
                     }
                     rowOutput.close();
                 } else {

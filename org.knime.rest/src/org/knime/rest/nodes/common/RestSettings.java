@@ -76,7 +76,7 @@ import org.knime.rest.internals.NoAuthentication;
 import org.knime.rest.nodes.common.proxy.RestProxyConfig;
 import org.knime.rest.nodes.common.proxy.RestProxyConfigManager;
 import org.knime.rest.util.DelayPolicy;
-import org.knime.rest.util.InvalidURIPolicy;
+import org.knime.rest.util.InvalidURLPolicy;
 
 /**
  * Common settings for the REST nodes.
@@ -235,11 +235,11 @@ public class RestSettings {
 
     // -- RestSettings instance properties. --
 
-    private boolean m_isUseConstantURI = DEFAULT_USE_CONSTANT_URI;
+    private boolean m_isUseConstantURL = DEFAULT_USE_CONSTANT_URI;
 
-    private String m_constantURI = DEFAULT_CONSTANT_URI;
+    private String m_constantURL = DEFAULT_CONSTANT_URI;
 
-    private String m_uriColumn = DEFAULT_URI_COLUMN;
+    private String m_urlColumn = DEFAULT_URI_COLUMN;
 
     private boolean m_useDelay = DEFAULT_USE_DELAY;
 
@@ -259,7 +259,7 @@ public class RestSettings {
 
     private Optional<DelayPolicy> m_delayPolicy = Optional.empty();
 
-    private InvalidURIPolicy m_invalidURIPolicy = InvalidURIPolicy.DEFAULT_POLICY;
+    private InvalidURLPolicy m_invalidURLPolicy = InvalidURLPolicy.DEFAULT_POLICY;
 
     private boolean m_isFailOnMissingHeaders = DEFAULT_FAIL_MISSING_HEADERS;
 
@@ -600,45 +600,45 @@ public class RestSettings {
     }
 
     /**
-     * @return the isUseConstantURI
+     * @return the isUseConstantURL
      */
-    protected boolean isUseConstantURI() {
-        return m_isUseConstantURI;
+    protected boolean isUseConstantURL() {
+        return m_isUseConstantURL;
     }
 
     /**
-     * @param isUseConstantURI the isUseConstantURI to set
+     * @param isUseConstantURL the isUseConstantURL to set
      */
-    protected void setUseConstantURI(final boolean isUseConstantURI) {
-        m_isUseConstantURI = isUseConstantURI;
+    protected void setUseConstantURL(final boolean isUseConstantURL) {
+        m_isUseConstantURL = isUseConstantURL;
     }
 
     /**
-     * @return the constantURI
+     * @return the constantURL
      */
-    protected String getConstantURI() {
-        return m_constantURI;
+    protected String getConstantURL() {
+        return m_constantURL;
     }
 
     /**
-     * @param constantURI the constantURI to set
+     * @param constantURL the constantURI to set
      */
-    protected void setConstantURI(final String constantURI) {
-        m_constantURI = constantURI;
+    protected void setConstantURL(final String constantURL) {
+        m_constantURL = constantURL;
     }
 
     /**
-     * @return the uriColumn
+     * @return the urlColumn
      */
-    protected String getUriColumn() {
-        return m_uriColumn;
+    protected String getURLColumn() {
+        return m_urlColumn;
     }
 
     /**
-     * @param uriColumn the uriColumn to set
+     * @param urlColumn the uriColumn to set
      */
-    protected void setUriColumn(final String uriColumn) {
-        m_uriColumn = uriColumn;
+    protected void setURLColumn(final String urlColumn) {
+        m_urlColumn = urlColumn;
     }
 
     /**
@@ -726,17 +726,17 @@ public class RestSettings {
     }
 
     /**
-     * @return how to handle invalid URIs (instead of always generating a {@link MissingCell}
+     * @return how to handle invalid URLs (instead of always generating a {@link MissingCell}
      */
-    protected InvalidURIPolicy getInvalidURIPolicy() {
-        return m_invalidURIPolicy;
+    protected InvalidURLPolicy getInvalidURLPolicy() {
+        return m_invalidURLPolicy;
     }
 
     /**
      * @param policy
      */
-    protected void setInvalidURIPolicy(final String policy) {
-        m_invalidURIPolicy = InvalidURIPolicy.valueOf(policy);
+    protected void setInvalidURLPolicy(final String policy) {
+        m_invalidURLPolicy = InvalidURLPolicy.valueOf(policy);
     }
 
     protected boolean isFailOnClientErrors() {
@@ -909,9 +909,9 @@ public class RestSettings {
      * @param settings A writable {@link NodeSettingsWO}.
      */
     protected void saveSettings(final NodeSettingsWO settings) {
-        settings.addBoolean(USE_CONSTANT_URI, m_isUseConstantURI);
-        settings.addString(CONSTANT_URI, m_constantURI);
-        settings.addString(URI_COLUMN, m_uriColumn);
+        settings.addBoolean(USE_CONSTANT_URI, m_isUseConstantURL);
+        settings.addString(CONSTANT_URI, m_constantURL);
+        settings.addString(URI_COLUMN, m_urlColumn);
         settings.addBoolean(USE_DELAY, m_useDelay);
         settings.addLong(DELAY, m_delay);
         settings.addInt(CONCURRENCY, m_concurrency);
@@ -944,7 +944,7 @@ public class RestSettings {
         settings.addBoolean(FAIL_ON_CLIENT_ERRORS, m_failOnClientErrors);
         m_outputErrorCause.ifPresent(value -> settings.addBoolean(OUTPUT_ERROR_CAUSE_KEY, value));
         m_allowChunking.ifPresent(allowChunking -> settings.addBoolean(ALLOW_CHUNKING_KEY, allowChunking));
-        m_invalidURIPolicy.saveSettingsTo(settings);
+        m_invalidURLPolicy.saveSettingsTo(settings);
         settings.addBoolean(FAIL_MISSING_HEADERS_KEY, m_isFailOnMissingHeaders);
         m_proxyManager.saveSettings(m_currentProxyConfig.orElse(null), settings);
     }
@@ -956,9 +956,9 @@ public class RestSettings {
      * @throws InvalidSettingsException When the state is inconsistent.
      */
     protected void loadSettingsFrom(final NodeSettingsRO settings) throws InvalidSettingsException {
-        m_isUseConstantURI = settings.getBoolean(USE_CONSTANT_URI);
-        m_constantURI = settings.getString(CONSTANT_URI);
-        m_uriColumn = settings.getString(URI_COLUMN);
+        m_isUseConstantURL = settings.getBoolean(USE_CONSTANT_URI);
+        m_constantURL = settings.getString(CONSTANT_URI);
+        m_urlColumn = settings.getString(URI_COLUMN);
         m_useDelay = settings.getBoolean(USE_DELAY);
         m_delay = settings.getLong(DELAY);
         m_concurrency = settings.getInt(CONCURRENCY);
@@ -1013,7 +1013,7 @@ public class RestSettings {
         } catch (InvalidSettingsException e) { // NOSONAR
             // noop
         }
-        m_invalidURIPolicy = InvalidURIPolicy.loadSettingsFrom(settings);
+        m_invalidURLPolicy = InvalidURLPolicy.loadSettingsFrom(settings);
         /* Backwards compatibility: if not present, missing headers are ignored.
          * Otherwise, the new default (see DEFAULT_FAIL_MISSING_HEADERS) is to fail. */
         m_isFailOnMissingHeaders = settings.getBoolean(FAIL_MISSING_HEADERS_KEY, false);
@@ -1041,9 +1041,9 @@ public class RestSettings {
      */
     protected void loadSettingsForDialog(final NodeSettingsRO settings, final CredentialsProvider credentialNames,
         final PortObjectSpec... specs) throws InvalidSettingsException {
-        m_isUseConstantURI = settings.getBoolean(USE_CONSTANT_URI, DEFAULT_USE_CONSTANT_URI);
-        m_constantURI = settings.getString(CONSTANT_URI, DEFAULT_CONSTANT_URI);
-        m_uriColumn = settings.getString(URI_COLUMN, DEFAULT_URI_COLUMN);
+        m_isUseConstantURL = settings.getBoolean(USE_CONSTANT_URI, DEFAULT_USE_CONSTANT_URI);
+        m_constantURL = settings.getString(CONSTANT_URI, DEFAULT_CONSTANT_URI);
+        m_urlColumn = settings.getString(URI_COLUMN, DEFAULT_URI_COLUMN);
         m_useDelay = settings.getBoolean(USE_DELAY, DEFAULT_USE_DELAY);
         m_delay = settings.getLong(DELAY, DEFAULT_DELAY);
         m_concurrency = settings.getInt(CONCURRENCY, DEFAULT_CONCURRENCY);
@@ -1112,7 +1112,7 @@ public class RestSettings {
         } catch (InvalidSettingsException e) { // NOSONAR
             // noop
         }
-        m_invalidURIPolicy = InvalidURIPolicy.loadSettingsFrom(settings);
+        m_invalidURLPolicy = InvalidURLPolicy.loadSettingsFrom(settings);
         /* Backwards compatibility: if not present, missing headers are ignored.
          * Otherwise, the new default (see DEFAULT_FAIL_MISSING_HEADERS) is to fail. */
         m_isFailOnMissingHeaders = settings.getBoolean(FAIL_MISSING_HEADERS_KEY, false);
