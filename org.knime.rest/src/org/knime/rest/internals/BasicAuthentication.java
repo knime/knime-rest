@@ -48,17 +48,18 @@
  */
 package org.knime.rest.internals;
 
-import java.io.UnsupportedEncodingException;
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.Map;
 
-import org.apache.cxf.common.util.Base64Utility;
 import org.knime.core.data.DataRow;
-import org.knime.core.node.NodeLogger;
+import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.workflow.CredentialsProvider;
 import org.knime.core.node.workflow.FlowVariable;
 import org.knime.rest.generic.UsernamePasswordAuthentication;
 
 import jakarta.ws.rs.client.Invocation.Builder;
+import jakarta.ws.rs.core.HttpHeaders;
 
 /**
  * Basic authentication.
@@ -86,19 +87,13 @@ public class BasicAuthentication extends UsernamePasswordAuthentication {
      */
     @Override
     public Builder updateRequest(final Builder request, final DataRow row, final CredentialsProvider credProvider,
-        final Map<String, FlowVariable> flowVariables) {
-        final String username = isUseCredentials() ? credProvider.get(getCredential()).getLogin() : getUsername();
-        String password = isUseCredentials() ? credProvider.get(getCredential()).getPassword() : getPassword();
-        if (password == null) {
-            password = "";
-        }
-        try {
-            request.header("Authorization",
-                "Basic " + Base64Utility.encode((username + ":" + password).getBytes("UTF-8")));
-        } catch (UnsupportedEncodingException ex) {
-            // UTF-8 is supported for sure, but who knows...
-            NodeLogger.getLogger(getClass()).error("Unsupported charset: " + ex.getMessage(), ex);
-        }
+        final Map<String, FlowVariable> flowVariables) throws InvalidSettingsException {
+        final var authPair = UsernamePasswordPair.of(this, credProvider);
+
+        // setting up basic authentication with user-pw pair and HTTP header
+        final var userInfo = String.format("%s:%s", authPair.username(), authPair.password());
+        final var encodedAuth = Base64.getEncoder().encodeToString(userInfo.getBytes(StandardCharsets.UTF_8));
+        request.header(HttpHeaders.AUTHORIZATION, "Basic %s".formatted(encodedAuth));
         return request;
     }
 }

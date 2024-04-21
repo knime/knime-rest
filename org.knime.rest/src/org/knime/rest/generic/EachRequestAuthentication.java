@@ -51,6 +51,7 @@ package org.knime.rest.generic;
 import java.util.Map;
 
 import org.knime.core.data.DataRow;
+import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.workflow.CredentialsProvider;
 import org.knime.core.node.workflow.FlowVariable;
 
@@ -72,7 +73,8 @@ public abstract class EachRequestAuthentication extends UserConfiguration {
      * @param credProvider The {@link CredentialsProvider}.
      * @param flowVariables The available flow variables.
      * @return The updated request {@link Builder}.
+     * @throws InvalidSettingsException if the credentials to be used are missing
      */
     public abstract Builder updateRequest(Builder request, DataRow row, CredentialsProvider credProvider,
-        Map<String, FlowVariable> flowVariables);
+        Map<String, FlowVariable> flowVariables) throws InvalidSettingsException;
 }

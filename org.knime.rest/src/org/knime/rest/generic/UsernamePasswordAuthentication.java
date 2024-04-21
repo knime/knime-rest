@@ -48,8 +48,11 @@
  */
 package org.knime.rest.generic;
 
+import java.util.Objects;
+
 import javax.swing.JPanel;
 
+import org.apache.commons.lang3.StringUtils;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettings;
 import org.knime.core.node.NodeSettingsRO;
@@ -59,6 +62,7 @@ import org.knime.core.node.defaultnodesettings.DialogComponentAuthentication;
 import org.knime.core.node.defaultnodesettings.SettingsModelAuthentication;
 import org.knime.core.node.defaultnodesettings.SettingsModelAuthentication.AuthenticationType;
 import org.knime.core.node.port.PortObjectSpec;
+import org.knime.core.node.util.CheckUtils;
 import org.knime.core.node.workflow.CredentialsProvider;
 
 /**
@@ -201,7 +205,8 @@ public abstract class UsernamePasswordAuthentication extends EachRequestAuthenti
      * @param username the username to set
      */
     public void setUsername(final String username) {
-        m_settings.setValues( AuthenticationType.USER_PWD, m_settings.getCredential(), username, m_settings.getPassword());
+        m_settings.setValues(AuthenticationType.USER_PWD, m_settings.getCredential(), username,
+            m_settings.getPassword());
     }
 
     /**
@@ -215,7 +220,8 @@ public abstract class UsernamePasswordAuthentication extends EachRequestAuthenti
      * @param password the password to set
      */
     public void setPassword(final String password) {
-        m_settings.setValues(AuthenticationType.USER_PWD, m_settings.getCredential(), m_settings.getUsername(), password);
+        m_settings.setValues(AuthenticationType.USER_PWD, m_settings.getCredential(), m_settings.getUsername(),
+            password);
     }
 
     /**
@@ -229,7 +235,8 @@ public abstract class UsernamePasswordAuthentication extends EachRequestAuthenti
      * @param credential the credential to set
      */
     public void setCredential(final String credential) {
-        m_settings.setValues(AuthenticationType.CREDENTIALS, credential, m_settings.getUsername(), m_settings.getPassword());
+        m_settings.setValues(AuthenticationType.CREDENTIALS, credential, m_settings.getUsername(),
+            m_settings.getPassword());
     }
 
     /**
@@ -253,5 +260,40 @@ public abstract class UsernamePasswordAuthentication extends EachRequestAuthenti
     @Override
     public String toString() {
         return getClass().getName() + "[" + getUsername() + "]";
+    }
+
+    /**
+     * Pair holding only a user name and a password.
+     *
+     * @param username the user name as String
+     * @param password the password as String
+     */
+    protected record UsernamePasswordPair(String username, String password) {
+        /**
+         * Creates an authentication pair that takes into account credentials flow variables, and guarantees that both
+         * values are guaranteed to be non-null, and the user name is non-empty.
+         *
+         * @param authentication user/pw authentication
+         * @param provider credentials provider for flow variables
+         * @return validated pair of user name and password
+         * @throws InvalidSettingsException if user name is empty
+         */
+        public static UsernamePasswordPair of(final UsernamePasswordAuthentication authentication,
+            final CredentialsProvider provider) throws InvalidSettingsException {
+            final var credentialsName = authentication.getCredential();
+            var user = authentication.getUsername();
+            var passwd = authentication.getPassword();
+            if (StringUtils.isNotEmpty(credentialsName)) {
+                CheckUtils.checkNotNull(provider);
+                final var credentials = provider.get(credentialsName);
+                user = credentials.getLogin();
+                passwd = credentials.getPassword();
+            }
+            // Check user name and fail if empty
+            if (StringUtils.isEmpty(user)) {
+                throw new InvalidSettingsException("User name cannot be empty");
+            }
+            return new UsernamePasswordPair(user, Objects.requireNonNullElse(passwd, ""));
+        }
     }
 }

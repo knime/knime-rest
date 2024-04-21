@@ -51,10 +51,10 @@ package org.knime.rest.internals;
 import java.util.Map;
 
 import org.apache.cxf.configuration.security.AuthorizationPolicy;
-import org.apache.cxf.jaxrs.client.ClientConfiguration;
 import org.apache.cxf.jaxrs.client.WebClient;
 import org.apache.cxf.transport.http.auth.DigestAuthSupplier;
 import org.knime.core.data.DataRow;
+import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.workflow.CredentialsProvider;
 import org.knime.core.node.workflow.FlowVariable;
 import org.knime.rest.generic.UsernamePasswordAuthentication;
@@ -79,19 +79,17 @@ public class DigestAuthentication extends UsernamePasswordAuthentication {
      */
     @Override
     public Builder updateRequest(final Builder request, final DataRow row, final CredentialsProvider credProvider,
-        final Map<String, FlowVariable> flowVariables) {
+        final Map<String, FlowVariable> flowVariables) throws InvalidSettingsException {
+        final var authPair = UsernamePasswordPair.of(this, credProvider);
+        final var conduit = WebClient.getConfig(request).getHttpConduit();
 
-        // Digest authentication will fail when a request is made through a proxy (see below).
-        // Deliberately not checking for an AP-configured proxy here, host might be on the proxy's exclusion list.
-        final ClientConfiguration conf = WebClient.getConfig(request);
-
-        var authPolicy = new AuthorizationPolicy();
-        authPolicy.setUserName(getUsername());
-        authPolicy.setPassword(getPassword());
-        conf.getHttpConduit().setAuthorization(authPolicy);
-
-        conf.getHttpConduit().setAuthSupplier(new DigestAuthSupplier());
-        conf.getHttpConduit().getClient().setAutoRedirect(true);
+        // setting up digest authentication with user-pw pair and digest auth supplier from CXF
+        final var authPolicy = new AuthorizationPolicy(); // don't reuse conduit#getAuthorization, could leak
+        authPolicy.setUserName(authPair.username());
+        authPolicy.setPassword(authPair.password());
+        conduit.setAuthorization(authPolicy);
+        conduit.setAuthSupplier(new DigestAuthSupplier());
+        conduit.getClient().setAutoRedirect(true);
         return request;
     }
 }

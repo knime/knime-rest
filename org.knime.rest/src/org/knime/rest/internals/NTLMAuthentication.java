@@ -77,7 +77,6 @@ import org.knime.core.node.util.StringHistoryPanel;
 import org.knime.core.node.util.ViewUtils;
 import org.knime.core.node.workflow.CredentialsProvider;
 import org.knime.core.node.workflow.FlowVariable;
-import org.knime.core.node.workflow.ICredentials;
 import org.knime.rest.generic.UsernamePasswordAuthentication;
 
 import jakarta.ws.rs.client.Invocation.Builder;
@@ -109,7 +108,7 @@ public class NTLMAuthentication extends UsernamePasswordAuthentication {
      */
     @Override
     public Builder updateRequest(final Builder request, final DataRow row, final CredentialsProvider credProvider,
-        final Map<String, FlowVariable> flowVariables) {
+        final Map<String, FlowVariable> flowVariables) throws InvalidSettingsException {
         final ClientConfiguration conf = WebClient.getConfig(request);
         final Map<String, Object> requestContext = conf.getRequestContext();
 
@@ -132,32 +131,18 @@ public class NTLMAuthentication extends UsernamePasswordAuthentication {
         return request;
     }
 
-    private Credentials getNTCredentials(final CredentialsProvider credProvider) {
-        if (credProvider == null) {
-            throw new IllegalArgumentException("No credentials provider provided");
-        }
-
-        String credentialsName = getCredential();
-        String username = getUsername();
-        String password = getPassword();
-
-        if (!StringUtils.isEmpty(credentialsName)) {
-            try {
-                ICredentials cred = credProvider.get(credentialsName);
-                username = cred.getLogin();
-                password = cred.getPassword();
-            } catch (IllegalArgumentException ex) {
-                throw new IllegalStateException("Missing credentials for " + credentialsName);
+    private Credentials getNTCredentials(final CredentialsProvider credProvider) throws InvalidSettingsException {
+        try {
+            final var authPair = UsernamePasswordPair.of(this, credProvider);
+            if (StringUtils.isEmpty(authPair.password())) {
+                throw new InvalidSettingsException("The password cannot be empty");
             }
+            final var workstation = ObjectUtils.defaultIfNull(KNIMEConstants.getHostname(), "host");
+            final var domain = ObjectUtils.defaultIfNull(m_domainString, "");
+            return new NTCredentials(authPair.username(), authPair.password(), workstation, domain);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalStateException("Missing credentials for " + getCredential(), e);
         }
-
-        //  Check username & password
-        if (StringUtils.isEmpty(username) || StringUtils.isEmpty(password)) {
-            throw new IllegalStateException("Username or Password cannot be blank !");
-        }
-        return new NTCredentials(username, password, //
-            ObjectUtils.defaultIfNull(KNIMEConstants.getHostname(), "host"), //
-            ObjectUtils.defaultIfNull(m_domainString, ""));
     }
 
     /**
