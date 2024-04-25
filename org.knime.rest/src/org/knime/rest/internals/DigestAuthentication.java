@@ -84,10 +84,15 @@ public class DigestAuthentication extends UsernamePasswordAuthentication {
         // Digest authentication will fail when a request is made through a proxy (see below).
         // Deliberately not checking for an AP-configured proxy here, host might be on the proxy's exclusion list.
         final ClientConfiguration conf = WebClient.getConfig(request);
+        final String username = isUseCredentials() ? credProvider.get(getCredential()).getLogin() : getUsername();
+        String password = isUseCredentials() ? credProvider.get(getCredential()).getPassword() : getPassword();
+        if (password == null) {
+            password = "";
+        }
 
         var authPolicy = new AuthorizationPolicy();
-        authPolicy.setUserName(getUsername());
-        authPolicy.setPassword(getPassword());
+        authPolicy.setUserName(username);
+        authPolicy.setPassword(password);
         conf.getHttpConduit().setAuthorization(authPolicy);
 
         conf.getHttpConduit().setAuthSupplier(new DigestAuthSupplier());
