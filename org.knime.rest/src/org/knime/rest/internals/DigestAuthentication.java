@@ -88,10 +88,15 @@ public class DigestAuthentication extends UsernamePasswordAuthentication {
 
         final ClientConfiguration conf = WebClient.getConfig(request);
         final Map<String, Object> requestContext = conf.getRequestContext();
+        final String username = isUseCredentials() ? credProvider.get(getCredential()).getLogin() : getUsername();
+        String password = isUseCredentials() ? credProvider.get(getCredential()).getPassword() : getPassword();
+        if (password == null) {
+            password = "";
+        }
 
         // Setting credentials specifically *not* with the HTTPConduit#authorizationPolicy, but via the requestContext.
         // Note: this method of setting credentials will also try to authenticate at proxy!
-        var creds = new UsernamePasswordCredentials(getUsername(), getPassword());
+        var creds = new UsernamePasswordCredentials(username, password);
         requestContext.put(Credentials.class.getName(), creds);
         requestContext.put(AsyncHTTPConduit.USE_ASYNC, Boolean.TRUE);
         conf.getHttpConduit().setAuthSupplier(new DigestAuthSupplier());
