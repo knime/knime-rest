@@ -46,7 +46,7 @@
  */
 /**
  * Proxy-related functionality concerning REST nodes. Enables global (KNIME-wide) proxy settings, see
- * {@link org.knime.core.util.proxy.GlobalProxyConfigProvider}, or node-specific settings, stored in
+ * {@link org.knime.core.util.proxy.search}, or node-specific settings, stored in
  * {@link org.knime.rest.nodes.common.proxy.RestProxyConfig}.
  *
  * @author Leon Wenzler, KNIME AG, Konstanz, Germany

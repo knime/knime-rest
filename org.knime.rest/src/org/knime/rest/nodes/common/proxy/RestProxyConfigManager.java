@@ -55,7 +55,6 @@ import org.apache.cxf.jaxrs.client.WebClient;
 import org.apache.cxf.transport.http.HTTPConduit;
 import org.apache.cxf.transports.http.configuration.HTTPClientPolicy;
 import org.apache.cxf.transports.http.configuration.ProxyServerType;
-import org.eclipse.core.internal.net.ProxyManager;
 import org.knime.core.data.DataTableSpec;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeLogger;
@@ -64,8 +63,8 @@ import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.defaultnodesettings.SettingsModelString;
 import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.node.workflow.CredentialsProvider;
-import org.knime.core.util.proxy.GlobalProxyConfigProvider;
 import org.knime.core.util.proxy.ProxyProtocol;
+import org.knime.core.util.proxy.search.GlobalProxySearch;
 import org.knime.rest.internals.BasicAuthentication;
 import org.knime.rest.nodes.common.RestNodeDialog;
 import org.knime.rest.nodes.common.proxy.RestProxyConfig.RestProxyConfigBuilder;
@@ -191,14 +190,7 @@ public final class RestProxyConfigManager {
      *
      * @return ProxyMode
      */
-    @SuppressWarnings("restriction")
     public ProxyMode getProxyMode() {
-        // If we use proxy settings from the KNIME platform,
-        // check whether proxies are enabled (not set to DIRECT).
-        if (m_proxyMode == ProxyMode.GLOBAL &&
-                !ProxyManager.getProxyManager().isProxiesEnabled()) {
-            return ProxyMode.NONE;
-        }
         return m_proxyMode;
     }
 
@@ -345,14 +337,14 @@ public final class RestProxyConfigManager {
     }
 
     /**
-     * Loads a global proxy config from {@link GlobalProxyConfigProvider}. Package scope for tests.
+     * Loads a global proxy config from {@link GlobalProxySearch}. Package scope for tests.
      *
      * @return RestProxyConfig
      */
     static RestProxyConfig getGlobalConfig() {
         try {
             final var b = RestProxyConfig.builder();
-            final var maybeProxyConfig = GlobalProxyConfigProvider.getCurrent();
+            final var maybeProxyConfig = GlobalProxySearch.getCurrentFor(ProxyProtocol.HTTP, ProxyProtocol.HTTPS);
             if (maybeProxyConfig.isPresent()) {
                 final var proxyConfig = maybeProxyConfig.get();
                 b.setProtocol(proxyConfig.protocol());
