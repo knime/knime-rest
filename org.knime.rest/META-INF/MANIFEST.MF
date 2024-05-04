@@ -2,12 +2,12 @@ Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
 Bundle-Name: KNIME REST Client Nodes
 Bundle-SymbolicName: org.knime.rest;singleton:=true
-Bundle-Version: 5.2.1.qualifier
+Bundle-Version: 5.2.4.qualifier
 Bundle-Activator: org.knime.rest.internals.RESTActivator
 Bundle-Vendor: KNIME AG, Zurich, Switzerland
 Export-Package: org.knime.rest.generic,
   org.knime.rest.util
-Require-Bundle: org.knime.base;bundle-version="[5.2.0,6.0.0)",
+Require-Bundle: org.knime.base;bundle-version="[5.2.4,6.0.0)",
  jakarta.ws.rs-api;bundle-version="[3.1.0,4.0.0)",
  org.apache.cxf.cxf-core;bundle-version="[4.0.3,5.0.0)",
  org.apache.cxf.cxf-rt-frontend-jaxrs;bundle-version="[4.0.3,5.0.0)",

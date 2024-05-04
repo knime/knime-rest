@@ -2,7 +2,7 @@
 <feature
       id="org.knime.features.rest"
       label="KNIME REST Client Extension"
-      version="5.2.1.qualifier"
+      version="5.2.4.qualifier"
       provider-name="KNIME AG, Zurich, Switzerland">
 
    <description>
@@ -727,7 +727,7 @@ interoperation with KNIME.  The owner of a Node may freely choose the
 license terms applicable to such Node, including when such Node is
 propagated with or for interoperation with KNIME.
    </license>
-   
+
    <requires>
       <import feature="org.knime.features.credentials.base" version="0.0.0"/>
    </requires>
