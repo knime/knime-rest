@@ -377,7 +377,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         // Issue a warning if no proxy config came in from the global settings.
         if (m_settings.getProxyManager().getProxyMode() == ProxyMode.GLOBAL
             && m_settings.getUpdatedProxyConfig().isEmpty()) {
-            LOGGER.warn("The KNIME-wide proxy settings are activated but none were specified. "
+            LOGGER.info("The KNIME-wide proxy settings are activated but none were specified. "
                 + "Defaulting to using no proxy.");
         }
         if (inData.length > 0 && inData[0] != null) {

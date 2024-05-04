@@ -55,7 +55,6 @@ import org.apache.cxf.jaxrs.client.WebClient;
 import org.apache.cxf.transport.http.HTTPConduit;
 import org.apache.cxf.transports.http.configuration.HTTPClientPolicy;
 import org.apache.cxf.transports.http.configuration.ProxyServerType;
-import org.eclipse.core.internal.net.ProxyManager;
 import org.knime.core.data.DataTableSpec;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeLogger;
@@ -191,14 +190,7 @@ public final class RestProxyConfigManager {
      *
      * @return ProxyMode
      */
-    @SuppressWarnings("restriction")
     public ProxyMode getProxyMode() {
-        // If we use proxy settings from the KNIME platform,
-        // check whether proxies are enabled (not set to DIRECT).
-        if (m_proxyMode == ProxyMode.GLOBAL &&
-                !ProxyManager.getProxyManager().isProxiesEnabled()) {
-            return ProxyMode.NONE;
-        }
         return m_proxyMode;
     }
 
