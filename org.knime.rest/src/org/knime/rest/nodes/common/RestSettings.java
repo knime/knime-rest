@@ -48,6 +48,7 @@
  */
 package org.knime.rest.nodes.common;
 
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -899,8 +900,8 @@ public class RestSettings {
      *
      * @return RestProxyConfig, if present
      */
-    protected Optional<RestProxyConfig> getUpdatedProxyConfig() {
-        return getProxyManager().getProxyConfig(getCurrentProxyConfig().orElse(null));
+    protected Optional<RestProxyConfig> getUpdatedProxyConfig(final URI uri) {
+        return getProxyManager().getProxyConfig(getCurrentProxyConfig().orElse(null), uri);
     }
 
     /**

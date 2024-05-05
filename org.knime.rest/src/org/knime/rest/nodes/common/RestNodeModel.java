@@ -481,7 +481,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         createResponseBodyParsers(exec);
         // Issue a warning if no proxy config came in from the global settings.
         if (m_settings.getProxyManager().getProxyMode() == ProxyMode.GLOBAL
-            && m_settings.getUpdatedProxyConfig().isEmpty()) {
+            && m_settings.getUpdatedProxyConfig(null).isEmpty()) {
             LOGGER.info("The KNIME-wide proxy settings are activated but none were specified. "
                 + "Defaulting to using no proxy.");
         }
@@ -733,7 +733,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         clientPolicy.setMaxRetransmits(MAX_RETRANSMITS);
 
         // Configures the proxy credentials for the request builder if needed.
-        final var optProxyConfig = m_settings.getUpdatedProxyConfig();
+        final var optProxyConfig = m_settings.getUpdatedProxyConfig(targetUri);
         getProxyManager().configureRequest(optProxyConfig, request, getCredentialsProvider());
         return Pair.create(request, client);
     }

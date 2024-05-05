@@ -48,6 +48,7 @@
  */
 package org.knime.rest.nodes.common.proxy;
 
+import java.net.URI;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -304,8 +305,20 @@ public final class RestProxyConfigManager {
      * @return proxy configuration
      */
     public Optional<RestProxyConfig> getProxyConfig(final RestProxyConfig localConfig) {
+        return getProxyConfig(localConfig, null);
+    }
+
+    /**
+     * Returns the correct proxy configuration for the current proxy mode and the given {@link URI}
+     *
+     * @param localConfig local proxy settings (must be non-{@code null} if {@link #getProxyMode()} is
+     *        {@link ProxyMode#LOCAL})
+     * @param uri the URI to select the proxy for
+     * @return proxy configuration
+     */
+    public Optional<RestProxyConfig> getProxyConfig(final RestProxyConfig localConfig, final URI uri) {
         return switch (m_proxyMode) {
-            case GLOBAL -> Optional.ofNullable(getGlobalConfig());
+            case GLOBAL -> Optional.ofNullable(getGlobalConfig(uri));
             case LOCAL -> Optional.of(localConfig);
             case NONE -> Optional.empty();
         };
@@ -342,9 +355,24 @@ public final class RestProxyConfigManager {
      * @return RestProxyConfig
      */
     static RestProxyConfig getGlobalConfig() {
+        return getGlobalConfig(null);
+    }
+
+    /**
+     * Loads a global proxy config from {@link GlobalProxySearch#getCurrentFor(URI)}.
+     * If the provided {@link URI} is not null, the proxy selection is based on the URI.
+     *
+     * @param uri the URI to reach via a proxy
+     * @return RestProxyConfig
+     */
+    private static RestProxyConfig getGlobalConfig(final URI uri) {
+        // select proxy for URI directly if non-null, otherwise any HTTP(S) proxy
+        final var maybeProxyConfig = uri != null //
+                ? GlobalProxySearch.getCurrentFor(uri) //
+                : GlobalProxySearch.getCurrentFor(ProxyProtocol.HTTP, ProxyProtocol.HTTPS);
         try {
+            // convert to RestProxyConfig and validate in #build() step
             final var b = RestProxyConfig.builder();
-            final var maybeProxyConfig = GlobalProxySearch.getCurrentFor(ProxyProtocol.HTTP, ProxyProtocol.HTTPS);
             if (maybeProxyConfig.isPresent()) {
                 final var proxyConfig = maybeProxyConfig.get();
                 b.setProtocol(proxyConfig.protocol());
