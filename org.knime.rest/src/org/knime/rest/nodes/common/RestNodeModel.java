@@ -52,6 +52,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyManagementException;
@@ -376,7 +377,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         createResponseBodyParsers(exec);
         // Issue a warning if no proxy config came in from the global settings.
         if (m_settings.getProxyManager().getProxyMode() == ProxyMode.GLOBAL
-            && m_settings.getUpdatedProxyConfig().isEmpty()) {
+            && m_settings.getUpdatedProxyConfig(null).isEmpty()) {
             LOGGER.info("The KNIME-wide proxy settings are activated but none were specified. "
                 + "Defaulting to using no proxy.");
         }
@@ -1145,7 +1146,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         //Support relative redirects too, see https://tools.ietf.org/html/rfc7231#section-3.1.4.2
         target = target.property("http.redirect.relative.uri", true);
 
-        final var optProxyConfig = m_settings.getUpdatedProxyConfig();
+        final var optProxyConfig = m_settings.getUpdatedProxyConfig(safeParseURI(targetUri));
         // AP-20749: this prevents long living SelectorManager threads that can lead to out of memory errors
         if (!usesHttpsThroughAuthenticatedProxy(target.getUri(), optProxyConfig.orElse(null))) {
             target = target.property("force.urlconnection.http.conduit", true);
@@ -1190,6 +1191,26 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         // Configures the proxy credentials for the request builder if needed.
         getProxyManager().configureRequest(optProxyConfig, request, getCredentialsProvider());
         return Pair.create(request, client);
+    }
+
+    /**
+     * Tries to parse a {@link URI} from string input and returns {@code null} if it fails.
+     * Does not throw any exception.
+     *
+     * @param uriString URI input as string
+     * @return URI if parsing was successful, otherwise null
+     */
+    private static URI safeParseURI(final String uriString) {
+        if (uriString == null) {
+            return null;
+        }
+        try {
+            return new URI(uriString);
+        } catch (URISyntaxException e) {
+            LOGGER.debug(
+                "Creating a URI for input \"%s\" failed, using null URI for proxy selection".formatted(uriString), e);
+            return null;
+        }
     }
 
     /**

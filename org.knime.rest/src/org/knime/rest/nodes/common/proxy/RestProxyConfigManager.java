@@ -48,6 +48,7 @@
  */
 package org.knime.rest.nodes.common.proxy;
 
+import java.net.URI;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -304,8 +305,20 @@ public final class RestProxyConfigManager {
      * @return proxy configuration
      */
     public Optional<RestProxyConfig> getProxyConfig(final RestProxyConfig localConfig) {
+        return getProxyConfig(localConfig, null);
+    }
+
+    /**
+     * Returns the correct proxy configuration for the current proxy mode and the given {@link URI}
+     *
+     * @param localConfig local proxy settings (must be non-{@code null} if {@link #getProxyMode()} is
+     *        {@link ProxyMode#LOCAL})
+     * @param uri the URI to select the proxy for
+     * @return proxy configuration
+     */
+    public Optional<RestProxyConfig> getProxyConfig(final RestProxyConfig localConfig, final URI uri) {
         return switch (m_proxyMode) {
-            case GLOBAL -> Optional.ofNullable(getGlobalConfig());
+            case GLOBAL -> Optional.ofNullable(getGlobalConfig(uri));
             case LOCAL -> Optional.of(localConfig);
             case NONE -> Optional.empty();
         };
@@ -342,9 +355,20 @@ public final class RestProxyConfigManager {
      * @return RestProxyConfig
      */
     static RestProxyConfig getGlobalConfig() {
+        return getGlobalConfig(null);
+    }
+
+    /**
+     * Loads a global proxy config from {@link GlobalProxyConfigProvider#getCurrentFor(URI)},
+     * if the provided {@link URI} is not null, the proxy selection is based on the URI.
+     *
+     * @param uri the URI to reach via a proxy
+     * @return RestProxyConfig
+     */
+    private static RestProxyConfig getGlobalConfig(final URI uri) {
         try {
             final var b = RestProxyConfig.builder();
-            final var maybeProxyConfig = GlobalProxyConfigProvider.getCurrent();
+            final var maybeProxyConfig = GlobalProxyConfigProvider.getCurrentFor(uri);
             if (maybeProxyConfig.isPresent()) {
                 final var proxyConfig = maybeProxyConfig.get();
                 b.setProtocol(proxyConfig.protocol());
