@@ -493,7 +493,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         final var inTable = (BufferedDataTable)inData[0];
         if (inTable.size() == 0) {
             // No calls to make.
-            return inData;
+            return new BufferedDataTable[]{inTable};
         }
 
         final var spec = inTable.getDataTableSpec();
