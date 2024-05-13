@@ -383,7 +383,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         if (inData.length > 0 && inData[0] != null) {
             if (inTable.size() == 0) {
                 //No calls to make.
-                return inData;
+                return new BufferedDataTable[]{inTable};
             }
             final var spec = inTable.getDataTableSpec();
             try (final CloseableRowIterator iterator = inTable.iterator()) {
