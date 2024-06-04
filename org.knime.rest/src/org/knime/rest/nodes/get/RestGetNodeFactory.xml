@@ -174,7 +174,7 @@
     
     <ports>
         <inPort index="0" name="Table">Optional data table containing the variable parameters of the requests.</inPort>
-        <dynInPort insert-before="0" name="Credential"
+        <dynInPort insert-before="1" name="Credential"
             group-identifier="Credential">
             A Credential, that can be embedded into the HTTP Authorization header. If this port is added,
             then all request done by the node will always use the Credential from the port, regardless of other
