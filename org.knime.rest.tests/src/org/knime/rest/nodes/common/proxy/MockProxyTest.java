@@ -63,6 +63,7 @@ import org.junit.jupiter.api.Test;
 import org.knime.core.data.DataCell;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.util.proxy.ProxyProtocol;
+import org.knime.core.util.proxy.URLConnectionFactory;
 import org.knime.rest.nodes.common.HttpMockServiceFactory;
 import org.knime.rest.nodes.common.PassthroughMarker;
 import org.knime.rest.nodes.common.TestGetNodeModel;
@@ -121,8 +122,8 @@ final class MockProxyTest {
     @SuppressWarnings("static-method")
     @Test
     void checkProxyRunning() throws IOException {
-        final var connection =
-            (HttpURLConnection)HttpMockServiceFactory.getBaseUri(mockRequestProxy).toURL().openConnection();
+        final var url = HttpMockServiceFactory.getBaseUri(mockRequestProxy).toURL();
+        final var connection = (HttpURLConnection)URLConnectionFactory.getConnection(url);
         assertDoesNotThrow(connection::connect, "Forwarding proxy should be available but isn't.");
     }
 
@@ -136,8 +137,8 @@ final class MockProxyTest {
     @SuppressWarnings("static-method")
     @Test
     void checkServerRunning() throws IOException {
-        final var connection =
-            (HttpURLConnection)HttpMockServiceFactory.getBaseUri(mockRequestServer).toURL().openConnection();
+        final var url = HttpMockServiceFactory.getBaseUri(mockRequestServer).toURL();
+        final var connection = (HttpURLConnection)URLConnectionFactory.getConnection(url);
         assertDoesNotThrow(connection::connect, "Mock server should be available but isn't.");
     }
 
