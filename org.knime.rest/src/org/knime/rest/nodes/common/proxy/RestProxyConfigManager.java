@@ -59,11 +59,13 @@ import org.apache.cxf.transports.http.configuration.ProxyServerType;
 import org.knime.core.data.DataTableSpec;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeLogger;
+import org.knime.core.node.NodeSettings;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.defaultnodesettings.SettingsModelString;
 import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.node.workflow.CredentialsProvider;
+import org.knime.core.util.proxy.GlobalProxyConfig;
 import org.knime.core.util.proxy.ProxyProtocol;
 import org.knime.core.util.proxy.search.GlobalProxySearch;
 import org.knime.rest.internals.BasicAuthentication;
@@ -370,23 +372,39 @@ public final class RestProxyConfigManager {
         final var maybeProxyConfig = uri != null //
                 ? GlobalProxySearch.getCurrentFor(uri) //
                 : GlobalProxySearch.getCurrentFor(ProxyProtocol.HTTP, ProxyProtocol.HTTPS);
+        return maybeProxyConfig //
+                .map(RestProxyConfigManager::toRestProxyConfig) //
+                .filter(Objects::nonNull) //
+                .orElse(null);
+    }
+
+    /**
+     * Converts a {@link GlobalProxyConfig} to a {@link RestProxyConfig} with identical contents.
+     * Package scope for tests.
+     * <p>
+     * Distinction between these configs mainly stems earlier proxy-related development in "org.knime.rest"
+     * (than in "org.knime.core.util.proxy") and an additional integration of {@link NodeSettings} for REST nodes.
+     * These two config types might be unified at some point.
+     * </p>
+     *
+     * @param config GlobalProxyConfig
+     * @return RestProxyConfig
+     */
+    static RestProxyConfig toRestProxyConfig(final GlobalProxyConfig config) {
         try {
             // convert to RestProxyConfig and validate in #build() step
             final var b = RestProxyConfig.builder();
-            if (maybeProxyConfig.isPresent()) {
-                final var proxyConfig = maybeProxyConfig.get();
-                b.setProtocol(proxyConfig.protocol());
-                b.setProxyHost(proxyConfig.host());
-                b.setProxyPort(proxyConfig.port());
-                b.setUseAuthentication(proxyConfig.useAuthentication());
-                if (proxyConfig.useAuthentication()) {
-                    b.setUsername(proxyConfig.username());
-                    b.setPassword(proxyConfig.password());
-                }
-                b.setUseExcludeHosts(proxyConfig.useExcludedHosts());
-                if (proxyConfig.useExcludedHosts()) {
-                    b.setExcludedHosts(proxyConfig.excludedHosts());
-                }
+            b.setProtocol(config.protocol());
+            b.setProxyHost(config.host());
+            b.setProxyPort(config.port());
+            b.setUseAuthentication(config.useAuthentication());
+            if (config.useAuthentication()) {
+                b.setUsername(config.username());
+                b.setPassword(config.password());
+            }
+            b.setUseExcludeHosts(config.useExcludedHosts());
+            if (config.useExcludedHosts()) {
+                b.setExcludedHosts(config.excludedHosts());
             }
             return b.build();
         } catch (InvalidSettingsException e) { // NOSONAR

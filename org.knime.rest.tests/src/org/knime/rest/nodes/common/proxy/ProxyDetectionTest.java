@@ -58,6 +58,8 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.knime.core.node.InvalidSettingsException;
+import org.knime.core.util.proxy.GlobalProxyConfigProvider;
+import org.knime.core.util.proxy.ProxyProtocol;
 import org.knime.rest.nodes.common.proxy.SystemPropertyProvider.PropertyMode;
 
 import jakarta.ws.rs.client.ClientBuilder;
@@ -82,7 +84,7 @@ final class ProxyDetectionTest {
      */
     @SuppressWarnings("static-method")
     @Test
-    void detectNoProxyNonPresent() throws InvalidSettingsException {
+    void detectNoProxyNonPresent() {
         // assumption: a proxy is detected via a valid host
         var props = new String[]{"http.proxyHost"};
         var values = SystemPropertyProvider.saveAndSetProperties(props, PropertyMode.CLEAR);
@@ -99,7 +101,7 @@ final class ProxyDetectionTest {
      */
     @SuppressWarnings("static-method")
     @Test
-    void detectNoProxyBlank() throws InvalidSettingsException {
+    void detectNoProxyBlank() {
         // assumption: a proxy is detected via a valid host
         var props = new String[]{"http.proxyHost"};
         var values = SystemPropertyProvider.saveAndSetProperties(props, PropertyMode.BLANK);
@@ -115,11 +117,12 @@ final class ProxyDetectionTest {
      */
     @SuppressWarnings("static-method")
     @Test
-    void detectProxyPresent() throws InvalidSettingsException {
+    void detectProxyPresent() {
         // setting credentials will only be done if a user/pw was specified
         var props = new String[]{"http.proxyUser", "http.proxyPassword", "http.proxyHost", "http.proxyPort"};
         var values = SystemPropertyProvider.saveAndSetProperties(props, PropertyMode.DUMMY, "1234");
-        var proxyConfig = RestProxyConfigManager.getGlobalConfig();
+        var proxyConfig = RestProxyConfigManager.toRestProxyConfig(
+            GlobalProxyConfigProvider.getConfigFromSystemProperties(ProxyProtocol.HTTP).orElseThrow());
         var dummyRequest = ClientBuilder.newBuilder().build().target("http://localhost").request();
         assertThat("Proxy port must be set to dummy value 1234", 1234, is(proxyConfig.getProxyTarget().port()));
         assertDoesNotThrow(() -> proxyManager.configureRequest(Optional.of(proxyConfig), dummyRequest, null),
