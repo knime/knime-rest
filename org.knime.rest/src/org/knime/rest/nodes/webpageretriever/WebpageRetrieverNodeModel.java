@@ -84,7 +84,6 @@ import org.knime.core.node.context.NodeCreationConfiguration;
 import org.knime.core.util.UniqueNameGenerator;
 import org.knime.rest.generic.EachRequestAuthentication;
 import org.knime.rest.nodes.common.RestNodeModel;
-import org.w3c.dom.NodeList;
 
 import jakarta.ws.rs.client.Invocation;
 import jakarta.ws.rs.client.Invocation.Builder;
@@ -191,16 +190,8 @@ final class WebpageRetrieverNodeModel extends RestNodeModel<WebpageRetrieverSett
                 .forEach(Node::remove);
 
             // convert to w3c document
-            org.w3c.dom.Document w3cDoc = new W3CDom().fromJsoup(htmlDocument);
-
-            // fix an issue where the xmlns attribute was twice in the output for certain elements.
-            // (can be tested with this webpage: http://www.handletheheat.com/peanut-butter-snickerdoodles
-            // that could not be parsed by XPath if the attribute was set twice)
-            // may be fixed with a later version of jsoup
-            final NodeList list = w3cDoc.getChildNodes();
-            for (int i = 0; i < list.getLength(); i++) {
-                removeNameSpaceAttributes(list.item(i));
-            }
+            // facilitating easy parsing of xml cell with the XPath Node, by omitting namespace attributes
+            org.w3c.dom.Document w3cDoc = new W3CDom().namespaceAware(false).fromJsoup(htmlDocument);
 
             cells.add(XMLCellFactory.create(w3cDoc));
         } else {
@@ -269,18 +260,6 @@ final class WebpageRetrieverNodeModel extends RestNodeModel<WebpageRetrieverSett
         // apply recursively
         for (var child : element.children()) {
             replaceDeprecatedXLinkHrefAttributes(child);
-        }
-    }
-
-    // remove xmlns attributes, they will be in the output anyway since they are set as namespace
-    private static void removeNameSpaceAttributes(final org.w3c.dom.Node node) {
-        if (node.getNodeType() == org.w3c.dom.Node.ELEMENT_NODE) {
-            ((org.w3c.dom.Element)node).removeAttribute(XMLNS);
-        }
-        // do it recursively
-        final NodeList list = node.getChildNodes();
-        for (int i = 0; i < list.getLength(); i++) {
-            removeNameSpaceAttributes(list.item(i));
         }
     }
 
