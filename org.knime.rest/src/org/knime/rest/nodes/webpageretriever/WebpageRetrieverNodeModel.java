@@ -55,17 +55,20 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.Stack;
 import java.util.stream.Collectors;
 
 import org.apache.cxf.jaxrs.client.spec.InvocationBuilderImpl;
 import org.jsoup.Jsoup;
 import org.jsoup.helper.W3CDom;
+import org.jsoup.internal.StringUtil;
 import org.jsoup.nodes.Comment;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.DocumentType;
 import org.jsoup.nodes.Element;
 import org.jsoup.nodes.Node;
 import org.jsoup.select.Elements;
+import org.jsoup.select.NodeTraversor;
 import org.knime.core.data.DataCell;
 import org.knime.core.data.DataColumnSpec;
 import org.knime.core.data.DataRow;
@@ -190,8 +193,7 @@ final class WebpageRetrieverNodeModel extends RestNodeModel<WebpageRetrieverSett
                 .filter(DocumentType.class::isInstance) //
                 .forEach(Node::remove);
 
-            // convert to w3c document
-            org.w3c.dom.Document w3cDoc = new W3CDom().fromJsoup(htmlDocument);
+            org.w3c.dom.Document w3cDoc = new PatchedW3CDom().fromJsoup(htmlDocument);
 
             // fix an issue where the xmlns attribute was twice in the output for certain elements.
             // (can be tested with this webpage: http://www.handletheheat.com/peanut-butter-snickerdoodles
@@ -372,4 +374,38 @@ final class WebpageRetrieverNodeModel extends RestNodeModel<WebpageRetrieverSett
         m_baseURI = null;
     }
 
+    /**
+     * In Jsoup 1.17.2 (which ships with Eclipse 2024-03 and therefore AP 5.3) all HTML elements without explicitly
+     * declared namespace are implicitly assigned to {@code "http://www.w3.org/1999/xhtml"} (a regression, AP-22864).
+     * We have to extend here to get access to the inner class {@link W3CDom.W3CBuilder}, which we have to modify.
+     */
+    private class PatchedW3CDom extends W3CDom {
+
+        /** Default constructor, namespace-aware. */
+        public PatchedW3CDom() {
+            this.namespaceAware(true); // NOSONAR
+        }
+
+        @Override
+        @SuppressWarnings({"unchecked", "java:S3011"})
+        public void convert(final Element in, final org.w3c.dom.Document out) {
+            final var builder = new W3CBuilder(out);
+            try {
+                // clear the namespace entry added by the constructor (https://github.com/jhy/jsoup/commit/4a278e9)
+                final var namespacesStackField = W3CBuilder.class.getDeclaredField("namespacesStack");
+                namespacesStackField.setAccessible(true);
+                ((Stack<Map<?, ?>>)namespacesStackField.get(builder)).peek().clear();
+            } catch (NoSuchFieldException | SecurityException | IllegalArgumentException
+                    | IllegalAccessException e) {
+                LOGGER.coding("Could not reset namespaces stack", e);
+            }
+            final var inDoc = in.ownerDocument();
+            if (inDoc != null && !StringUtil.isBlank(inDoc.location())) {
+                out.setDocumentURI(inDoc.location());
+            }
+            // skip the #root node if a Document
+            Element rootEl = in instanceof Document ? in.firstElementChild() : in;
+            NodeTraversor.traverse(builder, rootEl);
+        }
+    }
 }
