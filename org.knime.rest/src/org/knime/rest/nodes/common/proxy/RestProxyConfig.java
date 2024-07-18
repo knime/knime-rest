@@ -48,6 +48,7 @@
  */
 package org.knime.rest.nodes.common.proxy;
 
+import java.net.URI;
 import java.util.Arrays;
 import java.util.Objects;
 import java.util.Optional;
@@ -55,12 +56,14 @@ import java.util.Optional;
 import org.apache.commons.lang3.StringUtils;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeLogger;
+import org.knime.core.node.NodeSettings;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.NotConfigurableException;
 import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.node.util.ConvenienceMethods;
 import org.knime.core.node.workflow.CredentialsProvider;
+import org.knime.core.util.proxy.GlobalProxyConfig;
 import org.knime.core.util.proxy.ProxyProtocol;
 import org.knime.rest.internals.BasicAuthentication;
 
@@ -172,6 +175,19 @@ public final class RestProxyConfig {
         return Optional.ofNullable(m_excludedHosts);
     }
 
+    /**
+     * Returns the excluded hosts, if present.
+     * @param uri
+     *
+     * @return excluded hosts
+     */
+    public Optional<String> resolveExcludeHostsFor(final URI uri) {
+        if (uri == null || !toGlobalProxyConfig().isHostExcluded(uri)) {
+            return getExcludeHosts();
+        }
+        return Optional.of(StringUtils.joinWith("|", uri.getHost(), m_excludedHosts));
+    }
+
     // Settings saving and loading.
 
     /**
@@ -194,6 +210,63 @@ public final class RestProxyConfig {
 
         config.addBoolean(USE_EXCLUDE_HOSTS_KEY, m_isUseExcludeHosts);
         config.addString(EXCLUDED_HOSTS_KEY, m_excludedHosts);
+    }
+
+    // Conversions from and to the GlobalProxyConfig.
+
+    /**
+     * Converts a {@link GlobalProxyConfig} to a {@link RestProxyConfig} with identical contents.
+     * Package scope for tests.
+     * <p>
+     * Distinction between these configs mainly stems earlier proxy-related development in "org.knime.rest"
+     * (than in "org.knime.core.util.proxy") and an additional integration of {@link NodeSettings} for REST nodes.
+     * These two config types might be unified at some point.
+     * </p>
+     *
+     * @param config GlobalProxyConfig
+     * @return RestProxyConfig
+     */
+    static RestProxyConfig fromGlobalProxyConfig(final GlobalProxyConfig config) {
+        try {
+            // convert to RestProxyConfig and validate in #build() step
+            final var b = RestProxyConfig.builder();
+            b.setProtocol(config.protocol());
+            b.setProxyHost(config.host());
+            b.setProxyPort(config.port());
+            b.setUseAuthentication(config.useAuthentication());
+            if (config.useAuthentication()) {
+                b.setUsername(config.username());
+                b.setPassword(config.password());
+            }
+            b.setUseExcludeHosts(config.useExcludedHosts());
+            if (config.useExcludedHosts()) {
+                b.setExcludedHosts(config.excludedHosts());
+            }
+            return b.build();
+        } catch (InvalidSettingsException e) { // NOSONAR
+            return null;
+        }
+    }
+
+    /**
+     * Converts this {@link RestProxyConfig} to a {@link GlobalProxyConfig} with (almost) identical contents. The main
+     * difference is the inability to resolve {@link CredentialsAuthentication} to a username and password field.
+     *
+     * @param config GlobalProxyConfig
+     * @return RestProxyConfig
+     */
+    private GlobalProxyConfig toGlobalProxyConfig() {
+        final var target = getProxyTarget();
+        final var auth = getAuthentication().orElse(null);
+        String username = null;
+        String password = null;
+        // cannot resolve CredentialsAuthentication without provider
+        if (auth instanceof UserPasswordAuthentication upwauth) {
+            username = upwauth.authentication().getUsername();
+            password = upwauth.authentication().getPassword();
+        }
+        return new GlobalProxyConfig(getProtocol(), target.host(), String.valueOf(target.port()), isUseAuthentication(),
+            username, password, isExcludeHosts(), getExcludeHosts().orElse(null));
     }
 
     // String history IDs for certain node config panels.

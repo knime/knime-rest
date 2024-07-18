@@ -105,7 +105,7 @@ final class ProxyLocalConfigurationTest {
         // Creating the request template and configuring it.
         var dummyRequest = ClientBuilder.newBuilder().build().target("http://localhost").request();
         assertDoesNotThrow(
-            () -> proxyManager.configureRequest(Optional.of(proxyConfigCorrect), dummyRequest, null),
+            () -> proxyManager.configureRequest(Optional.of(proxyConfigCorrect), dummyRequest, null, null),
             "Unexpected exception when configuring the REST request with the proxy");
         // Checking of all properties are there.
         var conduit = WebClient.getConfig(dummyRequest).getHttpConduit();

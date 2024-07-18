@@ -121,11 +121,11 @@ final class ProxyDetectionTest {
         // setting credentials will only be done if a user/pw was specified
         var props = new String[]{"http.proxyUser", "http.proxyPassword", "http.proxyHost", "http.proxyPort"};
         var values = SystemPropertyProvider.saveAndSetProperties(props, PropertyMode.DUMMY, "1234");
-        var proxyConfig = RestProxyConfigManager.toRestProxyConfig(
+        var proxyConfig = RestProxyConfig.fromGlobalProxyConfig(
             GlobalProxyConfigProvider.getConfigFromSystemProperties(ProxyProtocol.HTTP).orElseThrow());
         var dummyRequest = ClientBuilder.newBuilder().build().target("http://localhost").request();
         assertThat("Proxy port must be set to dummy value 1234", 1234, is(proxyConfig.getProxyTarget().port()));
-        assertDoesNotThrow(() -> proxyManager.configureRequest(Optional.of(proxyConfig), dummyRequest, null),
+        assertDoesNotThrow(() -> proxyManager.configureRequest(Optional.of(proxyConfig), dummyRequest, null, null),
             "Proxy detection should not have thrown an ISE message when configuring the REST request");
         SystemPropertyProvider.restoreProperties(props, values);
     }
