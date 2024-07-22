@@ -1,0 +1,182 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<knimeNode icon="./rest-head.png"
+        type="Manipulator"
+        xmlns="http://knime.org/node/v4.1"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://knime.org/node/v4.1 http://knime.org/node/v4.1.xsd">
+    <name>HEAD Request</name>
+    
+    <shortDescription>
+        HEAD REST client
+    </shortDescription>
+    
+    <fullDescription>
+        <intro>
+        <p>This node can be used to issue HTTP HEAD requests. The HEAD method is identical to the HTTP GET Method, except that 
+        the server will not return a message-body as part of the HTTP response. Rather, it will only return the HTTP headers.</p>
+        
+        <p>The node allows you to either send a request to a fixed URL (which is specified in the dialog) or to a list of
+        URLs provided by an optional input table. Every URL will result in one request which in turn will result in one
+        row in the output table. You can define custom request headers in the dialog.</p>
+        <p>By default the output table will contain a column with the received data, its content type, and the HTTP 
+        status code. The node tries to automatically convert the received data into a KNIME data type based on its
+        content type. In case no automatic conversion is possible, binary cells will be created.<br />
+        You can extract additional response headers into column by defining them in the dialog.</p>
+        <p>The node supports several authentication methods, e.g. BASIC and DIGEST. Other authentication methods may be
+        provided by additional extensions.</p>
+        
+        <p>
+        The node supports the Credential port as input (see dynamic input ports). If the port is added, it must supply a
+        Credential that can be embedded into the HTTP Authorization header, and all request done by the node will
+        use the Credential from the port, regardless of other node settings. The OAuth2 Authenticator nodes provide
+        such a Credential for example.
+        </p>
+        </intro>
+        
+        <tab name="Connection">
+            <option name="URL">Select a constant URL or a column from the input table that contains the URLs that you
+            want to request.</option>
+            <option name="Handling of invalid URLs">Specifies how invalid URLs are handled. Depending on the selected mode,
+            this node either inserts missing values as responses, fails the node execution on encountering the first invalid URL, 
+            or omits such rows from the output. The latter option filters rows based on URL validity of the URL column. 
+            For REST client nodes, all URLs conforming to <a href="https://www.rfc-editor.org/rfc/rfc1738">RFC 1738</a> 
+            and using the HTTP or HTTPS protocol are considered valid.</option>
+            <option name="Delay (ms)">Here you specify a delay between two consecutive requests, e.g. in order to avoid
+            overloading the web service.</option>
+            <option name="Concurrency">Number of concurrent requests</option>
+            <option name="Ignore hostname mismatches">If checked, the node trusts the server's SSL certificate even if
+            it was generated for a different host.</option>
+            <option name="Trust all certificates">If checked, the node trusts all certificates regardless of their
+            origin or expiration date.</option>
+            <option name="Follow redirects">If checked, the node will follow redirects (HTTP status code <tt>3xx</tt>).</option>
+            <option name="Send large data in chunks">
+                Specifies whether HTTP Chunked Transfer Encoding is allowed to be used by the node. If enabled, messages
+                with a large body size are being sent to the server in a series of chunks.
+            </option>
+            <option name="Timeout (s)">Timeout for a single request in seconds</option>
+            <option name="Body">Name of the response body column in the output table</option>
+        </tab>
+        <tab name="Authentication">
+            <option name="Type">The authentication type, e.g. no authentication, BASIC, or DIGEST</option>
+            <option name="Use credentials">Uses the selected credentials instead of username and password provided in the dialog.</option>
+            <option name="Username">The username used for authentication.</option>
+            <option name="Password">The corresponding password used for authentication.</option>
+        </tab>
+        <tab name="Proxy">
+            <option name="Direct connection (no proxy)">
+                This option disables the proxy for this HEAD node. This will bypass KNIME-wide proxies as well.
+            </option>
+            <option name="Use KNIME-wide proxy settings">
+                Uses the same proxy as the KNIME platform. In the KNIME Analytics Platform, this can be changed under 
+                <tt>File > Preferences > General > Network Connections</tt>.
+            </option>
+            <option name="Use node-specific proxy settings">
+                This option enables the configuration fields in the "Proxy" tab. 
+                The proxy settings apply only to this HEAD node.
+            </option>
+            <option name="Proxy Protocol">
+                This option describes the proxy protocol to use. HTTP, HTTPS and SOCKS can be selected.
+            </option>
+            <option name="Proxy Host">
+                Specifies the proxy host address.
+            </option>
+            <option name="Proxy Port">
+                Specifies the port that should be used at the proxy host.
+            </option>
+            <option name="Workflow Credentials">
+                If enabled, this option allows to select credentials stored in the workflow to be used for the username and password.
+                Filling the "Username" and "Password" fields is not needed then.
+            </option>
+            <option name="Username">
+                If the option "Proxy host needs authentication" is enabled, this field specifies the username to use. 
+                Always uses <tt>Basic</tt> authentication for proxy hosts.
+            </option>
+            <option name="Password">
+                If the option "Proxy host needs authentication" is enabled, this field specifies the password to use. 
+                Always uses <tt>Basic</tt> authentication for proxy hosts.
+            </option>
+            <option name="Excluded Hosts">
+                If the option "Exclude hosts from proxy" is enabled, this field specifies the hosts that will be ignored by the proxy connection.
+                Requests to excluded hosts will use a direct connection. If multiple hosts are specified, they should be separated using a vertical bar ('|').
+            </option>
+        </tab>
+        <tab name="Error Handling">
+            <option name="Fail on connection problems (e.g. timeout, certificate errors, …)">
+                This option describes what should happen if there was a problem establishing the connection to the
+                server. The node either fails in execution or outputs status code and error message in the corresponding
+                row.
+            </option>
+            <option name="Server-side errors (HTTP 5XX)">
+                These options describe what should happen if a response with a 5XX status code is received. These
+                status codes usually describe errors on the server side.
+            </option>
+            <option name="Client-side errors (HTTP 4XX)">
+                These options describe what should happen if a response with a 4XX status code is received. These status
+                codes usually describe client-side errors such as an incorrect web address.
+            </option>
+            <option name="Fail node execution or output missing value">
+                This option describes what should happen after a request has failed. The node either fails in execution
+                or outputs a missing value in the row of the output table that corresponds to this request. This option can
+                be set separately for server- and client-side errors.
+            </option>
+            <option name="Retry on error">
+                Specifies whether the node should retry a request if the initial request received a response indicating
+                a server-side error.
+            </option>
+            <option name="Number of retries">
+                The maximum number of retries to perform for server errors (count does not include the initial request).
+            </option>
+            <option name="Retry delay">
+                The delay to apply between the first request and the first retry. For each subsequent retry, the delay
+                is doubled.
+            </option>
+            <option name="Rate-limiting error (HTTP 429)">
+                This status code can be returned by a server to indicate that the rate of incoming requests has been too
+                high.
+            </option>
+            <option name="Pause execution">
+                In case of a rate-limiting error, wait for the set amount of time before retrying the request. Note that
+                this delay is static and does not increase with subsequent attempts, neither does it count as retries
+                for server-side errors.
+            </option>
+            <option name="Output additional column with error cause">
+                If enabled, each output row corresponding to a request will contain an additional cell that, in case
+                the request has failed, will provide a description of the error cause. If the request was successful, the
+                cell will contain a missing value.
+            </option>
+        </tab>
+        <tab name="Request Headers">
+            <option name="Merge">If you click this button the request headers from the selected template on the left are
+            merged with the already existing header definitions in the table below.</option>
+            <option name="Replace">If you click this button the request headers from the selected template on the left will
+            replace any existing header definitions in the table below.</option>
+			<option name="Header key">The HTTP header key, e.g. <tt>Accept</tt> or <tt>X-Custom-Key</tt>. Note that some
+			header keys such as <tt>Origin</tt> are silently ignored by default for security reasons. You can configure
+			KNIME AP to allow any header key by setting the <tt>sun.net.http.allowRestrictedHeaders</tt> system property in the
+			<i>knime.ini</i> configuration file to <tt>true</tt>.</option>
+            <option name="Header value">The value for the header which can be a constant value or a reference to a flow
+            variable, a column, a credential name, or a credential password (see the kind option).</option>
+            <option name="Header kind">The kind of the value specified, which is either a constant value or a reference
+            to a flow variable, a column, a credential name, or a credential password.</option>
+            <option name="Fail on missing header value">Setting this option makes the node fail once a header input value is not 
+            available anymore, e.g. due to a missing value. Is enabled by default.</option>
+        </tab>
+        <tab name="Response Headers">
+            <option name="Extract all fields">If checked, all header fields present in the first response are extracted
+            into columns.</option>
+            <option name="Header key">The name of the header to extract.</option>
+            <option name="Header type">The KNIME data type the header should be converted into.</option>
+        </tab>
+    </fullDescription>
+    
+    <ports>
+        <inPort index="0" name="Table">Optional data table containing the variable parameters of the requests.</inPort>
+        <dynInPort insert-before="1" name="Credential"
+            group-identifier="Credential">
+            A Credential, that can be embedded into the HTTP Authorization header. If this port is added,
+            then all request done by the node will always use the Credential from the port, regardless of other
+            node settings. The OAuth2 Authenticator nodes provide such a Credential for example.
+        </dynInPort>
+        <outPort index="0" name="HEAD results">Data table containing columns from the responses.</outPort>
+    </ports>    
+</knimeNode>
