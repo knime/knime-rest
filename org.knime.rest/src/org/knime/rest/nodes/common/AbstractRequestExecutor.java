@@ -54,10 +54,7 @@ import java.net.URL;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.LongPredicate;
 import java.util.regex.Pattern;
@@ -278,9 +275,13 @@ public abstract class AbstractRequestExecutor<S extends RestSettings> extends Ab
         final var triple = createInvocationTriple(row);
         Response response = null;
         MissingCell missing = null;
-        try {
+        try (var c = ThreadLocalHTTPAuthenticator.suppressAuthenticationPopups()) {
+            /*
+             * Currently, we use a sync HTTP client (AP-20585, AP-21786, AP-22983), hence the invocation is
+             * always blocking, and there is no way for the user to cancel the node execution (and REST request).
+             */
             response = DelayPolicy.doWithDelays(m_settings.getDelayPolicy(), m_cooldownContext,
-                () -> invoke(triple.invocation()));
+                () -> triple.invocation.invoke(Response.class));
         } catch (ProcessingException e) {
             LOGGER.warn("Call #%s failed: %s".formatted(m_consumedRows.get() + 1, e.getMessage()), e);
             final var cause = getRootCause(e);
@@ -407,37 +408,6 @@ public abstract class AbstractRequestExecutor<S extends RestSettings> extends Ab
     }
 
     // -- UTILITIES --
-
-    /**
-     * Invokes the {@code invocation}.
-     *
-     * @param invocation An {@link Invocation}.
-     * @return The response.
-     * @throws ProcessingException Some problem client-side.
-     */
-    private Response invoke(final Invocation invocation) throws ProcessingException {
-        Future<Response> responseFuture = null;
-        try (var c = ThreadLocalHTTPAuthenticator.suppressAuthenticationPopups()) {
-            /*
-             * Currently, we use a sync HTTP client (AP-20585 and AP-21786), hence Invocation#submit() is
-             * always blocking, and there is no way for the user to cancel the node execution (and REST request).
-             * For potential future changes to an async client, it makes sense to have an interval-based
-             * check-up on the response for the node execution to be cancelable.
-             */
-            final var future = invocation.submit(Response.class);
-            responseFuture = Objects.requireNonNull(future);
-            sleepWithMonitor(TimeUnit.SECONDS.toMillis(m_settings.getTimeoutInSeconds()), t -> future.isDone());
-            return future.get(0, TimeUnit.SECONDS);
-        } catch (CanceledExecutionException e) {
-            responseFuture.cancel(true);
-            throw new ProcessingException(e);
-        } catch (InterruptedException | ExecutionException | TimeoutException e) { // NOSONAR
-            if (e.getCause() instanceof ProcessingException pe) {
-                throw pe;
-            }
-            throw new ProcessingException(e);
-        }
-    }
 
     /**
      * Checks whether the request was aborted early due to an invalid URL.
