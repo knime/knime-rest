@@ -52,7 +52,6 @@ import java.net.URI;
 import java.util.Objects;
 import java.util.Optional;
 
-import org.apache.commons.lang3.StringUtils;
 import org.apache.cxf.jaxrs.client.WebClient;
 import org.apache.cxf.transport.http.HTTPConduit;
 import org.apache.cxf.transports.http.configuration.HTTPClientPolicy;
@@ -60,12 +59,13 @@ import org.apache.cxf.transports.http.configuration.ProxyServerType;
 import org.knime.core.data.DataTableSpec;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeLogger;
+import org.knime.core.node.NodeSettings;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.defaultnodesettings.SettingsModelString;
 import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.node.workflow.CredentialsProvider;
-import org.knime.core.util.proxy.ExcludedHostsTokenizer;
+import org.knime.core.util.proxy.GlobalProxyConfig;
 import org.knime.core.util.proxy.ProxyProtocol;
 import org.knime.core.util.proxy.search.GlobalProxySearch;
 import org.knime.rest.internals.BasicAuthentication;
@@ -167,6 +167,28 @@ public final class RestProxyConfigManager {
     }
 
     /**
+     * Strips all semicolon-separated hosts and formats them using '|'-separators.
+     *
+     * @param nonProxyHosts
+     * @return formatted hosts
+     */
+    private static String formatNonProxyHosts(final String nonProxyHosts) {
+        if (nonProxyHosts == null) {
+            return null;
+        }
+        var builder = new StringBuilder();
+        var excludeHosts = nonProxyHosts.split(";");
+        int i;
+        for (i = 0; i < excludeHosts.length - 1; i++) {
+            builder.append(excludeHosts[i].strip());
+            // Non-proxy hosts must be separated by a vertical bar.
+            builder.append('|');
+        }
+        builder.append(excludeHosts[i].strip());
+        return builder.toString();
+    }
+
+    /**
      * Returns the currently selected proxy mode.
      *
      * @return ProxyMode
@@ -201,11 +223,10 @@ public final class RestProxyConfigManager {
      * @param maybeConfig
      * @param request Builder that creates the invocation.
      * @param credsProvider
-     * @param uri
      * @throws InvalidSettingsException
      */
     public void configureRequest(final Optional<RestProxyConfig> maybeConfig, final Builder request, // NOSONAR
-        final CredentialsProvider credsProvider, final URI uri) throws InvalidSettingsException {
+        final CredentialsProvider credsProvider) throws InvalidSettingsException {
         var conduit = WebClient.getConfig(request).getHttpConduit();
 
         if (maybeConfig.isEmpty()) {
@@ -232,9 +253,9 @@ public final class RestProxyConfigManager {
         policy.setProxyServerType(
             config.getProtocol() == ProxyProtocol.SOCKS ? ProxyServerType.SOCKS : ProxyServerType.HTTP);
         // Previous behavior: explicitly set null when excluded hosts are empty.
-        policy.setNonProxyHosts(config.resolveExcludeHostsFor(uri) //
-            .filter(x -> config.isExcludeHosts()) //
-            .map(x -> StringUtils.join(ExcludedHostsTokenizer.tokenize(x), '|')) //
+        policy.setNonProxyHosts(config.getExcludeHosts() //
+            .filter(x -> config.isExcludeHosts()) // set excluded hosts to null if disabled
+            .map(RestProxyConfigManager::formatNonProxyHosts) //
             .orElse(null));
         conduit.setClient(policy);
 
@@ -352,9 +373,43 @@ public final class RestProxyConfigManager {
                 ? GlobalProxySearch.getCurrentFor(uri) //
                 : GlobalProxySearch.getCurrentFor(ProxyProtocol.HTTP, ProxyProtocol.HTTPS);
         return maybeProxyConfig //
-                .map(RestProxyConfig::fromGlobalProxyConfig) //
+                .map(RestProxyConfigManager::toRestProxyConfig) //
                 .filter(Objects::nonNull) //
                 .orElse(null);
+    }
+
+    /**
+     * Converts a {@link GlobalProxyConfig} to a {@link RestProxyConfig} with identical contents.
+     * Package scope for tests.
+     * <p>
+     * Distinction between these configs mainly stems earlier proxy-related development in "org.knime.rest"
+     * (than in "org.knime.core.util.proxy") and an additional integration of {@link NodeSettings} for REST nodes.
+     * These two config types might be unified at some point.
+     * </p>
+     *
+     * @param config GlobalProxyConfig
+     * @return RestProxyConfig
+     */
+    static RestProxyConfig toRestProxyConfig(final GlobalProxyConfig config) {
+        try {
+            // convert to RestProxyConfig and validate in #build() step
+            final var b = RestProxyConfig.builder();
+            b.setProtocol(config.protocol());
+            b.setProxyHost(config.host());
+            b.setProxyPort(config.port());
+            b.setUseAuthentication(config.useAuthentication());
+            if (config.useAuthentication()) {
+                b.setUsername(config.username());
+                b.setPassword(config.password());
+            }
+            b.setUseExcludeHosts(config.useExcludedHosts());
+            if (config.useExcludedHosts()) {
+                b.setExcludedHosts(config.excludedHosts());
+            }
+            return b.build();
+        } catch (InvalidSettingsException e) { // NOSONAR
+            return null;
+        }
     }
 
     /**
