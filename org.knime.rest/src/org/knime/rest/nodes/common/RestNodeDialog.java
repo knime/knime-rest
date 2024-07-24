@@ -571,6 +571,13 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
                         RequestTableModel.Columns.kind.ordinal());
                     dialog.dispose();
                 });
+                //                m_requestHeadersModel.setValueAt(m_requestHeaderKeyPopup.getSelectedItem(), selectedRow,
+                //                    RequestTableModel.Columns.headerKey.ordinal());
+                //                m_requestHeadersModel.setValueAt(m_requestHeaderValuePopup.getSelectedItem(), selectedRow,
+                //                    RequestTableModel.Columns.value.ordinal());
+                //                m_requestHeadersModel.setValueAt(m_requestHeaderValueTypePopup.getSelectedItem(), selectedRow,
+                //                    RequestTableModel.Columns.kind.ordinal());
+                //                dialog.dispose();
             }
         }));
         final AbstractAction cancel = new AbstractAction("Cancel") {
@@ -842,7 +849,7 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         // stolen from SendMailNodeDialog
         final var excludeHostsPanel = new JPanel();
         excludeHostsPanel.setLayout(new BoxLayout(excludeHostsPanel, BoxLayout.Y_AXIS));
-        excludeHostsPanel.setBorder(BorderFactory.createTitledBorder(" Excluded hosts (separated by \"|\" or \";\") "));
+        excludeHostsPanel.setBorder(BorderFactory.createTitledBorder(" Excluded hosts (separated by a semicolon) "));
         excludeHostsPanel.add(m_proxyExcludeHostsPanel, BorderLayout.CENTER);
         localProxyPanel.add(excludeHostsPanel, gbc);
 

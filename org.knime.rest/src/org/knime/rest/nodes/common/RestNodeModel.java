@@ -734,7 +734,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
 
         // Configures the proxy credentials for the request builder if needed.
         final var optProxyConfig = m_settings.getUpdatedProxyConfig(targetUri);
-        getProxyManager().configureRequest(optProxyConfig, request, getCredentialsProvider(), targetUri);
+        getProxyManager().configureRequest(optProxyConfig, request, getCredentialsProvider());
         return Pair.create(request, client);
     }
 
