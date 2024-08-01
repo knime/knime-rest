@@ -447,6 +447,8 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         urlPanel.setLayout(new BoxLayout(urlPanel, BoxLayout.PAGE_AXIS));
         ret.add(urlPanel, gbc);
         gbc.gridy++;
+        gbc.weightx = 0;
+        gbc.gridwidth = 1;
         ret.add(m_useDelay, gbc);
         gbc.gridx++;
         gbc.weightx = 0;
