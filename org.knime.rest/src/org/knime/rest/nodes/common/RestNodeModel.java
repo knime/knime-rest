@@ -569,6 +569,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         m_newColumnsBasedOnFirstCalls = null;
         m_isContextSettingsFailed = false;
         m_errorBodyParsers.clear();
+        m_rowLength = -1;
     }
 
     @Override
