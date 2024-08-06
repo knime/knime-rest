@@ -62,7 +62,6 @@ import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -206,7 +205,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
 
     private final List<ResponseHeaderItem> m_responseHeaderKeys = new ArrayList<>();
 
-    private final List<ResponseHeaderItem> m_bodyColumns = new ArrayList<>();
+    private ResponseHeaderItem m_bodyColumn;
 
     private boolean m_isContextSettingsFailed;
 
@@ -306,20 +305,6 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
      */
     private static boolean isHttpError(final Response response) {
         return isClientError(response) || isServerError(response);
-    }
-
-    /**
-     * Replaces the first element in the list by the given one. If the list is empty, it simply adds the element.
-     *
-     * @param list
-     * @param element
-     */
-    private static <T> void replaceFirst(final List<T> list, final T element) {
-        if (list.isEmpty()) {
-            list.add(element);
-        } else {
-            list.set(0, element);
-        }
     }
 
     private static DataCell[] formatDataCellsToLength(final DataCell[] cells, final int size) {
@@ -563,7 +548,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
     @Override
     protected void reset() {
         m_responseBodyParsers.clear();
-        m_bodyColumns.clear();
+        m_bodyColumn = null;
         m_consumedRows.set(0L);
         m_parsedResponseValues.clear();
         m_readNonError = false;
@@ -1027,7 +1012,8 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
      */
     protected DataColumnSpec[] createNewColumnsSpec(final DataTableSpec spec) {
         var uniqueNameGenerator = new UniqueNameGenerator(spec);
-        List<DataColumnSpec> specs = Stream.concat(m_responseHeaderKeys.stream(), m_bodyColumns.stream())
+        List<DataColumnSpec> specs = Stream
+            .concat(m_responseHeaderKeys.stream(), Optional.ofNullable(m_bodyColumn).stream())
             .map(rhi -> uniqueNameGenerator.newCreator(rhi.getOutputColumnName(), rhi.getType()))
             .map(DataColumnSpecCreator::createSpec).collect(Collectors.toCollection(ArrayList<DataColumnSpec>::new));
         updateErrorCauseColumnSpec(specs, uniqueNameGenerator);
@@ -1037,41 +1023,33 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
     // -- RESPONSE HANDLING --
 
     /**
-     * Adds the body values.
+     * Returns the single, parsed body cell from the {@link Response}. Might be a missing cell
+     * if parsing is not possible. Also, this method might be overridden for further parsing,
+     * as for example the webpage retriever node does.
      *
-     * @param cells The input {@link DataCell}s.
      * @param response The {@link Response} object.
-     * @param missing The missing cell with the error message.
+     * @return parsed response body as {@link DataCell}
      */
-    protected void addBodyValuesToCells(final List<DataCell> cells, final Response response, final DataCell missing) {
-        m_bodyColumns.stream().forEachOrdered(rhi -> {
-            if (response != null) {
-                DataType expectedType = rhi.getType();
-                var mediaType = response.getMediaType();
-                if (mediaType == null) {
-                    cells.add(new MissingCell("Response does not have a media type"));
-                } else if (missing != null) {
-                    cells.add(missing);
-                } else {
-                    var wasAdded = false;
-                    for (ResponseBodyParser parser : isHttpError(response) ? m_errorBodyParsers
-                        : m_responseBodyParsers) {
-                        if (parser.producedDataType().isCompatible(expectedType.getPreferredValueClass())
-                            && parser.supportedMediaType().isCompatible(response.getMediaType())) {
-                            wasAdded = true;
-                            cells.add(parser.create(response));
-                            break;
-                        }
-                    }
-                    if (!wasAdded) {
-                        cells.add(new MissingCell("Could not parse the body because the body was "
-                            + response.getMediaType() + ", but was expecting: " + expectedType.getName()));
-                    }
-                }
-            } else {
-                cells.add(missing);
+    protected DataCell parseBodyCell(final Response response) {
+        // if the response is null (e.g. config error), return null since there is nothing to parse
+        if (response == null) {
+            return null;
+        }
+        final var mediaType = response.getMediaType();
+        if (mediaType == null) {
+            return new MissingCell("Response does not have a media type");
+        }
+        final var expectedType = Optional.ofNullable(m_bodyColumn)
+                .map(ResponseHeaderItem::getType).orElse(BinaryObjectDataCell.TYPE);
+        for (ResponseBodyParser parser : isHttpError(response) ? m_errorBodyParsers : m_responseBodyParsers) {
+            if (parser.producedDataType().isCompatible(expectedType.getPreferredValueClass())
+                && parser.supportedMediaType().isCompatible(response.getMediaType())) {
+                // we parse the body or error response if we initialized the body column before.
+                return parser.create(response);
             }
-        });
+        }
+        return new MissingCell("Could not parse the body because the body was " + response.getMediaType()
+            + ", but was expecting: " + expectedType.getName());
     }
 
     /**
@@ -1091,15 +1069,24 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
     }
 
     /**
-     * Construct a String cell containing the error cause description if there was an error while performing the
-     * request. Do this only if the respective user setting is enabled. In case the request was successful, a missing
-     * value is added.
+     * Computes the final list of {@link DataCell}s composing a table row. Receives the parsed header cells as
+     * input, as well as additional cells labeled as body (could be parsed response or additional columns).
+     * This method additionally appends an error cause (if enabled) as the last column.
      *
-     * @param cells A list of cells which will ultimately determine the output for the current row.
+     * @param response the HTTP {@link Response}
+     * @param headerCells list of parsed response headers
+     * @param bodyCells additional parsed cells to be appended, dependent on request method set in {@link #m_settings}
+     * @return final table-row-representing list of table cells
      */
-    private void addErrorCauseToCells(final List<DataCell> cells) { // NOSONAR leave in outer class
+    protected List<DataCell> computeFinalOutputCells(final Response response, final List<DataCell> headerCells,
+        final DataCell... bodyCells) {
+        List<DataCell> output = new ArrayList<>(headerCells);
+        if (m_bodyColumn != null) {
+            Collections.addAll(output, bodyCells);
+        }
         if (m_settings.isOutputErrorCause().orElse(RestSettings.DEFAULT_OUTPUT_ERROR_CAUSE)) {
-            List<String> errorCauses = cells.stream()//
+            final List<String> errorCauses = Stream
+                .concat(headerCells.stream(), Stream.of(bodyCells))//
                 .flatMap(cell -> ClassUtils.castOptional(MissingCell.class, cell).stream())//
                 .map(MissingCell::getError)//
                 .toList();
@@ -1115,11 +1102,12 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
                     errorCausesReadable =
                         errorCauses.stream().filter(Objects::nonNull).collect(Collectors.joining("\n"));
                 }
-                cells.add(new StringCell(errorCausesReadable));
+                output.add(new StringCell(errorCausesReadable));
             } else {
-                cells.add(DataType.getMissingCell());
+                output.add(DataType.getMissingCell());
             }
         }
+        return output;
     }
 
     /**
@@ -1155,36 +1143,21 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
                 }
             }
             // parse content from response (data cells and specs)
-            final List<DataCell> cells = m_responseHeaderKeys.stream() //
+            final List<DataCell> headerCells = m_responseHeaderKeys.stream() //
                     .map(rhi -> extractHeaderAsCell(response, rhi)) //
                     .collect(Collectors.toCollection(ArrayList<DataCell>::new));
             final List<DataColumnSpec> specs = m_responseHeaderKeys.stream() //
                     .map(rhi -> new DataColumnSpecCreator(rhi.getOutputColumnName(), rhi.getType()).createSpec()) //
                     .collect(Collectors.toCollection(ArrayList<DataColumnSpec>::new));
-            // perform checks on HTTP status and headers
-            checkHeadersAndUpdateBodyValues(response);
+            // perform checks on HTTP status and init the body cell
+            initializeBodyCell(response);
             final var httpError = checkResponseStatus(response);
-            final Map<ResponseHeaderItem, String> bodyColNames = new HashMap<>();
-            if (!httpError) {
-                for (final ResponseHeaderItem bodyCol : m_bodyColumns) {
-                    final DataColumnSpec newCol =
-                        nameGenerator.newColumn(bodyCol.getOutputColumnName(), bodyCol.getType());
-                    specs.add(newCol);
-                    bodyColNames.put(bodyCol, newCol.getName());
-                }
-                for (var i = 0; i < m_bodyColumns.size(); ++i) {
-                    // replace header name with deduplicated value from corresponding bodyColName
-                    m_bodyColumns.set(i, new ResponseHeaderItem(m_bodyColumns.get(i).getHeaderKey(),
-                        m_bodyColumns.get(i).getType(), bodyColNames.get(m_bodyColumns.get(i))));
-                }
-            } else {
-                if (response != null && response.getEntity() instanceof InputStream) {
-                    replaceFirst(m_bodyColumns, new ResponseHeaderItem(m_bodyColumns.get(0).getHeaderKey(),
-                        BinaryObjectDataCell.TYPE, m_bodyColumns.get(0).getHeaderKey()));
-                }
+            // generate body column spec if present
+            if (m_bodyColumn != null) {
+                specs.add(nameGenerator.newColumn(m_bodyColumn.getOutputColumnName(), m_bodyColumn.getType()));
             }
-            addBodyValuesToCells(cells, response, missing);
-            addErrorCauseToCells(cells);
+            final var parsedBody = parseBodyCell(response);
+            final var cells = computeFinalOutputCells(response, headerCells, parsedBody != null ? parsedBody : missing);
             if (!m_readNonError && !httpError) {
                 // first time reading a successful response
                 m_readNonError = true;
@@ -1200,11 +1173,11 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
             CheckUtils.checkState(m_consumedRows.get() > 0,
                 "First response has not been processed yet, cannot continue");
             checkResponseStatus(response);
-            final List<DataCell> cells = m_responseHeaderKeys.stream() //
+            final List<DataCell> headerCells = m_responseHeaderKeys.stream() //
                     .map(rhi -> extractHeaderAsCell(response, rhi)) //
                     .collect(Collectors.toCollection(ArrayList<DataCell>::new));
-            addBodyValuesToCells(cells, response, missing);
-            addErrorCauseToCells(cells);
+            final var parsedBody = parseBodyCell(response);
+            final var cells = computeFinalOutputCells(response, headerCells, parsedBody != null ? parsedBody : missing);
             return cells.toArray(DataCell[]::new);
         }
 
@@ -1263,22 +1236,25 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
          *
          * @param response A {@link Response} object.
          */
-        private void checkHeadersAndUpdateBodyValues(final Response response) {
-            if (response == null) {
-                replaceFirst(m_bodyColumns,
-                    new ResponseHeaderItem(m_settings.getResponseBodyColumn(), BinaryObjectDataCell.TYPE));
-            } else {
-                boolean isHttpError = isHttpError(response);
-                final var mediaType = response.getMediaType();
-                DataType type = BinaryObjectDataCell.TYPE;
-                for (final ResponseBodyParser responseBodyParser : m_responseBodyParsers) {
-                    if (!isHttpError && responseBodyParser.supportedMediaType().isCompatible(mediaType)) {
-                        type = responseBodyParser.producedDataType();
-                        break;
-                    }
-                }
-                replaceFirst(m_bodyColumns, new ResponseHeaderItem(m_settings.getResponseBodyColumn(), type));
+        private void initializeBodyCell(final Response response) {
+            if (m_settings.getMethod().map(HttpMethod.HEAD::equals).orElse(false)) {
+                // do not initialize body column, HEAD request does not use it
+                return;
             }
+            if (response == null) {
+                m_bodyColumn = new ResponseHeaderItem(m_settings.getResponseBodyColumn(), BinaryObjectDataCell.TYPE);
+                return;
+            }
+            final var isHttpError = isHttpError(response);
+            final var mediaType = response.getMediaType();
+            DataType type = BinaryObjectDataCell.TYPE;
+            for (final ResponseBodyParser responseBodyParser : m_responseBodyParsers) {
+                if (!isHttpError && responseBodyParser.supportedMediaType().isCompatible(mediaType)) {
+                    type = responseBodyParser.producedDataType();
+                    break;
+                }
+            }
+            m_bodyColumn = new ResponseHeaderItem(m_settings.getResponseBodyColumn(), type);
         }
 
         private DataCell extractHeaderAsCell(final Response response, final ResponseHeaderItem rhi) {
