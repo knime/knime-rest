@@ -18,10 +18,8 @@
         <p>The node allows you to either send a request to a fixed URL (which is specified in the dialog) or to a list of
         URLs provided by an optional input table. Every URL will result in one request which in turn will result in one
         row in the output table. You can define custom request headers in the dialog.</p>
-        <p>By default the output table will contain a column with the received data, its content type, and the HTTP 
-        status code. The node tries to automatically convert the received data into a KNIME data type based on its
-        content type. In case no automatic conversion is possible, binary cells will be created.<br />
-        You can extract additional response headers into column by defining them in the dialog.</p>
+        <p>By default the output table will contain the HTTP status code and the content type. In addition to that 
+        it contains one column for each response header defined in the dialog.</p>
         <p>The node supports several authentication methods, e.g. BASIC and DIGEST. Other authentication methods may be
         provided by additional extensions.</p>
         

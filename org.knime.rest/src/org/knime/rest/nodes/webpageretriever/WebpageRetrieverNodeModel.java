@@ -58,7 +58,7 @@ import java.util.Set;
 import java.util.Stack;
 import java.util.stream.Collectors;
 
-import org.apache.cxf.jaxrs.client.spec.InvocationBuilderImpl;
+import org.apache.cxf.jaxrs.client.WebClient;
 import org.jsoup.Jsoup;
 import org.jsoup.helper.W3CDom;
 import org.jsoup.internal.StringUtil;
@@ -84,6 +84,7 @@ import org.knime.core.node.ExecutionContext;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeLogger;
 import org.knime.core.node.context.NodeCreationConfiguration;
+import org.knime.core.node.util.CheckUtils;
 import org.knime.core.util.UniqueNameGenerator;
 import org.knime.rest.generic.EachRequestAuthentication;
 import org.knime.rest.nodes.common.RestNodeModel;
@@ -93,6 +94,8 @@ import jakarta.ws.rs.client.Invocation;
 import jakarta.ws.rs.client.Invocation.Builder;
 import jakarta.ws.rs.core.NewCookie;
 import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.ext.RuntimeDelegate;
+import jakarta.ws.rs.ext.RuntimeDelegate.HeaderDelegate;
 
 /**
  * Node model of the Webpage Retriever node.
@@ -102,6 +105,9 @@ import jakarta.ws.rs.core.Response;
 final class WebpageRetrieverNodeModel extends RestNodeModel<WebpageRetrieverSettings> {
 
     private static final NodeLogger LOGGER = NodeLogger.getLogger(WebpageRetrieverNodeModel.class);
+
+    private static final HeaderDelegate<NewCookie> COOKIE_DELEGATE =
+        RuntimeDelegate.getInstance().createHeaderDelegate(NewCookie.class);
 
     private static final String XMLNS = "xmlns";
 
@@ -123,49 +129,31 @@ final class WebpageRetrieverNodeModel extends RestNodeModel<WebpageRetrieverSett
 
     @Override
     protected Invocation invocation(final Builder request, final DataRow row, final DataTableSpec spec) {
-        if (!(request instanceof InvocationBuilderImpl)) {
-            // should never happen
-            throw new IllegalStateException("Unexpected invocation builder: " + request.getClass().toString());
-        }
-        m_baseURI = ((InvocationBuilderImpl)request).getWebClient().getBaseURI();
+        m_baseURI = URI.create(WebClient.getConfig(request).getHttpConduit().getAddress());
         return request.buildGet();
     }
 
     @Override
-    protected void addBodyValuesToCells(final List<DataCell> cells, final Response response, final DataCell missing) {
-        super.addBodyValuesToCells(cells, response, missing);
-        // the last cell is the one either containing the body value or is missing
-        final DataCell cell = cells.remove(cells.size() - 1);
-        // we only want to output the html and optionally the cookies sent by the server
-        cells.clear();
+    protected DataCell parseBodyCell(final Response response, final DataCell missing) {
+        // the cell is the one either containing the body value or is missing
+        final DataCell bodyCell = super.parseBodyCell(response, missing);
 
         // if the body value cell is missing, there must have been an error, so return the missing cell
-        if (cell.isMissing()) {
+        if (bodyCell.isMissing()) {
             if (response == null || response.getStatus() == 200) {
-                cells.add(cell);
+                return bodyCell;
             } else {
-                cells.add(
-                    new MissingCell("Status Code: " + response.getStatus() + "; " + ((MissingCell)cell).getError()));
+                return new MissingCell(
+                    "Status Code: " + response.getStatus() + "; " + ((MissingCell)bodyCell).getError());
             }
-            // add extracted cookies if any
-            if (m_settings.isExtractCookies()) {
-                cells.add(extractCookies(response));
-            }
-            return;
         }
         // we can only handle strings
-        if (!(cell instanceof StringValue)) {
+        if (!(bodyCell instanceof StringValue)) {
             final String errorMsg = "Incompatible media type cannot be parsed: " + response.getMediaType();
-            cells.add(new MissingCell(errorMsg));
-            return;
+            return new MissingCell(errorMsg);
         }
         // if not missing, get and parse the body value
-        final String bodyValue = ((StringValue)cell).getStringValue();
-        if (m_baseURI == null) {
-            // should never happen
-            throw new IllegalStateException("The base URL must not be null.");
-        }
-        final Document htmlDocument = Jsoup.parse(bodyValue, m_baseURI.toString());
+        final var htmlDocument = Jsoup.parse(((StringValue)bodyCell).getStringValue(), m_baseURI.toString());
 
         // replace relative URLs with absolute URLs
         if (m_settings.isReplaceRelativeURLS()) {
@@ -204,14 +192,10 @@ final class WebpageRetrieverNodeModel extends RestNodeModel<WebpageRetrieverSett
                 removeNameSpaceAttributes(list.item(i));
             }
 
-            cells.add(XMLCellFactory.create(w3cDoc));
-        } else {
-            cells.add(new StringCell(htmlDocument.html()));
+            return XMLCellFactory.create(w3cDoc);
         }
 
-        if (m_settings.isExtractCookies()) {
-            cells.add(extractCookies(response));
-        }
+        return new StringCell(htmlDocument.html());
     }
 
     // tag names that contain unbound prefixes (prefixes not defined in the namespace) will be replaced
@@ -322,23 +306,32 @@ final class WebpageRetrieverNodeModel extends RestNodeModel<WebpageRetrieverSett
     }
 
     /**
-     * Extracts cookies from the response. If the response is null or does not contain any
-     * cookies, a missing cell is returned.
-     * Otherwise, a list cell with all cookies is returned.
-     * @param response
-     * @return DataCell containing cookies
+     * {@inheritDoc}
+     *
+     * Additionally extracts cookies from the response. If the response is null or does not contain any
+     * cookies, a missing cell is added. Otherwise, a list cell with all cookies is added.
      */
-    private static DataCell extractCookies(final Response response) {
-        var noCookiesCell = new MissingCell("The server did not send any cookies.");
-        if (response == null) {
-            return noCookiesCell;
+    @Override
+    protected List<DataCell> computeFinalOutputCells(final Response response, final List<DataCell> headerCells,
+        final DataCell... bodyCells) {
+        CheckUtils.checkArgument(bodyCells.length == 1, "Too many body cells, expected only one");
+        headerCells.clear();
+        if (m_settings.isExtractCookies()) {
+            final var noCookiesCell = new MissingCell("The server did not send any cookies.");
+            if (response == null) {
+                return super.computeFinalOutputCells(response, headerCells, bodyCells[0], noCookiesCell);
+            }
+            final Map<String, NewCookie> cookies = response.getCookies();
+            // maps each cookie to a StingCell
+            final List<StringCell> cookiesAsListOfStringCells = cookies.values().stream() //
+                    .map(cookie -> new StringCell(COOKIE_DELEGATE.toString(cookie))) //
+                    .toList();
+            // StringCells of cookies are then aggregated into a ListCell
+            return super.computeFinalOutputCells(response, headerCells, bodyCells[0],
+                cookiesAsListOfStringCells.isEmpty() ? noCookiesCell
+                    : CollectionCellFactory.createListCell(cookiesAsListOfStringCells));
         }
-        final Map<String, NewCookie> cookies = response.getCookies();
-        // maps each cookie to a StingCell
-        final List<StringCell> cookiesAsListOfStringCells =
-            cookies.values().stream().map(NewCookie::toString).map(StringCell::new).collect(Collectors.toList());
-        // StringCells of cookies are then aggregated into a ListCell
-        return cookiesAsListOfStringCells.isEmpty() ? noCookiesCell : CollectionCellFactory.createListCell(cookiesAsListOfStringCells);
+        return super.computeFinalOutputCells(response, headerCells, bodyCells[0]);
     }
 
     @Override
