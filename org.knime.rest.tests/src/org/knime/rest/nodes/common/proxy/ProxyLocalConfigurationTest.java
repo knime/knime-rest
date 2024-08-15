@@ -50,16 +50,19 @@ package org.knime.rest.nodes.common.proxy;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.Optional;
 
 import org.apache.cxf.jaxrs.client.WebClient;
+import org.eclipse.core.internal.net.ProxyManager;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.util.proxy.ProxyProtocol;
+import org.knime.rest.nodes.common.proxy.SystemPropertyProvider.PropertyMode;
 
 import jakarta.ws.rs.client.ClientBuilder;
 
@@ -69,6 +72,7 @@ import jakarta.ws.rs.client.ClientBuilder;
  *
  * @author Leon Wenzler, KNIME AG, Konstanz, Germany
  */
+@SuppressWarnings("restriction")
 final class ProxyLocalConfigurationTest {
 
     private static final String PROXY_HOST = "dummy-host";
@@ -178,6 +182,45 @@ final class ProxyLocalConfigurationTest {
             .setUsername(PROXY_USER);
         assertThrows(InvalidSettingsException.class, proxyConfigNoPwd::build,
             "Configuring the proxy should have failed but hasn't (no ISE)");
+    }
+
+    /**
+     * Tests that the local proxy config is not influenced by proxy authentication
+     * set globally, e.g. as {@link System} properties
+     * @throws InvalidSettingsException
+     */
+    @SuppressWarnings({"static-method"})
+    @Test
+    void testLocalProxyConfigNoAuthDespiteSysProps() throws InvalidSettingsException {
+        final var props = new String[]{"http.proxyHost", "http.proxyPort", "http.proxyUser", "http.proxyPassword"};
+        String[] values = new String[0];
+        var isProxiesEnabled = ProxyManager.getProxyManager().isProxiesEnabled();
+        var isSystemProxiesEnabled = ProxyManager.getProxyManager().isSystemProxiesEnabled();
+        try {
+            ProxyManager.getProxyManager().setProxiesEnabled(true);
+            ProxyManager.getProxyManager().setSystemProxiesEnabled(false);
+
+            values = SystemPropertyProvider.saveAndSetProperties(props, PropertyMode.DUMMY);
+            final var proxyConfigNoAuth = RestProxyConfig.builder() //
+                .setProtocol(ProxyProtocol.HTTP) //
+                .setProxyHost(PROXY_HOST) //
+                .setProxyPort(PROXY_PORT) //
+                .setUseAuthentication(false) //
+                .build();
+            final var request = ClientBuilder.newBuilder().build().target("http://localhost").request();
+            assertDoesNotThrow(() -> proxyManager.configureRequest(Optional.of(proxyConfigNoAuth), request, null),
+                "Unexpected exception when configuring the REST request with the proxy");
+            final var conduit = WebClient.getConfig(request).getHttpConduit();
+            assertNull(conduit.getProxyAuthorization().getUserName(),
+                "Proxy user is non-empty despite disabled authentication");
+            assertNull(conduit.getProxyAuthorization().getPassword(),
+                "Proxy password is non-empty despite disabled authentication");
+        } finally {
+            SystemPropertyProvider.restoreProperties(props, values);
+
+            ProxyManager.getProxyManager().setProxiesEnabled(isProxiesEnabled);
+            ProxyManager.getProxyManager().setSystemProxiesEnabled(isSystemProxiesEnabled);
+        }
     }
 
     @AfterAll

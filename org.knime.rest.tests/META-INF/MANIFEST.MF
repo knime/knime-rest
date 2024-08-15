@@ -11,7 +11,8 @@ Require-Bundle: org.knime.testing;bundle-version="[5.4.0,6.0.0)",
  org.hamcrest.library;bundle-version="[2.2.0,3.0.0)",
  junit-jupiter-api;bundle-version="[5.9.2,6.0.0)",
  com.github.tomakehurst.wiremock-jre8-standalone;bundle-version="[2.33.2,3.0.0)",
- org.hamcrest.core;bundle-version="[2.2.0,3.0.0)"
+ org.hamcrest.core;bundle-version="[2.2.0,3.0.0)",
+ org.eclipse.core.net;bundle-version="[1.4.0,2.0.0)"
 Bundle-RequiredExecutionEnvironment: JavaSE-17
 Bundle-ActivationPolicy: lazy
 Automatic-Module-Name: org.knime.rest.tests
