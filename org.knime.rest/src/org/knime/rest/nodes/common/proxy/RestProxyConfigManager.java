@@ -265,6 +265,14 @@ public final class RestProxyConfigManager {
             authentication.configure(conduit, credsProvider);
             // We currently only support basic authorization.
             conduit.getProxyAuthorization().setAuthorizationType("Basic");
+        } else {
+            // ensure authorization fields are clear when authentication is disabled
+            final var authorization = conduit.getProxyAuthorization();
+            if (authorization != null) {
+                authorization.setUserName(null);
+                authorization.setPassword(null);
+                authorization.setAuthorization(null);
+            }
         }
     }
 
