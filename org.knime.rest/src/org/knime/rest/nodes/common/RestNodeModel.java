@@ -362,9 +362,9 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
      * @return an {@link FilterRowGenerator} conforming to the current invalid URL policy
      */
     protected FilterRowGenerator getRowFilter(final DataTableSpec spec) {
-        if (m_settings.isUseConstantURL()) {
-            return row -> true;
-        }
+        CheckUtils.checkState(
+            !m_settings.isUseConstantURL() && m_settings.getInvalidURLPolicy() == InvalidURLPolicy.SKIP,
+            "Can only retrieve row filter when skipping rows based on URL column");
         CheckUtils.checkArgumentNotNull(spec);
         final var columnIndex = spec.findColumnIndex(m_settings.getURLColumn());
         return m_settings.getInvalidURLPolicy().createRowFilter(columnIndex);
@@ -496,18 +496,20 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
             return new BufferedDataTable[]{inTable};
         }
 
+        // spec does not change with filtering, can re-use below
         final var spec = inTable.getDataTableSpec();
-        final var filteredTable = RowFilterUtil.filterBufferedDataTable(inTable, getRowFilter(spec), exec);
-        try (var iterator = filteredTable.iterator()) {
+        final var bufferedTable =
+            (m_settings.isUseConstantURL() || m_settings.getInvalidURLPolicy() != InvalidURLPolicy.SKIP) //
+                ? inTable : RowFilterUtil.filterBufferedDataTable(inTable, getRowFilter(spec), exec);
+        try (var iterator = bufferedTable.iterator()) {
             while (!m_readNonError && iterator.hasNext()) {
                 makeFirstCall(iterator.next(), enabledAuthentications, spec, exec);
                 m_consumedRows.getAndIncrement();
-
             }
         }
-        final var rearranger = createColumnRearranger(enabledAuthentications, spec, exec, filteredTable.size());
+        final var rearranger = createColumnRearranger(enabledAuthentications, spec, exec, bufferedTable.size());
         return new BufferedDataTable[]{exec.createColumnRearrangeTable( //
-            filteredTable, rearranger, exec)};
+            bufferedTable, rearranger, exec)};
     }
 
     private HttpAuthorizationHeaderCredentialValue getCredential(final PortObject[] portObjects) {
@@ -1000,8 +1002,12 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
                     final var spec = (DataTableSpec)inSpecs[0];
                     final var enabledAuthentications = getAuthentications(getCredential(inputs));
                     final var rearranger = createColumnRearranger(enabledAuthentications, spec, exec, -1L);
-                    RowFilterUtil.filterStreamableFunction(rearranger.createStreamableFunction(), getRowFilter(spec))
-                        .runFinal(inputs, outputs, exec);
+                    var streamableFunction = rearranger.createStreamableFunction();
+                    if (!m_settings.isUseConstantURL() && m_settings.getInvalidURLPolicy() == InvalidURLPolicy.SKIP) {
+                        final var filter = getRowFilter(spec);
+                        streamableFunction = RowFilterUtil.filterStreamableFunction(streamableFunction, filter);
+                    }
+                    streamableFunction.runFinal(inputs, outputs, exec);
                 }
             }
         };
