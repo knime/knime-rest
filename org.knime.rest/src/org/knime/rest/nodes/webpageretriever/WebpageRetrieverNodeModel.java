@@ -58,6 +58,7 @@ import java.util.Set;
 import java.util.Stack;
 import java.util.stream.Collectors;
 
+import org.apache.commons.lang3.RegExUtils;
 import org.apache.cxf.jaxrs.client.spec.InvocationBuilderImpl;
 import org.jsoup.Jsoup;
 import org.jsoup.helper.W3CDom;
@@ -80,6 +81,7 @@ import org.knime.core.data.collection.ListCell;
 import org.knime.core.data.def.StringCell;
 import org.knime.core.data.xml.XMLCell;
 import org.knime.core.data.xml.XMLCellFactory;
+import org.knime.core.data.xml.XMLVersion;
 import org.knime.core.node.ExecutionContext;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeLogger;
@@ -165,7 +167,12 @@ final class WebpageRetrieverNodeModel extends RestNodeModel<WebpageRetrieverSett
             // should never happen
             throw new IllegalStateException("The base URL must not be null.");
         }
-        final Document htmlDocument = Jsoup.parse(bodyValue, m_baseURI.toString());
+        final var htmlDocument = Jsoup.parse(
+            // remove the invalid chars of the default XML version used by cell writers
+            m_settings.isOutputAsXML() //
+                ? RegExUtils.removeAll(bodyValue, XMLVersion.getCellDefault().invalidChars()) //
+                : bodyValue,
+            m_baseURI.toString());
 
         // replace relative URLs with absolute URLs
         if (m_settings.isReplaceRelativeURLS()) {
