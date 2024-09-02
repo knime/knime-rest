@@ -77,6 +77,7 @@ import javax.net.ssl.TrustManager;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.cxf.jaxrs.client.WebClient;
+import org.apache.cxf.jaxrs.impl.ResponseImpl;
 import org.apache.cxf.transport.http.asyncclient.AsyncHTTPConduit;
 import org.apache.cxf.transports.http.configuration.HTTPClientPolicy;
 import org.eclipse.e4.core.di.annotations.Execute;
@@ -159,6 +160,7 @@ import org.knime.rest.util.DelegatingX509TrustManager;
 import org.knime.rest.util.InvalidURLPolicy;
 import org.knime.rest.util.RowFilterUtil;
 
+import jakarta.ws.rs.ProcessingException;
 import jakarta.ws.rs.client.Client;
 import jakarta.ws.rs.client.ClientBuilder;
 import jakarta.ws.rs.client.Invocation;
@@ -897,6 +899,21 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
                 return getURLFromRow(row, columnIndex); // NOSONAR 'row' is not null
             }
             return validateURLString(m_settings.getConstantURL());
+        }
+
+        @Override
+        public void inspectAndThrowException(final Response response) throws ProcessingException {
+            if (response instanceof ResponseImpl cxfResponse) {
+                final var cxfMessage = cxfResponse.getOutMessage();
+                if (cxfMessage == null) {
+                    return;
+                }
+                final var cxfException = cxfMessage.getContent(Exception.class);
+                if (cxfException == null) {
+                    return;
+                }
+                throw new ProcessingException(cxfException);
+            }
         }
     }
 

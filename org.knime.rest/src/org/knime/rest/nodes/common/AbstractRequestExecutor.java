@@ -201,6 +201,16 @@ public abstract class AbstractRequestExecutor<S extends RestSettings> extends Ab
             throws InvalidSettingsException, MalformedURLException;
 
     /**
+     * Analyzes the {@link Response} for implementation-specific exceptions holders,
+     * which the JAX-RS specification does not provide. Re-throws as {@link ProcessingException}
+     * for the in-built JAX-RS exception handling.
+     *
+     * @param response the REST response
+     * @throws ProcessingException if any {@link Exception} was found
+     */
+    public abstract void inspectAndThrowException(final Response response) throws ProcessingException;
+
+    /**
      * Tells the executor how large the table to process is.
      * Progress updates will be adjusted accordingly.
      *
@@ -282,6 +292,7 @@ public abstract class AbstractRequestExecutor<S extends RestSettings> extends Ab
              */
             response = DelayPolicy.doWithDelays(m_settings.getDelayPolicy(), m_cooldownContext,
                 () -> triple.invocation.invoke(Response.class));
+            inspectAndThrowException(response);
         } catch (ProcessingException e) {
             LOGGER.warn("Call #%s failed: %s".formatted(m_consumedRows.get() + 1, e.getMessage()), e);
             final var cause = getRootCause(e);

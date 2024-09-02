@@ -70,6 +70,7 @@ import org.knime.rest.nodes.common.RestSettings.HttpMethod;
 import org.knime.rest.util.CooldownContext;
 import org.knime.rest.util.InvalidURLPolicy;
 
+import jakarta.ws.rs.ProcessingException;
 import jakarta.ws.rs.client.ClientBuilder;
 import jakarta.ws.rs.core.Response;
 
@@ -149,6 +150,11 @@ class AbstractRequestExecutorTest {
                 return null;
             }
         }
+
+        @Override
+        public void inspectAndThrowException(final Response response) throws ProcessingException {
+            // response exception inspection is not tested here
+        }
     }
 
     /**
@@ -190,6 +196,11 @@ class AbstractRequestExecutorTest {
                 assertResponse(response, missing);
                 return null;
             }
+        }
+
+        @Override
+        public void inspectAndThrowException(final Response response) throws ProcessingException {
+            // response exception inspection is not tested here
         }
     }
 
@@ -235,6 +246,11 @@ class AbstractRequestExecutorTest {
                 final MissingCell missing) {
                 throw new AssertionError("Should not have reached here as invalid URL aborts response handling");
             }
+        }
+
+        @Override
+        public void inspectAndThrowException(final Response response) throws ProcessingException {
+            // response exception inspection is not tested here
         }
     }
 }
