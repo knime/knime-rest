@@ -44,12 +44,14 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   14. Feb. 2016. (Gabor Bakos): created
+ *   Sep 6, 2024 (lw): created
  */
 package org.knime.rest.generic;
 
-import java.util.Objects;
+import java.awt.Container;
 
+import javax.swing.AbstractButton;
+import javax.swing.JLabel;
 import javax.swing.JPanel;
 
 import org.apache.commons.lang3.StringUtils;
@@ -62,16 +64,16 @@ import org.knime.core.node.defaultnodesettings.DialogComponentAuthentication;
 import org.knime.core.node.defaultnodesettings.SettingsModelAuthentication;
 import org.knime.core.node.defaultnodesettings.SettingsModelAuthentication.AuthenticationType;
 import org.knime.core.node.port.PortObjectSpec;
-import org.knime.core.node.util.CheckUtils;
 import org.knime.core.node.workflow.CredentialsProvider;
 
 /**
- * Abstract implementation that can be used to extend the authentication functionality of the REST nodes.
+ * Simplified copy of {@link UsernamePasswordAuthentication}, only supporting direct token
+ * inputs or tokens supplied via credentials flow variables.
  *
- * @author Gabor Bakos
- * @since 3.3
+ * @author Leon Wenzler, KNIME GmbH, Konstanz, Germany
+ * @since 5.4
  */
-public abstract class UsernamePasswordAuthentication extends EachRequestAuthentication {
+public abstract class TokenAuthentication extends EachRequestAuthentication {
     private final SettingsModelAuthentication m_settings;
 
     private DialogComponentAuthentication m_controls;
@@ -79,31 +81,34 @@ public abstract class UsernamePasswordAuthentication extends EachRequestAuthenti
     private CredentialsProvider m_lastCredentialsProvider;
 
     /**
-     * Constructs a UsernamePasswordAuthentication using the default settings.
+     * Constructs a TokenAuthentication using the default settings.
      *
      * @param configName The config name.
-     * @param defaultUsername The default user name.
-     * @param defaultPassword The default password.
-     * @param defaultCredential The default credentials key.
      */
-    protected UsernamePasswordAuthentication(final String configName, final String defaultUsername,
-        final String defaultPassword, final String defaultCredential) {
+    protected TokenAuthentication(final String configName) {
         super();
-        m_settings = new SettingsModelAuthentication(configName, AuthenticationType.USER_PWD, defaultUsername,
-            defaultPassword, defaultCredential);
+        m_settings = new SettingsModelAuthentication(configName, AuthenticationType.PWD);
     }
 
-    /**
-     * {@inheritDoc}
-     */
+    private static void replacePasswordTexts(final Container container) {
+        for (var component : container.getComponents()) {
+            if (component instanceof JLabel l) {
+                l.setText(StringUtils.replace(l.getText(), "Password", "Token"));
+            }
+            if (component instanceof AbstractButton b) {
+                b.setText(StringUtils.replace(b.getText(), "Password", "Token"));
+            }
+            if (component instanceof Container c) {
+                replacePasswordTexts(c);
+            }
+        }
+    }
+
     @Override
     public boolean hasUserConfiguration() {
         return true;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void saveUserConfiguration(final NodeSettingsWO userSettings) {
         m_settings.saveSettingsTo(userSettings);
@@ -125,17 +130,11 @@ public abstract class UsernamePasswordAuthentication extends EachRequestAuthenti
         }
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void loadUserConfiguration(final NodeSettingsRO userSettings) throws InvalidSettingsException {
         m_settings.loadSettingsFrom(userSettings);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void loadUserConfigurationForDialog(final NodeSettingsRO userSettings, final PortObjectSpec[] specs,
         final CredentialsProvider credentialNames) throws NotConfigurableException {
@@ -154,16 +153,14 @@ public abstract class UsernamePasswordAuthentication extends EachRequestAuthenti
      */
     private void initControls() {
         if (m_controls == null) {
-            m_controls = new DialogComponentAuthentication(m_settings);
+            m_controls = new DialogComponentAuthentication(m_settings, null, //
+                AuthenticationType.CREDENTIALS, AuthenticationType.PWD);
         }
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void updateControls() {
-        var nodeSettings = new NodeSettings("");
+        final var nodeSettings = new NodeSettings("");
         m_settings.saveSettingsTo(nodeSettings);
         if (m_controls != null) {
             try {
@@ -174,13 +171,11 @@ public abstract class UsernamePasswordAuthentication extends EachRequestAuthenti
         }
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void addControls(final JPanel panel) {
         initControls();
         panel.add(m_controls.getComponentPanel());
+        replacePasswordTexts(panel);
     }
 
     /**
@@ -195,33 +190,18 @@ public abstract class UsernamePasswordAuthentication extends EachRequestAuthenti
     }
 
     /**
-     * @return the username
+     * @return the token
      */
-    public String getUsername() {
-        return m_settings.getUsername();
-    }
-
-    /**
-     * @param username the username to set
-     */
-    public void setUsername(final String username) {
-        m_settings.setValues(AuthenticationType.USER_PWD, m_settings.getCredential(), username,
-            m_settings.getPassword());
-    }
-
-    /**
-     * @return the password
-     */
-    public String getPassword() {
+    public String getToken() {
         return m_settings.getPassword();
     }
 
     /**
-     * @param password the password to set
+     * @param token the token to set
      */
-    public void setPassword(final String password) {
-        m_settings.setValues(AuthenticationType.USER_PWD, m_settings.getCredential(), m_settings.getUsername(),
-            password);
+    public void setToken(final String token) {
+        m_settings.setValues(AuthenticationType.PWD, m_settings.getCredential(), m_settings.getUsername(),
+            token);
     }
 
     /**
@@ -249,51 +229,8 @@ public abstract class UsernamePasswordAuthentication extends EachRequestAuthenti
     /**
      * @param useCredentials the useCredentials to set
      */
-    public void setUseCredentials(final boolean useCredentials) {
-        m_settings.setValues(useCredentials ? AuthenticationType.CREDENTIALS : AuthenticationType.USER_PWD,
+    public void setUseCredentials(final boolean useCredentials) { // NOSONAR
+        m_settings.setValues(useCredentials ? AuthenticationType.CREDENTIALS : AuthenticationType.PWD,
             m_settings.getCredential(), m_settings.getUsername(), m_settings.getPassword());
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public String toString() {
-        return getClass().getName() + "[" + getUsername() + "]";
-    }
-
-    /**
-     * Pair holding only a user name and a password.
-     *
-     * @param username the user name as String
-     * @param password the password as String
-     */
-    protected record UsernamePasswordPair(String username, String password) {
-        /**
-         * Creates an authentication pair that takes into account credentials flow variables, and guarantees that both
-         * values are guaranteed to be non-null, and the user name is non-empty.
-         *
-         * @param authentication user/pw authentication
-         * @param provider credentials provider for flow variables
-         * @return validated pair of user name and password
-         * @throws InvalidSettingsException if user name is empty
-         */
-        public static UsernamePasswordPair of(final UsernamePasswordAuthentication authentication,
-            final CredentialsProvider provider) throws InvalidSettingsException {
-            final var credentialsName = authentication.getCredential();
-            var user = authentication.getUsername();
-            var passwd = authentication.getPassword();
-            if (authentication.isUseCredentials() && StringUtils.isNotEmpty(credentialsName)) {
-                CheckUtils.checkNotNull(provider);
-                final var credentials = provider.get(credentialsName);
-                user = credentials.getLogin();
-                passwd = credentials.getPassword();
-            }
-            // Check user name and fail if empty
-            if (StringUtils.isEmpty(user)) {
-                throw new InvalidSettingsException("User name cannot be empty");
-            }
-            return new UsernamePasswordPair(user, Objects.requireNonNullElse(passwd, ""));
-        }
     }
 }

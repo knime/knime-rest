@@ -48,10 +48,15 @@
              deprecated="false"
              name="Kerberos">
        </AuthenticateEachRequest>
+       <AuthenticateEachRequest
+             class="org.knime.rest.internals.BearerAuthentication"
+             deprecated="false"
+             name="Bearer">
+       </AuthenticateEachRequest>
     </extension>
     <extension
           id="org.knime.rest.header.webpage"
-          name="webpage related headers"
+          name="Webpage-related headers"
           point="org.knime.rest.header.template">
        <Entry
              key="Accept">
