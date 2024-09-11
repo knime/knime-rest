@@ -85,10 +85,11 @@ import jakarta.ws.rs.ProcessingException;
 import jakarta.ws.rs.client.Client;
 import jakarta.ws.rs.client.Invocation;
 import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.Response.Status;
 
 /**
  * Houses the REST request execution logic for client nodes. This class is initialized
- * with the entire REST "execution context", and requires implementing {@link #createInvocationTriple(DataRow)}.
+ * with the entire REST "execution context", and requires implementing {@link #createInvocationTriple(DataRow, boolean)}.
  * <p>
  * Fetching responses subject to two stages: the first call (initializing the response data format),
  * and subsequent requests, filling the data table. To provide both operations, this class also
@@ -196,12 +197,13 @@ public abstract class AbstractRequestExecutor<S extends RestSettings> extends Ab
      * Encapsulates the row's data (e.g. in the form of a target URL), and an underlying {@link Client}.
      *
      * @param row the data row currently processed
+     * @param forceRefresh whether to force refresh any access tokens, if supported
      * @return the invocation and client object if successful
      * @throws InvalidSettingsException if the invocation object could not be created
-     * @throws MalformedURLException if the invocation creation failed due to an invalid URL
+     * @throws IOException if the invocation creation failed due to an invalid URL or refreshing the token failed
      */
-    public abstract InvocationTriple createInvocationTriple(final DataRow row)
-            throws InvalidSettingsException, MalformedURLException;
+    public abstract InvocationTriple createInvocationTriple(final DataRow row, boolean forceRefresh)
+            throws InvalidSettingsException, IOException;
 
     /**
      * Tells the executor how large the table to process is.
@@ -263,24 +265,33 @@ public abstract class AbstractRequestExecutor<S extends RestSettings> extends Ab
      * Since we are using CXF currently for REST requests, the behavior of this request is strongly
      * dependent on the global configuration in the KNIMECXFBusFactory, and the local configuration in
      * {@link RestNodeModel#createClient()}.
-     *
+     * @param forceRefresh whether to force refresh any access tokens, if supported
      * @param spec
      * @param settings
      * @param invocation
+     *
      * @return
-     * @throws InvalidSettingsException
-     * @throws ProcessingException
+     * @throws InvalidSettingsException if the invocation object could not be created
+     * @throws IOException if the invocation creation failed due to an invalid URL or refreshing the token failed
      */
     @SuppressWarnings("resource")
-    private ResultPair performSingleRequest(final DataRow row)
-            throws InvalidSettingsException, MalformedURLException, ProcessingException {
+    private ResultPair performSingleRequest(final DataRow row, final boolean forceRefresh)
+            throws InvalidSettingsException, IOException {
         // creating the request invocation can cause an ISE, see AP-20219
-        final var triple = createInvocationTriple(row);
+        final var triple = createInvocationTriple(row, forceRefresh);
         Response response = null;
         MissingCell missing = null;
         try {
             response = DelayPolicy.doWithDelays(m_settings.getDelayPolicy(), m_cooldownContext,
                 () -> invoke(triple.invocation()));
+
+            if (!forceRefresh && response.getStatus() == Status.UNAUTHORIZED.getStatusCode()) {
+                LOGGER.debugWithFormat("Received %s (%d) -- attempting to refresh the access token and retry", //
+                    Status.UNAUTHORIZED.name(), //
+                    Status.UNAUTHORIZED.getStatusCode());
+
+                return performSingleRequest(row, true);
+            }
         } catch (ProcessingException e) {
             LOGGER.warn("Call #%s failed: %s".formatted(m_consumedRows.get() + 1, e.getMessage()), e);
             final var cause = getRootCause(e);
@@ -290,6 +301,8 @@ public abstract class AbstractRequestExecutor<S extends RestSettings> extends Ab
                 response = tryReconstructResponse(cause.getMessage());
                 missing = new MissingCell(cause.getMessage());
             }
+        } catch (IOException e) {
+            throw e; // fail fast
         } catch (Exception e) {
             LOGGER.debug("Call #%s failed: %s".formatted(m_consumedRows.get() + 1, e.getMessage()), e);
             throw new ProcessingException(ExceptionUtils.getRootCause(e));
@@ -313,17 +326,18 @@ public abstract class AbstractRequestExecutor<S extends RestSettings> extends Ab
      * @return list of data cells, containing the parsed data
      *
      * @throws InvalidSettingsException if something went wrong in configuration
-     * @throws MalformedURLException if the URL was invalid
+     * @throws IOException if the URL was invalid or the token could not be refreshed
      */
-    public DataCell[] makeFirstCall(final DataRow row) throws InvalidSettingsException, MalformedURLException {
+    public DataCell[] makeFirstCall(final DataRow row) throws InvalidSettingsException, IOException {
         ResultPair result;
         try {
-            result = performSingleRequest(row);
+            result = performSingleRequest(row, false);
         } catch (MalformedURLException e) {
             // handle early abort due to invalid URL (throws exception if != MISSING)
             abortDueToInvalidURL(row, e);
             result = new ResultPair(null, new MissingCell(String.format("%s: %s", //
                 InvalidURLPolicy.INVALID_URL_ERROR, e.getMessage())));
+
         }
         return firstResponseToDataCells(result);
     }
@@ -362,7 +376,7 @@ public abstract class AbstractRequestExecutor<S extends RestSettings> extends Ab
     public DataCell[] makeFollowingCall(final DataRow row) {
         ResultPair result;
         try {
-            result = performSingleRequest(row);
+            result = performSingleRequest(row, false);
         } catch (MalformedURLException e1) {
             // handle early abort due to invalid URL
             try {
@@ -372,8 +386,8 @@ public abstract class AbstractRequestExecutor<S extends RestSettings> extends Ab
             }
             result = new ResultPair(null, new MissingCell(String.format("%s: %s", //
                 InvalidURLPolicy.INVALID_URL_ERROR, e1.getMessage())));
-        } catch (InvalidSettingsException e) {
-            // should not occur since first calls would already have thrown an ISE
+        } catch (InvalidSettingsException | IOException e) {
+            // should not occur since first calls would already have thrown an I{S,O}E
             throw new IllegalStateException(e);
         }
         return followingResponseToDataCells(result, row);

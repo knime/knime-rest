@@ -55,6 +55,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.IOException;
 import java.net.MalformedURLException;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -121,8 +122,8 @@ class AbstractRequestExecutorTest {
 
         @SuppressWarnings("resource")
         @Override
-        public InvocationTriple createInvocationTriple(final DataRow row)
-            throws InvalidSettingsException, MalformedURLException {
+        public InvocationTriple createInvocationTriple(final DataRow row, final boolean forceRefresh)
+            throws InvalidSettingsException, IOException {
             final var client = ClientBuilder.newBuilder().build();
             final var target = client.target(TARGET_URL);
             return new InvocationTriple(target.request().buildGet(), target.getUri().toURL(), client);
@@ -163,8 +164,8 @@ class AbstractRequestExecutorTest {
         }
 
         @Override
-        public InvocationTriple createInvocationTriple(final DataRow row)
-            throws InvalidSettingsException, MalformedURLException {
+        public InvocationTriple createInvocationTriple(final DataRow row, final boolean forceRefresh)
+            throws InvalidSettingsException, IOException {
             // using an invalid URL signal to execute nothing
             throw new MalformedURLException("this should fail");
         }
@@ -216,8 +217,8 @@ class AbstractRequestExecutorTest {
 
         @SuppressWarnings("resource")
         @Override
-        public InvocationTriple createInvocationTriple(final DataRow row)
-            throws InvalidSettingsException, MalformedURLException {
+        public InvocationTriple createInvocationTriple(final DataRow row, final boolean forceRefresh)
+            throws InvalidSettingsException, IOException {
             final var client = ClientBuilder.newBuilder().build();
             final var target = client.target(RestNodeModel.validateURLString(TARGET_URL).toString());
             return new InvocationTriple(target.request().buildGet(), target.getUri().toURL(), client);
