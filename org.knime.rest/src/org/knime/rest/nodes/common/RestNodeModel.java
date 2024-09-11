@@ -142,6 +142,7 @@ import org.knime.core.util.proxy.DisabledSchemesChecker;
 import org.knime.credentials.base.Credential;
 import org.knime.credentials.base.CredentialPortObject;
 import org.knime.credentials.base.CredentialPortObjectSpec;
+import org.knime.credentials.base.oauth.api.AccessTokenAccessor;
 import org.knime.credentials.base.oauth.api.HttpAuthorizationHeaderCredentialValue;
 import org.knime.rest.generic.EachRequestAuthentication;
 import org.knime.rest.generic.ResponseBodyParser;
@@ -670,18 +671,21 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
 
     /**
      * Creates the request {@link Builder} based on input parameters.
-     *
-     * @param URLColumn The index of URL column.
      * @param enabledAuthentications The authentications.
      * @param row The input {@link DataRow}.
      * @param spec The input table spec.
+     * @param forceRefresh whether to force refresh any access tokens, if supported
+     * @param URLColumn The index of URL column.
+     *
      * @return
-     * @throws InvalidSettingsException
+     * @throws InvalidSettingsException if the credentials to be used are missing
+     * @throws IOException if refreshing the token failed
      */
     @SuppressWarnings({"resource"})
     private Pair<Builder, Client> createRequest(final URI targetUri, // NOSONAR leave in outer class
-        final List<EachRequestAuthentication> enabledAuthentications, final DataRow row, final DataTableSpec spec)
-        throws InvalidSettingsException {
+        final List<EachRequestAuthentication> enabledAuthentications, final DataRow row, final DataTableSpec spec,
+        final boolean forceRefresh)
+        throws InvalidSettingsException, IOException {
         final var client = createClient();
         WebTarget target = client.target(targetUri);
         //Support relative redirects too, see https://tools.ietf.org/html/rfc7231#section-3.1.4.2
@@ -710,6 +714,16 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         // Some implementations (e.g. NTLM) must configure the conduit but they cannot after it has been accessed.
 
         for (final EachRequestAuthentication era : enabledAuthentications) {
+            if (era instanceof HttpAuthorizationHeaderAuthentication h &&
+                    h.getCredential() instanceof AccessTokenAccessor ata) {
+                try {
+                    ata.getAccessToken(forceRefresh);
+                } catch (IOException e) {
+                    // fail fast as there is no use in executing subsequent rows
+                    throw new IOException("The access token is not valid anymore and could not be refreshed. "
+                        + "Please update the authentication.", e);
+                }
+            }
             era.updateRequest(request, row, getCredentialsProvider(), getAvailableFlowVariables());
         }
 
@@ -826,9 +840,10 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
      * @param spec The {@link DataTableSpec}.
      * @param exec An {@link ExecutionContext}.
      * @throws InvalidSettingsException if the request could not be created
+     * @throws IOException if refreshing the token failed
      */
     protected void makeFirstCall(final DataRow row, final List<EachRequestAuthentication> enabledAuthentications,
-        final DataTableSpec spec, final ExecutionContext exec) throws InvalidSettingsException {
+        final DataTableSpec spec, final ExecutionContext exec) throws InvalidSettingsException, IOException {
         m_cooldownContext = new CooldownContext(); // reset context before execution.
         final var executor = new RequestExecutor(spec, enabledAuthentications, exec);
         final var rowKey = getRowKey(row);
@@ -869,8 +884,8 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
 
         @SuppressWarnings("resource")
         @Override
-        public InvocationTriple createInvocationTriple(final DataRow row)
-                throws InvalidSettingsException, MalformedURLException {
+        public InvocationTriple createInvocationTriple(final DataRow row, final boolean forceRefresh)
+                throws InvalidSettingsException, IOException {
             final var spec = getTableSpec();
             final var currentURL = getCurrentURL(spec, row);
             // need to convert to URI for request creation, CXF only accepts those
@@ -882,7 +897,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
             }
             // computing request builder and client on-demand for each new row
             // could be improved in the future by re-using one client per execution (not per row)
-            final var builderClient = createRequest(currentURI, m_enabledAuthentications, row, spec);
+            final var builderClient = createRequest(currentURI, m_enabledAuthentications, row, spec, forceRefresh);
             return new InvocationTriple(
                 invocation(builderClient.getFirst(), row, spec),    // invocation
                 currentURL,                                         // URL

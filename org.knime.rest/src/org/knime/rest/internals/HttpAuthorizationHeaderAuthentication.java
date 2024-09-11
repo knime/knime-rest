@@ -85,6 +85,13 @@ public class HttpAuthorizationHeaderAuthentication extends EachRequestAuthentica
         m_credential = credential;
     }
 
+    /**
+     * @return the wrapped credential
+     */
+    public HttpAuthorizationHeaderCredentialValue getCredential() {
+        return m_credential;
+    }
+
     @Override
     public Builder updateRequest(final Builder request, final DataRow row, final CredentialsProvider credProvider,
         final Map<String, FlowVariable> flowVariables) {

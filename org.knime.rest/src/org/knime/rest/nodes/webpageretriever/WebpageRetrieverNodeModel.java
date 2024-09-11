@@ -48,6 +48,7 @@
  */
 package org.knime.rest.nodes.webpageretriever;
 
+import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -370,7 +371,7 @@ final class WebpageRetrieverNodeModel extends RestNodeModel<WebpageRetrieverSett
     @Override
     protected void makeFirstCall(final DataRow row,
         final List<EachRequestAuthentication> enabledEachRequestAuthentications, final DataTableSpec spec,
-        final ExecutionContext exec) throws InvalidSettingsException {
+        final ExecutionContext exec) throws InvalidSettingsException, IOException {
         super.makeFirstCall(row, enabledEachRequestAuthentications, spec, exec);
         // we have to override this variable since it will define the output spec if no input is connected
         m_newColumnsBasedOnFirstCalls = createNewColumnsSpec(spec);
