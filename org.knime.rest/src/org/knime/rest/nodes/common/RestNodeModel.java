@@ -1002,7 +1002,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
             @Override
             public void runFinal(final PortInput[] inputs, final PortOutput[] outputs, final ExecutionContext exec)
                 throws Exception {
-                if (m_consumedRows.get() == 0) {
+                if (m_settings.isUseConstantURL() && m_consumedRows.get() == 0) {
                     var rowOutput = (RowOutput)outputs[0];
                     final var cells = m_parsedResponseValues.get(CONSTANT_URL_KEY);
                     if (!Arrays.equals(cells, AbstractRequestExecutor.EMPTY_RESPONSE)) {
