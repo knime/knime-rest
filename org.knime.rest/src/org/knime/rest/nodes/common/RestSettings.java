@@ -227,7 +227,7 @@ public class RestSettings {
     private static final DelayPolicy DEFAULT_DELAY_POLICY = new DelayPolicy(1, 3, 60, false, false);
 
     /** Default value for the timeout (in seconds) option. */
-    protected static final int DEFAULT_TIMEOUT = 2;
+    protected static final int DEFAULT_TIMEOUT = 30;
 
     /** Whether the requests are allowed to be made with Chunked Transfer Encoding **/
     protected static final boolean DEFAULT_ALLOW_CHUNKING = true;
