@@ -217,8 +217,11 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
 
     private final JCheckBox m_allowChunking = new JCheckBox("Send large data in chunks", true);
 
-    private final JSpinner m_timeoutInSeconds =
-        new JSpinner(new SpinnerNumberModel(RestSettings.DEFAULT_TIMEOUT, 1, Integer.MAX_VALUE, 1));
+    private final JSpinner m_connectTimeoutInSeconds =
+        new JSpinner(new SpinnerNumberModel(RestSettings.DEFAULT_CONNECT_TIMEOUT, 1, Integer.MAX_VALUE, 1));
+
+    private final JSpinner m_readTimeoutInSeconds =
+            new JSpinner(new SpinnerNumberModel(RestSettings.DEFAULT_READ_TIMEOUT, 1, Integer.MAX_VALUE, 1));
 
     private final RequestTableModel m_requestHeadersModel = new RequestTableModel();
 
@@ -453,6 +456,7 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         ret.add(m_useDelay, gbc);
         gbc.gridx++;
         gbc.weightx = 0;
+        final var preferredLabelSize = new Dimension(150, 20);
         final var preferredSpinnerSize = new Dimension(75, 20);
         gbc.fill = GridBagConstraints.NONE;
         m_delay.setPreferredSize(preferredSpinnerSize);
@@ -460,7 +464,9 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         gbc.gridx = 0;
         gbc.gridy++;
         gbc.weightx = 0;
-        ret.add(new JLabel("Concurrency: "), gbc);
+        final var concurrencyLabel = new JLabel("Concurrency: ");
+        concurrencyLabel.setPreferredSize(preferredLabelSize);
+        ret.add(concurrencyLabel, gbc);
         gbc.gridx++;
         gbc.weightx = 0;
         gbc.fill = GridBagConstraints.NONE;
@@ -484,15 +490,29 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         gbc.gridy++;
         gbc.weightx = 0;
         gbc.gridx = 0;
-        ret.add(new JLabel("Timeout (s)"), gbc);
+        final var connectTimeoutLabel = new JLabel("Connect timeout (s):");
+        connectTimeoutLabel.setPreferredSize(preferredLabelSize);
+        ret.add(connectTimeoutLabel, gbc);
         gbc.gridx++;
-        gbc.weightx = 0;
-        m_timeoutInSeconds.setPreferredSize(preferredSpinnerSize);
+        m_connectTimeoutInSeconds.setPreferredSize(preferredSpinnerSize);
         gbc.fill = GridBagConstraints.NONE;
-        ret.add(m_timeoutInSeconds, gbc);
+        ret.add(m_connectTimeoutInSeconds, gbc);
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.gridx = 0;
         gbc.gridy++;
+        gbc.weightx = 0;
+        gbc.gridx = 0;
+        final var readTimeoutLabel = new JLabel("Read timeout (s):");
+        readTimeoutLabel.setPreferredSize(preferredLabelSize);
+        ret.add(readTimeoutLabel, gbc);
+        gbc.gridx++;
+        m_readTimeoutInSeconds.setPreferredSize(preferredSpinnerSize);
+        gbc.fill = GridBagConstraints.NONE;
+        ret.add(m_readTimeoutInSeconds, gbc);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.gridx = 0;
+        gbc.gridy++;
+        m_labelBodyColumnName.setPreferredSize(preferredLabelSize);
         m_settings.getMethod().filter(m -> m != HttpMethod.HEAD).ifPresent(m -> ret.add(m_labelBodyColumnName, gbc));
         gbc.gridx++;
         gbc.gridwidth = 2;
@@ -1350,7 +1370,8 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         m_settings.setSslTrustAll(m_sslTrustAll.isSelected());
         m_settings.setFailOnConnectionProblems(m_connectionErrorPanel.isFailOnError());
         m_settings.setFollowRedirects(m_followRedirects.isSelected());
-        m_settings.setTimeoutInSeconds(((Number)m_timeoutInSeconds.getValue()).intValue());
+        m_settings.setConnectTimeoutInSeconds(((Number)m_connectTimeoutInSeconds.getValue()).intValue());
+        m_settings.setReadTimeoutInSeconds(((Number)m_readTimeoutInSeconds.getValue()).intValue());
         m_settings.getRequestHeaders().clear();
         m_settings.getRequestHeaders()
             .addAll(StreamSupport.stream(m_requestHeadersModel.spliterator(), false).collect(Collectors.toList()));
@@ -1487,7 +1508,8 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         m_settings.isOutputErrorCause().ifPresent(m_errorCausePanel::setSelected);
 
         m_followRedirects.setSelected(m_settings.isFollowRedirects());
-        m_timeoutInSeconds.setValue(m_settings.getTimeoutInSeconds());
+        m_connectTimeoutInSeconds.setValue(m_settings.getConnectTimeoutInSeconds());
+        m_readTimeoutInSeconds.setValue(m_settings.getReadTimeoutInSeconds());
         m_requestHeadersModel.clear();
         for (var i = 0; i < m_settings.getRequestHeaders().size(); ++i) {
             m_requestHeadersModel.addRow(m_settings.getRequestHeaders().get(i));

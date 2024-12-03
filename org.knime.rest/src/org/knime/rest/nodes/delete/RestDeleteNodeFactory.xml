@@ -59,7 +59,11 @@
                 Specifies whether HTTP Chunked Transfer Encoding is allowed to be used by the node. If enabled, messages
                 with a large body size are being sent to the server in a series of chunks.
             </option>
-            <option name="Timeout (s)">Timeout for a single request in seconds</option>
+            <option name="Connect timeout (s)">The connection timeout is the timeout in making the initial connection. 
+                In case of HTTPS, this includes completing the SSL handshake. This timeout is set in seconds.</option>
+            <option name="Read timeout (s)">The read timeout is the time to wait until the first byte of data is read.
+                Increasing this timeout makes sense if you have a slow connection or you expect the server will take a 
+                long time to prepare your response. This timeout is set in seconds.</option>
             <option name="Body">Name of the response body column in the output table</option>
         </tab>
         <tab name="Authentication">

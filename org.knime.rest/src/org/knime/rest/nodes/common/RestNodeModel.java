@@ -772,9 +772,9 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
             clientBuilder.hostnameVerifier((hostName, session) -> true); //NOSONAR
         }
         clientBuilder.property(org.apache.cxf.message.Message.CONNECTION_TIMEOUT,
-            m_settings.getTimeoutInSeconds() * 1000L);
+            m_settings.getConnectTimeoutInSeconds() * 1000L);
         clientBuilder.property(org.apache.cxf.message.Message.RECEIVE_TIMEOUT,
-            m_settings.getTimeoutInSeconds() * 1000L);
+            m_settings.getReadTimeoutInSeconds() * 1000L);
         return clientBuilder.build();
     }
 

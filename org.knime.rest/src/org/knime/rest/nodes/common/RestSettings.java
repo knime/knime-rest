@@ -222,12 +222,19 @@ public class RestSettings {
 
     private static final String TIMEOUT = "timeout";
 
+    private static final String CONNECT_TIMEOUT = "connectTimeout";
+
+    private static final String READ_TIMEOUT = "readTimeout";
+
     private static final String ALLOW_CHUNKING_KEY = "allowChunking";
 
     private static final DelayPolicy DEFAULT_DELAY_POLICY = new DelayPolicy(1, 3, 60, false, false);
 
-    /** Default value for the timeout (in seconds) option. */
-    protected static final int DEFAULT_TIMEOUT = 30;
+    /** Default value for the connect timeout (in seconds) option. */
+    protected static final int DEFAULT_CONNECT_TIMEOUT = 5;
+
+    /** Default value for the read timeout (in seconds) option. */
+    protected static final int DEFAULT_READ_TIMEOUT = 120;
 
     /** Whether the requests are allowed to be made with Chunked Transfer Encoding **/
     protected static final boolean DEFAULT_ALLOW_CHUNKING = true;
@@ -256,7 +263,9 @@ public class RestSettings {
 
     private boolean m_followRedirects = DEFAULT_FOLLOW_REDIRECTS;
 
-    private int m_timeoutInSeconds = DEFAULT_TIMEOUT;
+    private int m_connectTimeoutInSeconds = DEFAULT_CONNECT_TIMEOUT;
+
+    private int m_readTimeoutInSeconds = DEFAULT_READ_TIMEOUT;
 
     private Optional<DelayPolicy> m_delayPolicy = Optional.empty();
 
@@ -829,17 +838,31 @@ public class RestSettings {
     }
 
     /**
-     * @return the timeoutInSeconds
+     * @return the connect timeout in seconds
      */
-    protected int getTimeoutInSeconds() {
-        return m_timeoutInSeconds;
+    protected int getConnectTimeoutInSeconds() {
+        return m_connectTimeoutInSeconds;
     }
 
     /**
-     * @param timeoutInSeconds the timeoutInSeconds to set
+     * @return the read timeout in seconds
      */
-    protected void setTimeoutInSeconds(final int timeoutInSeconds) {
-        m_timeoutInSeconds = timeoutInSeconds;
+    protected int getReadTimeoutInSeconds() {
+        return m_readTimeoutInSeconds;
+    }
+
+    /**
+     * @param connect timeoutInSeconds the timeoutInSeconds to set
+     */
+    protected void setConnectTimeoutInSeconds(final int timeoutInSeconds) {
+        m_connectTimeoutInSeconds = timeoutInSeconds;
+    }
+
+    /**
+     * @param read timeoutInSeconds the timeoutInSeconds to set
+     */
+    protected void setReadTimeoutInSeconds(final int timeoutInSeconds) {
+        m_readTimeoutInSeconds = timeoutInSeconds;
     }
 
     protected DelayPolicy getDelayPolicy() {
@@ -939,7 +962,8 @@ public class RestSettings {
             settings.addBoolean(euc.getName() + ENABLED_SUFFIX, euc.isEnabled());
         }
         settings.addBoolean(FOLLOW_REDIRECTS, m_followRedirects);
-        settings.addInt(TIMEOUT, m_timeoutInSeconds);
+        settings.addInt(CONNECT_TIMEOUT, m_connectTimeoutInSeconds);
+        settings.addInt(READ_TIMEOUT, m_readTimeoutInSeconds);
         m_delayPolicy.ifPresent(v -> v.saveToSettings(settings));
         settings.addBoolean(FAIL_ON_SERVER_ERRORS, m_failOnServerErrors);
         settings.addBoolean(FAIL_ON_CLIENT_ERRORS, m_failOnClientErrors);
@@ -1001,7 +1025,10 @@ public class RestSettings {
             euc.loadUserConfigurationFrom(settings);
         }
         m_followRedirects = settings.getBoolean(FOLLOW_REDIRECTS);
-        m_timeoutInSeconds = settings.getInt(TIMEOUT);
+        /* Backwards compatibility: if only one common timeout is present,
+         * use the common timeout to initialize both connect and read timeout. */
+        m_connectTimeoutInSeconds = settings.getInt(CONNECT_TIMEOUT, settings.getInt(TIMEOUT, DEFAULT_CONNECT_TIMEOUT));
+        m_readTimeoutInSeconds = settings.getInt(READ_TIMEOUT, settings.getInt(TIMEOUT, DEFAULT_READ_TIMEOUT));
         m_delayPolicy = DelayPolicy.loadFromSettings(settings);
         loadFailOnHttp(settings);
         try {
@@ -1100,7 +1127,10 @@ public class RestSettings {
             }
         }
         m_followRedirects = settings.getBoolean(FOLLOW_REDIRECTS, DEFAULT_FOLLOW_REDIRECTS);
-        m_timeoutInSeconds = settings.getInt(TIMEOUT, DEFAULT_TIMEOUT);
+        /* Backwards compatibility: if only one common timeout is present,
+         * use the common timeout to initialize both connect and read timeout. */
+        m_connectTimeoutInSeconds = settings.getInt(CONNECT_TIMEOUT, settings.getInt(TIMEOUT, DEFAULT_CONNECT_TIMEOUT));
+        m_readTimeoutInSeconds = settings.getInt(READ_TIMEOUT, settings.getInt(TIMEOUT, DEFAULT_READ_TIMEOUT));
         m_delayPolicy = DelayPolicy.loadFromSettings(settings);
         loadFailOnHttp(settings);
         try {
