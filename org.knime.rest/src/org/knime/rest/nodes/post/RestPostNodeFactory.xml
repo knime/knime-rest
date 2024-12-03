@@ -103,7 +103,7 @@
             </option>
             <option name="Excluded Hosts">
                 If the option "Exclude hosts from proxy" is enabled, this field specifies the hosts that will be ignored by the proxy connection.
-                Requests to excluded hosts will use a direct connection. If multiple hosts are specified, they should be separated using a vertical bar ('|').
+                Requests to excluded hosts will use a direct connection. If multiple hosts are specified, they should be separated by semicolon (';').
             </option>
         </tab>
         <tab name="Error Handling">
