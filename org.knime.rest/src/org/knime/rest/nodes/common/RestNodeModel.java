@@ -457,7 +457,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
             }
         }
 
-        if (m_credentialPortIdx != -1) {
+        if (m_credentialPortIdx >= 0) {
             var type = ((CredentialPortObjectSpec)inSpecs[m_credentialPortIdx]).getCredentialType().orElse(null);
             if (type != null
                 && !HttpAuthorizationHeaderCredentialValue.class.isAssignableFrom(type.getCredentialClass())) {
@@ -512,7 +512,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
     }
 
     private HttpAuthorizationHeaderCredentialValue getCredential(final PortObject[] portObjects) {
-        if (m_credentialPortIdx > -1) {
+        if (m_credentialPortIdx >= 0) {
             return getCredential((CredentialPortObject)portObjects[m_credentialPortIdx]);
         } else {
             return null;
@@ -575,6 +575,11 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
 
     @Override
     public InputPortRole[] getInputPortRoles() {
+        if (m_credentialPortIdx >= 0) {
+            // Non-streamble credentials port is inserted after table input.
+            return new InputPortRole[]{InputPortRole.NONDISTRIBUTED_STREAMABLE,
+                InputPortRole.NONDISTRIBUTED_NONSTREAMABLE};
+        }
         return new InputPortRole[]{InputPortRole.NONDISTRIBUTED_STREAMABLE};
     }
 
@@ -1023,7 +1028,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
     }
 
     private HttpAuthorizationHeaderCredentialValue getCredential(final PortInput[] inputs) {
-        if (m_credentialPortIdx > -1) {
+        if (m_credentialPortIdx >= 0) {
             return getCredential((CredentialPortObject)((PortObjectInput)inputs[m_credentialPortIdx]).getPortObject());
         } else {
             return null;
