@@ -40,6 +40,7 @@ try {
                 'knime-rest',
                 'knime-scripting-editor',
                 'knime-stats',
+                'knime-streaming',
                 'knime-textprocessing',
                 'knime-timeseries',
                 'knime-xml',
