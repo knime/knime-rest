@@ -54,6 +54,9 @@ import java.net.URL;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.LongPredicate;
@@ -73,6 +76,7 @@ import org.knime.core.node.ExecutionMonitor;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeLogger;
 import org.knime.core.util.ThreadLocalHTTPAuthenticator;
+import org.knime.core.util.ThreadPool;
 import org.knime.rest.util.CooldownContext;
 import org.knime.rest.util.DelayPolicy;
 import org.knime.rest.util.InvalidURLPolicy;
@@ -266,6 +270,29 @@ public abstract class AbstractRequestExecutor<S extends RestSettings> extends Ab
     }
 
     /**
+     * Executes the task invisibly if possible.
+     * @param task task to be executed
+     * @return result of taks
+     * @throws Exception if the task execution failed
+     */
+    private static <T> T invokeInvisible(final Callable<T> task) throws Exception {
+        final var pool = ThreadPool.currentPool();
+        if (pool != null) {
+            try {
+                return pool.runInvisible(task);
+            } catch (final ExecutionException e) {
+                // we need to unwrap the cause such that #inspectAndThrowException still works
+                // (e.g. the REST node model can convert the exception to missing value instead of failing)
+                if (e.getCause() instanceof Exception ee) {
+                    throw ee;
+                }
+                throw e;
+            }
+        }
+        return task.call();
+    }
+
+    /**
      * Core of the REST request execution. Create a new {@link Invocation} object from the provided
      * {@link DataRow}, as well as a {@link Client}, and performs a single, synchronous request.
      * <p>
@@ -293,8 +320,8 @@ public abstract class AbstractRequestExecutor<S extends RestSettings> extends Ab
              * Currently, we use a sync HTTP client (AP-20585, AP-21786, AP-22983), hence the invocation is
              * always blocking, and there is no way for the user to cancel the node execution (and REST request).
              */
-            response = DelayPolicy.doWithDelays(m_settings.getDelayPolicy(), m_cooldownContext,
-                () -> triple.invocation.invoke(Response.class));
+            response = invokeInvisible(() -> DelayPolicy.doWithDelays(m_settings.getDelayPolicy(),
+                m_cooldownContext, () -> triple.invocation.invoke(Response.class)));
             inspectAndThrowException(response);
 
             if (!forceRefresh && response.getStatus() == Status.UNAUTHORIZED.getStatusCode()) {
