@@ -125,6 +125,8 @@ public abstract class AbstractRequestExecutor<S extends RestSettings> extends Ab
 
     private long m_tableSize = 1;
 
+    private final boolean m_invokeInvisible;
+
     /**
      * Default constructor, stores the needed execution context.
      */
@@ -138,6 +140,7 @@ public abstract class AbstractRequestExecutor<S extends RestSettings> extends Ab
         m_cooldownContext = cooldown;
         m_monitor = Objects.requireNonNullElseGet(monitor, ExecutionMonitor::new);
         m_consumedRows = consumedRows;
+        m_invokeInvisible = !Boolean.getBoolean("org.knime.rest.forceRunVisible");
     }
 
     /**
@@ -309,8 +312,9 @@ public abstract class AbstractRequestExecutor<S extends RestSettings> extends Ab
              * Currently, we use a sync HTTP client (AP-20585, AP-21786, AP-22983), hence the invocation is
              * always blocking, and there is no way for the user to cancel the node execution (and REST request).
              */
-            response = invokeInvisible(() -> DelayPolicy.doWithDelays(m_settings.getDelayPolicy(),
-                m_cooldownContext, () -> triple.invocation.invoke(Response.class)));
+            final Callable<Response> callable = () -> DelayPolicy.doWithDelays(m_settings.getDelayPolicy(),
+                m_cooldownContext, () -> triple.invocation.invoke(Response.class));
+            response = m_invokeInvisible ? invokeInvisible(callable) : callable.call();
             inspectAndThrowException(response);
 
             if (!forceRefresh && response.getStatus() == Status.UNAUTHORIZED.getStatusCode()) {
