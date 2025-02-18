@@ -212,8 +212,12 @@ public interface ResponseBodyParser {
          *
          * @param response The {@link Response} from the REST call.
          * @return The {@link InputStream} that can handle {@code Content-Encoding}.
+         * @throws IOException
          */
-        private static InputStream responseInputStream(final Response response) {
+        private static InputStream responseInputStream(final Response response) throws IOException {
+            if (!response.hasEntity()) {
+                throw new IOException(response.getStatusInfo().getReasonPhrase());
+            }
             final var entity =
                 new BufferedInputStream(new BOMInputStream(response.readEntity(InputStream.class), ByteOrderMark.UTF_8,
                     ByteOrderMark.UTF_16BE, ByteOrderMark.UTF_16LE, ByteOrderMark.UTF_32BE, ByteOrderMark.UTF_32LE));
