@@ -556,6 +556,10 @@ public class RestSettings {
 
     private Optional<Boolean> m_allowChunking = Optional.empty();
 
+    // Special property indicating the temporary use (validation flow) of this instance,
+    // avoids fetching unnecessary information, such as the global proxy config.
+    private boolean m_forValidationOnly;
+
     /**
      * Constructs the default settings.
      */
@@ -607,6 +611,13 @@ public class RestSettings {
                 LOGGER.warn("Failed to load: " + configurationElement.getName(), e);
             }
         }
+    }
+
+    /**
+     * Indicates the use of this instance for validation flow only.
+     */
+    void markForValidationOnly() {
+        m_forValidationOnly = true;
     }
 
     /**
@@ -1046,7 +1057,7 @@ public class RestSettings {
          * Otherwise, the new default (see DEFAULT_FAIL_MISSING_HEADERS) is to fail. */
         m_isFailOnMissingHeaders = settings.getBoolean(FAIL_MISSING_HEADERS_KEY, false);
 
-        if (settings.containsKey(RestProxyConfigManager.getProxyConfigIdentifier())) {
+        if (!m_forValidationOnly && settings.containsKey(RestProxyConfigManager.getProxyConfigIdentifier())) {
             m_currentProxyConfig = m_proxyManager.loadConfigFrom(settings);
         }
     }
@@ -1149,6 +1160,8 @@ public class RestSettings {
         m_isFailOnMissingHeaders = settings.getBoolean(FAIL_MISSING_HEADERS_KEY, false);
 
         // Even if settings do not yet contain proxy settings, loading for the dialog uses default values.
-        m_currentProxyConfig = m_proxyManager.loadConfigForDialog(settings, credentialNames, specs);
+        if (!m_forValidationOnly) {
+            m_currentProxyConfig = m_proxyManager.loadConfigForDialog(settings, credentialNames, specs);
+        }
     }
 }

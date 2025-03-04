@@ -585,6 +585,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
     @Override
     protected void validateSettings(final NodeSettingsRO settings) throws InvalidSettingsException {
         final var s = createSettings();
+        s.markForValidationOnly();
         s.loadSettingsFrom(settings);
         validateURLSettings(s);
     }
