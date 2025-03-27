@@ -309,53 +309,58 @@ This is a placeholder for future architectural requirements.
 
 | # | Description | Notes | Last Checked | N/A |
 | :---: | :--- | :---: | :---: | :---: |
-| **5.1.1** | Verify that the application has defenses against HTTP parameter pollution attacks, particularly if the application framework makes no distinction about the source of request parameters (GET, POST, cookies, headers, or environment variables). | [^5.1.1] | |
-| **5.1.2** | Verify that frameworks protect against mass parameter assignment attacks, or that the application has countermeasures to protect against unsafe parameter assignment, such as marking fields private or similar. ([C5](https://owasp.org/www-project-proactive-controls/#div-numbering)) | [^5.1.2] | |
-| **5.1.3** | Verify that all input (HTML form fields, REST requests, URL parameters, HTTP headers, cookies, batch files, RSS feeds, etc) is validated using positive validation (allow lists). ([C5](https://owasp.org/www-project-proactive-controls/#div-numbering)) | | | |
-| **5.1.4** | Verify that structured data is strongly typed and validated against a defined schema including allowed characters, length and pattern (e.g. credit card numbers, e-mail addresses, telephone numbers, or validating that two related fields are reasonable, such as checking that suburb and zip/postcode match). ([C5](https://owasp.org/www-project-proactive-controls/#div-numbering)) | | | |
-| **5.1.5** | Verify that URL redirects and forwards only allow destinations which appear on an allow list, or show a warning when redirecting to potentially untrusted content. | [^5.1.5] | |
+| **5.1.1** | Verify that the application has defenses against HTTP parameter pollution attacks, particularly if the application framework makes no distinction about the source of request parameters (GET, POST, cookies, headers, or environment variables). | [^5.1.1] | 2025-03-26 | ✓ |
+| **5.1.2** | Verify that frameworks protect against mass parameter assignment attacks, or that the application has countermeasures to protect against unsafe parameter assignment, such as marking fields private or similar. ([C5](https://owasp.org/www-project-proactive-controls/#div-numbering)) | [^5.1.2] | 2025-03-26 | ✓ |
+| **5.1.3** | Verify that all input (HTML form fields, REST requests, URL parameters, HTTP headers, cookies, batch files, RSS feeds, etc) is validated using positive validation (allow lists). ([C5](https://owasp.org/www-project-proactive-controls/#div-numbering)) | [^5.1.3] | 2025-03-26 | ✓ |
+| **5.1.4** | Verify that structured data is strongly typed and validated against a defined schema including allowed characters, length and pattern (e.g. credit card numbers, e-mail addresses, telephone numbers, or validating that two related fields are reasonable, such as checking that suburb and zip/postcode match). ([C5](https://owasp.org/www-project-proactive-controls/#div-numbering)) | [^5.1.4] | 2025-03-26 | ✓ |
+| **5.1.5** | Verify that URL redirects and forwards only allow destinations which appear on an allow list, or show a warning when redirecting to potentially untrusted content. | [^5.1.5] | 2025-03-26 | |
 
-[^5.1.1]: Vue and Nuxt have defenses, they treat parameter sources differently and represent duplicated param values as array.
-[^5.1.2]: Checked by Sonar rule [S4684](https://rules.sonarsource.com/java/RSPEC-4684/) for Java programs.
+[^5.1.1]: Only REST clients. Vue and Nuxt have defenses, they treat parameter sources differently and represent duplicated param values as array.
+[^5.1.2]: Only REST clients. Checked by Sonar rule [S4684](https://rules.sonarsource.com/java/RSPEC-4684/) for Java programs.
+[^5.1.3]: Only REST clients.
+[^5.1.4]: Only REST clients.
 [^5.1.5]: Checked by Sonar rule [S5146](https://rules.sonarsource.com/java/RSPEC-5146/) for Java and [S5146](https://rules.sonarsource.com/javascript/RSPEC-5146/) / [S6105](https://rules.sonarsource.com/javascript/RSPEC-6105/) for JavaScript (not covering framework redirects, e.g. usages of `navigateTo()` of Nuxt and `push()` & `replace()` of vue-router).
-
 
 ## V5.2 Sanitization and Sandboxing
 
 | # | Description | Notes | Last Checked | N/A |
 | :---: | :--- | :---: | :---: | :---: |
-| **5.2.1** | Verify that all untrusted HTML input from WYSIWYG editors or similar is properly sanitized with an HTML sanitizer library or framework feature. ([C5](https://owasp.org/www-project-proactive-controls/#div-numbering)) | [^5.2.1] | |
-| **5.2.2** | Verify that unstructured data is sanitized to enforce safety measures such as allowed characters and length. | | | |
-| **5.2.3** | Verify that the application sanitizes user input before passing to mail systems to protect against SMTP or IMAP injection. | | | |
-| **5.2.4** | Verify that the application avoids the use of eval() or other dynamic code execution features. Where there is no alternative, any user input being included must be sanitized or sandboxed before being executed.<br>_Scripting nodes that create data or variables (e.g. Java Snippet or Python) are exempted. It's the workflow author's responsibility to ensure no malicious user-controllable input can be executed. Client-side UI code created by scripting nodes (e.g. visualizations for data apps) should be executed in sandboxed IFrames whenever possible._ | [^5.2.4] | |
-| **5.2.5** | Verify that the application protects against template injection attacks by ensuring that any user input being included is sanitized or sandboxed. | | | |
-| **5.2.6** | Verify that the application protects against SSRF attacks, by validating or sanitizing untrusted data or HTTP file metadata, such as filenames and URL input fields, and uses allow lists of protocols, domains, paths and ports. | | | |
-| **5.2.7** | Verify that the application sanitizes, disables, or sandboxes user-supplied Scalable Vector Graphics (SVG) scriptable content, especially as they relate to XSS resulting from inline scripts, and foreignObject. | | | |
-| **5.2.8** | Verify that the application sanitizes, disables, or sandboxes user-supplied scriptable or expression template language content, such as Markdown, CSS or XSL stylesheets, BBCode, or similar. | | | |
+| **5.2.1** | Verify that all untrusted HTML input from WYSIWYG editors or similar is properly sanitized with an HTML sanitizer library or framework feature. ([C5](https://owasp.org/www-project-proactive-controls/#div-numbering)) | [^5.2.1] | 2025-03-26 | ✓ |
+| **5.2.2** | Verify that unstructured data is sanitized to enforce safety measures such as allowed characters and length. | | 2025-03-26 | |
+| **5.2.3** | Verify that the application sanitizes user input before passing to mail systems to protect against SMTP or IMAP injection. | [^5.2.3] | 2025-03-26 | ✓ |
+| **5.2.4** | Verify that the application avoids the use of eval() or other dynamic code execution features. Where there is no alternative, any user input being included must be sanitized or sandboxed before being executed. | [^5.2.4] | 2025-03-26 | ✓ |
+| **5.2.5** | Verify that the application protects against template injection attacks by ensuring that any user input being included is sanitized or sandboxed. | [^5.2.5] | 2025-03-26 | ✓ |
+| **5.2.6** | Verify that the application protects against SSRF attacks, by validating or sanitizing untrusted data or HTTP file metadata, such as filenames and URL input fields, and uses allow lists of protocols, domains, paths and ports. | | 2025-03-26 | |
+| **5.2.7** | Verify that the application sanitizes, disables, or sandboxes user-supplied Scalable Vector Graphics (SVG) scriptable content, especially as they relate to XSS resulting from inline scripts, and foreignObject. | | 2025-03-26 | ✓ |
+| **5.2.8** | Verify that the application sanitizes, disables, or sandboxes user-supplied scriptable or expression template language content, such as Markdown, CSS or XSL stylesheets, BBCode, or similar. | [^5.2.8] | 2025-03-26 | ✓ |
 
 [^5.2.1]: Checked by Sonar rule [S5696](https://rules.sonarsource.com/javascript/RSPEC-5696/) for JavaScript and [S6299](https://rules.sonarsource.com/javascript/RSPEC-6299/) for Vue.
+[^5.2.3]: No mail functionality in use.
 [^5.2.4]: Checked by Sonar rule [S5334](https://rules.sonarsource.com/java/RSPEC-5334/) for Java programs and [S1523](https://rules.sonarsource.com/javascript/RSPEC-1523/) for JavaScript.
+[^5.2.5]: No templating mechanisms.
+[^5.2.8]: No processing of template languages.
 
 ## V5.3 Output Encoding and Injection Prevention
 
 | # | Description | Notes | Last Checked | N/A |
 | :---: | :--- | :---: | :---: | :---: |
-| **5.3.1** | Verify that output encoding is relevant for the interpreter and context required. For example, use encoders specifically for HTML values, HTML attributes, JavaScript, URL parameters, HTTP headers, SMTP, and others as the context requires, especially from untrusted inputs (e.g. names with Unicode or apostrophes, such as ねこ or O'Hara). ([C4](https://owasp.org/www-project-proactive-controls/#div-numbering)) | [^5.3.1] | |
-| **5.3.2** | Verify that output encoding preserves the user's chosen character set and locale, such that any Unicode character point is valid and safely handled. ([C4](https://owasp.org/www-project-proactive-controls/#div-numbering)) | | | |
-| **5.3.3** | Verify that context-aware, preferably automated - or at worst, manual - output escaping protects against reflected, stored, and DOM based XSS. ([C4](https://owasp.org/www-project-proactive-controls/#div-numbering)) | | | |
-| **5.3.4** | Verify that data selection or database queries (e.g. SQL, HQL, ORM, NoSQL) use parameterized queries, ORMs, entity frameworks, or are otherwise protected from database injection attacks. ([C3](https://owasp.org/www-project-proactive-controls/#div-numbering)) | [^5.3.4] | |
-| **5.3.5** | Verify that where parameterized or safer mechanisms are not present, context-specific output encoding is used to protect against injection attacks, such as the use of SQL escaping to protect against SQL injection. ([C3, C4](https://owasp.org/www-project-proactive-controls/#div-numbering)) | | | |
-| **5.3.6** | Verify that the application protects against JSON injection attacks, JSON eval attacks, and JavaScript expression evaluation. ([C4](https://owasp.org/www-project-proactive-controls/#div-numbering)) | [^5.3.6] | |
-| **5.3.7** | Verify that the application protects against LDAP injection vulnerabilities, or that specific security controls to prevent LDAP injection have been implemented. ([C4](https://owasp.org/www-project-proactive-controls/#div-numbering)) | [^5.3.7] | |
-| **5.3.8** | Verify that the application protects against OS command injection and that operating system calls use parameterized OS queries or use contextual command line output encoding. ([C4](https://owasp.org/www-project-proactive-controls/#div-numbering)) | [^5.3.8] | |
-| **5.3.9** | Verify that the application protects against Local File Inclusion (LFI) or Remote File Inclusion (RFI) attacks. | [^5.3.9] | |
-| **5.3.10** | Verify that the application protects against XPath injection or XML injection attacks. ([C4](https://owasp.org/www-project-proactive-controls/#div-numbering)) | [^5.3.10] | |
+| **5.3.1** | Verify that output encoding is relevant for the interpreter and context required. For example, use encoders specifically for HTML values, HTML attributes, JavaScript, URL parameters, HTTP headers, SMTP, and others as the context requires, especially from untrusted inputs (e.g. names with Unicode or apostrophes, such as ねこ or O'Hara). ([C4](https://owasp.org/www-project-proactive-controls/#div-numbering)) | [^5.3.1] | 2025-03-26 | |
+| **5.3.2** | Verify that output encoding preserves the user's chosen character set and locale, such that any Unicode character point is valid and safely handled. ([C4](https://owasp.org/www-project-proactive-controls/#div-numbering)) | | 2025-03-26 | ✓ |
+| **5.3.3** | Verify that context-aware, preferably automated - or at worst, manual - output escaping protects against reflected, stored, and DOM based XSS. ([C4](https://owasp.org/www-project-proactive-controls/#div-numbering)) | | 2025-03-26 | ✓ |
+| **5.3.4** | Verify that data selection or database queries (e.g. SQL, HQL, ORM, NoSQL) use parameterized queries, ORMs, entity frameworks, or are otherwise protected from database injection attacks. ([C3](https://owasp.org/www-project-proactive-controls/#div-numbering)) | [^5.3.4] | 2025-03-26 | ✓ |
+| **5.3.5** | Verify that where parameterized or safer mechanisms are not present, context-specific output encoding is used to protect against injection attacks, such as the use of SQL escaping to protect against SQL injection. ([C3, C4](https://owasp.org/www-project-proactive-controls/#div-numbering)) | [^5.3.5] | 2025-03-26 | ✓ |
+| **5.3.6** | Verify that the application protects against JSON injection attacks, JSON eval attacks, and JavaScript expression evaluation. ([C4](https://owasp.org/www-project-proactive-controls/#div-numbering)) | [^5.3.6] | 2025-03-26 | |
+| **5.3.7** | Verify that the application protects against LDAP injection vulnerabilities, or that specific security controls to prevent LDAP injection have been implemented. ([C4](https://owasp.org/www-project-proactive-controls/#div-numbering)) | [^5.3.7] | 2025-03-26 | ✓ |
+| **5.3.8** | Verify that the application protects against OS command injection and that operating system calls use parameterized OS queries or use contextual command line output encoding. ([C4](https://owasp.org/www-project-proactive-controls/#div-numbering)) | [^5.3.8] | 2025-03-26 | ✓ |
+| **5.3.9** | Verify that the application protects against Local File Inclusion (LFI) or Remote File Inclusion (RFI) attacks. | [^5.3.9] | 2025-03-26 | ✓ |
+| **5.3.10** | Verify that the application protects against XPath injection or XML injection attacks. ([C4](https://owasp.org/www-project-proactive-controls/#div-numbering)) | [^5.3.10] | 2025-03-26 | |
 
 [^5.3.1]: Partially checked by Sonar rule [S5247](https://rules.sonarsource.com/java/RSPEC-5247/) for Java programs.
-[^5.3.4]: Checked by Sonar rules [S3649](https://rules.sonarsource.com/java/RSPEC-3649/) and [S2077](https://rules.sonarsource.com/java/RSPEC-2077/) for Java programs.
+[^5.3.4]: No database connectivity. Checked by Sonar rules [S3649](https://rules.sonarsource.com/java/RSPEC-3649/) and [S2077](https://rules.sonarsource.com/java/RSPEC-2077/) for Java programs.
+[^5.3.5]: No database connectivity.
 [^5.3.6]: Checked by Sonar rules [S6398](https://rules.sonarsource.com/java/RSPEC-6398/) for Java programs.
-[^5.3.7]: Checked by Sonar rules [2078](https://rules.sonarsource.com/java/RSPEC-2078/) for Java programs.
-[^5.3.8]: Checked by Sonar rules [S2076](https://rules.sonarsource.com/java/RSPEC-2076/), [S5883](https://rules.sonarsource.com/java/RSPEC-5883/), and [S6350](https://rules.sonarsource.com/java/RSPEC-6350/) for Java programs.
+[^5.3.7]: No LDAP connectivity. Checked by Sonar rules [2078](https://rules.sonarsource.com/java/RSPEC-2078/) for Java programs.
+[^5.3.8]: No OS command functionality in use. Checked by Sonar rules [S2076](https://rules.sonarsource.com/java/RSPEC-2076/), [S5883](https://rules.sonarsource.com/java/RSPEC-5883/), and [S6350](https://rules.sonarsource.com/java/RSPEC-6350/) for Java programs.
 [^5.3.9]: Checked by Sonar rules [2083](https://rules.sonarsource.com/java/RSPEC-2083/) for Java programs.
 [^5.3.10]: Checked by Sonar rules [S6399](https://rules.sonarsource.com/java/RSPEC-6399/), [S2091](https://rules.sonarsource.com/java/RSPEC-2091/),  [S2755](https://rules.sonarsource.com/java/RSPEC-2755/), and [S6374](https://rules.sonarsource.com/java/RSPEC-6374/) for Java programs.
 
@@ -366,13 +371,14 @@ _(not applicable to KNIME)_
 
 | # | Description | Notes | Last Checked | N/A |
 | :---: | :--- | :---: | :---: | :---: |
-| **5.5.1** | Verify that serialized objects use integrity checks or are encrypted to prevent hostile object creation or data tampering. ([C5](https://owasp.org/www-project-proactive-controls/#div-numbering)) | | | |
-| **5.5.2** | Verify that the application correctly restricts XML parsers to only use the most restrictive configuration possible and to ensure that unsafe features such as resolving external entities are disabled to prevent XML eXternal Entity (XXE) attacks. | [^5.5.2] | |
-| **5.5.3** | Verify that deserialization of untrusted data is avoided or is protected in both custom code and third-party libraries (such as JSON, XML and YAML parsers). | [^5.5.3] | |
-| **5.5.4** | Verify that when parsing JSON in browsers or JavaScript-based backends, JSON.parse is used to parse the JSON document. Do not use eval() to parse JSON. | | | |
+| **5.5.1** | Verify that serialized objects use integrity checks or are encrypted to prevent hostile object creation or data tampering. ([C5](https://owasp.org/www-project-proactive-controls/#div-numbering)) | | 2025-03-26 | ✓ |
+| **5.5.2** | Verify that the application correctly restricts XML parsers to only use the most restrictive configuration possible and to ensure that unsafe features such as resolving external entities are disabled to prevent XML eXternal Entity (XXE) attacks. | [^5.5.2] | 2025-03-26 | ✓ |
+| **5.5.3** | Verify that deserialization of untrusted data is avoided or is protected in both custom code and third-party libraries (such as JSON, XML and YAML parsers). | [^5.5.3] | 2025-03-26 | |
+| **5.5.4** | Verify that when parsing JSON in browsers or JavaScript-based backends, JSON.parse is used to parse the JSON document. Do not use eval() to parse JSON. | [^5.5.4] | 2025-03-26 | ✓ |
 
 [^5.5.2]: Checked by Sonar rules [S2755](https://rules.sonarsource.com/java/RSPEC-2755/) and [S6374](https://rules.sonarsource.com/java/RSPEC-6374/) for Java programs.
 [^5.5.3]: Checked by Sonar rule [S5135](https://rules.sonarsource.com/java/RSPEC-5135/) for Java programs.
+[^5.5.4]: No JavaScript in use.
 
 # V6 Stored Cryptography
 
