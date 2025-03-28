@@ -86,7 +86,7 @@ final class ProxyLocalConfigurationTest {
     private static RestProxyConfigManager proxyManager;
 
     @BeforeAll
-    public static void initializeConfigs() {
+    static void initializeConfigs() {
         proxyManager = RestProxyConfigManager.createDefaultProxyManager();
         proxyManager.setProxyMode(ProxyMode.LOCAL);
     }
@@ -224,7 +224,7 @@ final class ProxyLocalConfigurationTest {
     }
 
     @AfterAll
-    public static void discardConfigs() {
+    static void discardConfigs() {
         proxyManager = null;
     }
 }
