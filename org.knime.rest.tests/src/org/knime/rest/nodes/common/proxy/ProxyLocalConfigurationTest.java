@@ -62,6 +62,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.util.proxy.ProxyProtocol;
+import org.knime.core.util.proxy.testing.TinyproxyTestContext;
 import org.knime.rest.nodes.common.proxy.SystemPropertyProvider.PropertyMode;
 
 import jakarta.ws.rs.client.ClientBuilder;
@@ -75,18 +76,26 @@ import jakarta.ws.rs.client.ClientBuilder;
 @SuppressWarnings("restriction")
 final class ProxyLocalConfigurationTest {
 
-    private static final String PROXY_HOST = "dummy-host";
+    private static final String PROXY_HOST;
 
-    private static final int PROXY_PORT = 65743;
+    private static final int PROXY_PORT;
 
-    private static final String PROXY_USER = "dummy-user";
+    private static final String PROXY_USER;
 
-    private static final String PROXY_PW = "dummy-password";
+    private static final String PROXY_PW;
+
+    static {
+        final var proxy = TinyproxyTestContext.getWithAuth(SystemPropertyProvider.DEFAULT_PROTOCOL);
+        PROXY_HOST = proxy.host();
+        PROXY_PORT = proxy.intPort();
+        PROXY_USER = proxy.username();
+        PROXY_PW = proxy.password();
+    }
 
     private static RestProxyConfigManager proxyManager;
 
     @BeforeAll
-    public static void initializeConfigs() {
+    static void initializeConfigs() {
         proxyManager = RestProxyConfigManager.createDefaultProxyManager();
         proxyManager.setProxyMode(ProxyMode.LOCAL);
     }
@@ -107,6 +116,7 @@ final class ProxyLocalConfigurationTest {
             .setPassword(PROXY_PW)//
             .build();
         // Creating the request template and configuring it.
+        @SuppressWarnings("resource")
         var dummyRequest = ClientBuilder.newBuilder().build().target("http://localhost").request();
         assertDoesNotThrow(
             () -> proxyManager.configureRequest(Optional.of(proxyConfigCorrect), dummyRequest, null),
@@ -207,6 +217,7 @@ final class ProxyLocalConfigurationTest {
                 .setProxyPort(PROXY_PORT) //
                 .setUseAuthentication(false) //
                 .build();
+            @SuppressWarnings("resource")
             final var request = ClientBuilder.newBuilder().build().target("http://localhost").request();
             assertDoesNotThrow(() -> proxyManager.configureRequest(Optional.of(proxyConfigNoAuth), request, null),
                 "Unexpected exception when configuring the REST request with the proxy");
@@ -224,7 +235,7 @@ final class ProxyLocalConfigurationTest {
     }
 
     @AfterAll
-    public static void discardConfigs() {
+    static void discardConfigs() {
         proxyManager = null;
     }
 }

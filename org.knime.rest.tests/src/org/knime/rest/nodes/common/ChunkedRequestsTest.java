@@ -56,10 +56,12 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
+import org.apache.http.client.utils.URIBuilder;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.knime.core.data.DataCell;
+import org.knime.core.util.proxy.testing.HttpbinTestContext;
 
 /**
  * Tests whether the chunked transfer of requests works as intended. Mimics the previous testflow at
@@ -95,8 +97,9 @@ final class ChunkedRequestsTest {
         jsonBody = bodyTemplate.formatted(new String(chars));
 
         // setting up test node model with chunk threshold of 1KB
+        final var uri = new URIBuilder(HttpbinTestContext.getURI("https")).setPath("post").toString();
         client = new TestPostNodeModel();
-        client.setRequestTarget("https://httpbin.testing.knime.com/post");
+        client.setRequestTarget(uri);
         client.setChunkingThreshold(1 << 10);
     }
 

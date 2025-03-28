@@ -60,7 +60,8 @@ import java.net.MalformedURLException;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicLong;
 
-import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.Strings;
+import org.apache.http.client.utils.URIBuilder;
 import org.junit.jupiter.api.Test;
 import org.knime.core.data.DataCell;
 import org.knime.core.data.DataColumnSpec;
@@ -68,6 +69,7 @@ import org.knime.core.data.DataRow;
 import org.knime.core.data.DataTableSpec;
 import org.knime.core.data.MissingCell;
 import org.knime.core.node.InvalidSettingsException;
+import org.knime.core.util.proxy.testing.HttpbinTestContext;
 import org.knime.rest.nodes.common.RestSettings.HttpMethod;
 import org.knime.rest.util.CooldownContext;
 import org.knime.rest.util.InvalidURLPolicy;
@@ -138,7 +140,8 @@ class AbstractRequestExecutorTest {
      */
     private static class SucceedingExecutor extends AbstractRequestExecutor<RestSettings> {
 
-        private static final String TARGET_URL = "https://httpbin.testing.knime.com/get";
+        private static final String TARGET_URL =
+            new URIBuilder(HttpbinTestContext.getURI("https")).setPath("get").toString();
 
         SucceedingExecutor(final DataTableSpec inSpec) {
             super(new Handler(), inSpec, new DataColumnSpec[0], createSettings(), new CooldownContext(), null,
@@ -176,7 +179,7 @@ class AbstractRequestExecutorTest {
             }
 
             @Override
-            public DataCell[] handleFollowingResponse(final DataTableSpec spec, final Response response,
+            public DataCell[] handleFollowingResponse(final DataTableSpec spec, final Response response, // NOSONAR
                 final MissingCell missing) {
                 assertResponse(response, missing);
                 return null;
@@ -210,7 +213,7 @@ class AbstractRequestExecutorTest {
         private static void assertResponse(final Response response, final MissingCell missing) {
             assertNull(response, "GET request response should be null since no request was executed");
             assertTrue(
-                missing != null && StringUtils.startsWith(missing.getError(), InvalidURLPolicy.INVALID_URL_ERROR), //
+                missing != null && Strings.CS.startsWith(missing.getError(), InvalidURLPolicy.INVALID_URL_ERROR), //
                 "GET request should have generated a missing cell specifying an invalid URL as cause");
         }
 
@@ -223,7 +226,7 @@ class AbstractRequestExecutorTest {
             }
 
             @Override
-            public DataCell[] handleFollowingResponse(final DataTableSpec spec, final Response response,
+            public DataCell[] handleFollowingResponse(final DataTableSpec spec, final Response response, // NOSONAR
                 final MissingCell missing) {
                 assertResponse(response, missing);
                 return null;
@@ -241,7 +244,8 @@ class AbstractRequestExecutorTest {
      */
     private class ErrorThrowingExecutor extends AbstractRequestExecutor<RestSettings> {
 
-        private static final String TARGET_URL = "invalidprotocol://httpbin.testing.knime.com/get";
+        private static final String TARGET_URL =
+            new URIBuilder(HttpbinTestContext.getURI("invalidprotocol")).setPath("get").toString();
 
         ErrorThrowingExecutor(final DataTableSpec inSpec) {
             super(new Handler(), inSpec, new DataColumnSpec[0], createSettings(), new CooldownContext(), null,
