@@ -75,7 +75,7 @@ final class ProxyDetectionTest {
     private static RestProxyConfigManager proxyManager;
 
     @BeforeAll
-    public static void initializeConfig() {
+    static void initializeConfig() {
         proxyManager = RestProxyConfigManager.createDefaultProxyManager();
     }
 
@@ -131,7 +131,7 @@ final class ProxyDetectionTest {
     }
 
     @AfterAll
-    public static void discardConfig() {
+    static void discardConfig() {
         proxyManager = null;
     }
 }
