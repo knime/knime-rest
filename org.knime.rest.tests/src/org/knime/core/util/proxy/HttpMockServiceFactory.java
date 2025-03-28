@@ -46,7 +46,7 @@
  * History
  *   10 May 2023 (leon.wenzler): created
  */
-package org.knime.rest.nodes.common;
+package org.knime.core.util.proxy;
 
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
 
@@ -67,8 +67,7 @@ public abstract class HttpMockServiceFactory {
     private static final ClassLoader WIREMOCK_CLASSLOADER = WireMock.class.getClassLoader();
 
     /**
-     * Creates a server that simulates mock HTTP server. Returns mock responses.
-     * Uses dynamic port allocation.
+     * Creates a server that simulates mock HTTP server. Returns mock responses. Uses dynamic port allocation.
      *
      * @return mock server(WireMockServer)
      */
@@ -80,8 +79,7 @@ public abstract class HttpMockServiceFactory {
 
     /**
      * Creates a server that acts as a mock HTTP proxy. Just forwards the incoming request to the target host.
-     * Forwarding proxy will attach a "Via" header as marker to the response.
-     * Uses dynamic port allocation.
+     * Forwarding proxy will attach a "Via" header as marker to the response. Uses dynamic port allocation.
      *
      * @return forwarding proxy (WireMockServer)
      */
