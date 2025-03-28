@@ -48,7 +48,15 @@
  */
 package org.knime.rest.nodes.common.proxy;
 
+import java.util.Locale;
+import java.util.Optional;
+
+import org.apache.commons.lang3.EnumUtils;
+import org.apache.commons.lang3.Strings;
 import org.knime.core.node.util.CheckUtils;
+import org.knime.core.util.proxy.GlobalProxyConfig;
+import org.knime.core.util.proxy.ProxyProtocol;
+import org.knime.core.util.proxy.testing.TinyproxyTestContext;
 
 /**
  * Allows to set and reset dummy system properties. More specifically, allows to CLEAR, make BLANK, or provide DUMMY
@@ -59,8 +67,10 @@ import org.knime.core.node.util.CheckUtils;
  */
 final class SystemPropertyProvider {
 
+    static final ProxyProtocol DEFAULT_PROTOCOL = ProxyProtocol.HTTP;
+
     enum PropertyMode {
-            CLEAR, BLANK, DUMMY;
+            CLEAR, BLANK, DUMMY, TINYPROXY;
     }
 
     static String[] saveAndSetProperties(final String[] properties, final PropertyMode mode) {
@@ -84,6 +94,9 @@ final class SystemPropertyProvider {
             var p = properties[i];
             values[i] = System.getProperty(p);
             switch (mode) {
+                case TINYPROXY:
+                    System.setProperty(p, getTinyproxyProperty(p).orElse(dummyValue));
+                    break;
                 case DUMMY:
                     System.setProperty(p, dummyValue);
                     break;
@@ -96,6 +109,41 @@ final class SystemPropertyProvider {
             }
         }
         return values;
+    }
+
+    private static Optional<String> getTinyproxyProperty(final String property) {
+        var parts = property.split("\\.", 2);
+        if (parts.length < 2) {
+            // must be SOCKS, e.g. the "socksProxyHost" property
+            parts = new String[]{ //
+                property.substring(0, 5), //
+                property.substring(5) //
+            };
+        }
+        final var protocol = EnumUtils.getEnumIgnoreCase(ProxyProtocol.class, //
+            parts[0].toUpperCase(Locale.ENGLISH), DEFAULT_PROTOCOL);
+        final GlobalProxyConfig proxy;
+        if (Strings.CI.containsAny(property, "user", "password")) {
+            proxy = TinyproxyTestContext.getWithAuth(protocol);
+        } else {
+            proxy = TinyproxyTestContext.getWithoutAuth(protocol);
+        }
+        if ("proxyHost".equalsIgnoreCase(parts[1])) {
+            return Optional.of(proxy.host());
+        }
+        if ("proxyPort".equalsIgnoreCase(parts[1])) {
+            // chooses the default port if `proxy#port` is null
+            return Optional.of(String.valueOf(proxy.intPort()));
+        }
+        if (Strings.CI.contains(parts[1], "user")) {
+            // null if `proxy#useAuthentication` is false
+            return Optional.ofNullable(proxy.username());
+        }
+        if (Strings.CI.contains(parts[1], "password")) {
+            // null if `proxy#useAuthentication` is false
+            return Optional.ofNullable(proxy.password());
+        }
+        return Optional.empty();
     }
 
     /**
