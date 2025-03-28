@@ -75,7 +75,7 @@ final class ProxyDetectionTest {
     private static RestProxyConfigManager proxyManager;
 
     @BeforeAll
-    public static void initializeConfig() {
+    static void initializeConfig() {
         proxyManager = RestProxyConfigManager.createDefaultProxyManager();
     }
 
@@ -123,6 +123,7 @@ final class ProxyDetectionTest {
         var values = SystemPropertyProvider.saveAndSetProperties(props, PropertyMode.DUMMY, "1234");
         var proxyConfig = RestProxyConfigManager.toRestProxyConfig(
             GlobalProxyConfigProvider.getConfigFromSystemProperties(ProxyProtocol.HTTP).orElseThrow());
+        @SuppressWarnings("resource")
         var dummyRequest = ClientBuilder.newBuilder().build().target("http://localhost").request();
         assertThat("Proxy port must be set to dummy value 1234", 1234, is(proxyConfig.getProxyTarget().port()));
         assertDoesNotThrow(() -> proxyManager.configureRequest(Optional.of(proxyConfig), dummyRequest, null),
@@ -131,7 +132,7 @@ final class ProxyDetectionTest {
     }
 
     @AfterAll
-    public static void discardConfig() {
+    static void discardConfig() {
         proxyManager = null;
     }
 }
