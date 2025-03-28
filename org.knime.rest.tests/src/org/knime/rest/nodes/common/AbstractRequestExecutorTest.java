@@ -176,7 +176,7 @@ class AbstractRequestExecutorTest {
             }
 
             @Override
-            public DataCell[] handleFollowingResponse(final DataTableSpec spec, final Response response,
+            public DataCell[] handleFollowingResponse(final DataTableSpec spec, final Response response, // NOSONAR
                 final MissingCell missing) {
                 assertResponse(response, missing);
                 return null;
@@ -223,7 +223,7 @@ class AbstractRequestExecutorTest {
             }
 
             @Override
-            public DataCell[] handleFollowingResponse(final DataTableSpec spec, final Response response,
+            public DataCell[] handleFollowingResponse(final DataTableSpec spec, final Response response, // NOSONAR
                 final MissingCell missing) {
                 assertResponse(response, missing);
                 return null;
