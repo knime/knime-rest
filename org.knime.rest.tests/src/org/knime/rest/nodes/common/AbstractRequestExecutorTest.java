@@ -57,6 +57,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.net.MalformedURLException;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.commons.lang3.StringUtils;
@@ -100,6 +101,36 @@ class AbstractRequestExecutorTest {
         // and if the executor encounters one in the settings (which we have below), it throws an IllegalStateException
         assertThrows(IllegalStateException.class, () -> new ErrorThrowingExecutor(null).makeFirstCall(null), // NOSONAR
             "Request execution should have failed with due to an invalid URL");
+    }
+
+    @Test
+    void createSemaphore_shouldReturnSemaphoreWithDefaultTicketsWhenPropertyNotSet() {
+        System.clearProperty("org.knime.rest.maxConcurrentRequests");
+        Semaphore semaphore = AbstractRequestExecutor.createSemaphore();
+        assertNotNull(semaphore, "Semaphore should not be null");
+        assertEquals(30, semaphore.availablePermits(), "Semaphore ticket count wrong");
+    }
+
+    @Test
+    void createSemaphore_shouldReturnSemaphoreWithCustomTicketsWhenPropertySet() {
+        System.setProperty("org.knime.rest.maxConcurrentRequests", "50");
+        Semaphore semaphore = AbstractRequestExecutor.createSemaphore();
+        assertNotNull(semaphore, "Semaphore should not be null");
+        assertEquals(50, semaphore.availablePermits(), "Semaphore ticket count wrong");
+        System.clearProperty("org.knime.rest.maxConcurrentRequests");
+    }
+
+    @Test
+    void createSemaphore_shouldReturnNullWhenTicketsAreZeroOrNegative() {
+        System.setProperty("org.knime.rest.maxConcurrentRequests", "0");
+        Semaphore semaphore = AbstractRequestExecutor.createSemaphore();
+        assertNull(semaphore, "Semaphore should be null when max concurrent requests is 0");
+
+        System.setProperty("org.knime.rest.maxConcurrentRequests", "-1");
+        semaphore = AbstractRequestExecutor.createSemaphore();
+        assertNull(semaphore, "Semaphore should be null when max concurrent requests is negative");
+
+        System.clearProperty("org.knime.rest.maxConcurrentRequests");
     }
 
     /**

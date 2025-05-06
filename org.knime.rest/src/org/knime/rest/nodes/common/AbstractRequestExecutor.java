@@ -111,6 +111,18 @@ public abstract class AbstractRequestExecutor<S extends RestSettings> extends Ab
 
     private static final long CHECK_INTERVAL_MS = 100L;
 
+    /*
+     * Before AP-23921, each request was blocking a global pool "slot" while its network request was blocking on I/O.
+     * Now that we run the actual request "invisible", we need to avoid host resource exhaustion, such as
+     * `BindException`s. Therefore, we limit the global number of currently invisible REST requests.
+     */
+    private static final String PROPERTY_MAX_CONCURRENT_REQUESTS = "org.knime.rest.maxConcurrentRequests";
+
+    private static final int DEFAULT_MAX_CONCURRENT_REQUESTS = 30;
+
+    private static final Semaphore GLOBAL_CONCURRENT_REQUESTS = createSemaphore();
+
+
     static final DataCell[] EMPTY_RESPONSE = new DataCell[0];
 
     private final DataTableSpec m_tableSpec;
@@ -140,6 +152,46 @@ public abstract class AbstractRequestExecutor<S extends RestSettings> extends Ab
         m_cooldownContext = cooldown;
         m_monitor = Objects.requireNonNullElseGet(monitor, ExecutionMonitor::new);
         m_consumedRows = consumedRows;
+    }
+
+    private static void acquire() throws InterruptedException {
+        if (GLOBAL_CONCURRENT_REQUESTS != null) {
+            GLOBAL_CONCURRENT_REQUESTS.acquire();
+        }
+    }
+
+    private static void release() {
+        if (GLOBAL_CONCURRENT_REQUESTS != null) {
+            GLOBAL_CONCURRENT_REQUESTS.release();
+        }
+    }
+
+    static Semaphore createSemaphore() { // package scope for test
+        final var overwrite = Integer.getInteger(PROPERTY_MAX_CONCURRENT_REQUESTS);
+        final var tickets = overwrite == null ? DEFAULT_MAX_CONCURRENT_REQUESTS : overwrite;
+        LOGGER.info(() -> logConfiguration(overwrite, tickets));
+        if (tickets <= 0) {
+            return null;
+        }
+        return new Semaphore(tickets);
+    }
+
+    private static String logConfiguration(final Integer overwrite, final int tickets) {
+        final var sb = new StringBuilder();
+        final var unlimited = tickets <= 0;
+        sb.append(unlimited ? "Not limiting" : "Limiting");
+        sb.append(" concurrent REST Client node requests");
+        if (!unlimited) {
+            sb.append(" to ").append(tickets);
+        }
+        if (overwrite != null) {
+            sb.append(" (system property \"").append(PROPERTY_MAX_CONCURRENT_REQUESTS).append("\" set to ")
+                .append(overwrite).append(")");
+        } else {
+            sb.append(" (default value, system property \"").append(PROPERTY_MAX_CONCURRENT_REQUESTS)
+                .append("\" not set)");
+        }
+        return sb.toString();
     }
 
     /**
@@ -271,6 +323,7 @@ public abstract class AbstractRequestExecutor<S extends RestSettings> extends Ab
 
     /**
      * Executes the task invisibly if possible.
+     *
      * @param task task to be executed
      * @return result of taks
      * @throws Exception if the task execution failed
@@ -279,7 +332,16 @@ public abstract class AbstractRequestExecutor<S extends RestSettings> extends Ab
         final var pool = ThreadPool.currentPool();
         if (pool != null) {
             try {
-                return pool.runInvisible(task);
+                acquire();
+                return pool.runInvisible(() -> {
+                    try {
+                        return task.call();
+                    } finally {
+                        // release locks in acquisition order: first semaphore,
+                        // then conceptual "invisible lock" (managed by pool)
+                        release();
+                    }
+                });
             } catch (final ExecutionException e) {
                 // we need to unwrap the cause such that #inspectAndThrowException still works
                 // (e.g. the REST node model can convert the exception to missing value instead of failing)

@@ -955,7 +955,10 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         final var factory = new RequestExecutor(spec, enabledAuthentications, exec);
         factory.setKnownTableSize(tableSize);
         final int concurrency = Math.max(1, m_settings.getConcurrency());
-        factory.setParallelProcessing(true, concurrency, 4 * concurrency);
+        // queue size = parallel workers:
+        // not 4x the queue size anymore, in order to avoid too many invisible threads executing HTTP requests
+        // or holding request tickets, but waiting in the "done queue"
+        factory.setParallelProcessing(true, concurrency, concurrency);
         final var rearranger = new ColumnRearranger(spec);
         rearranger.append(factory);
         return rearranger;
