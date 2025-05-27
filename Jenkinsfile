@@ -23,6 +23,7 @@ try {
         dependencies: [
             repositories: [
                 'knime-conda',
+                'knime-conda-channels',
                 'knime-core-columnar',
                 'knime-credentials-base',
                 'knime-distance',
