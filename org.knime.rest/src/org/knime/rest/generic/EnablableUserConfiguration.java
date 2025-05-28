@@ -154,7 +154,9 @@ public class EnablableUserConfiguration<T extends UserConfiguration> {
             if (isEnabled()) {
                 throw e;
             }
-            LOGGER.debug("Could not load (disabled) user configuration: " + e.getMessage(), e);
+            // avoid logging the stack-trace here, as missing settings entries of disabled
+            // configurations are to be expected, and highly-confusing when analyzing debug logs
+            LOGGER.debug("Could not load (disabled) user configuration: " + e.getMessage());
         }
     }
 
