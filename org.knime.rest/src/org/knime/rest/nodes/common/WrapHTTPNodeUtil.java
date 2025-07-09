@@ -11,12 +11,14 @@ import java.util.regex.Pattern;
 import org.knime.core.node.BufferedDataTable;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettings;
-import org.knime.core.node.port.PortType;
+import org.knime.core.node.port.MetaPortInfo;
+import org.knime.core.node.port.flowvariable.FlowVariablePortObject;
 import org.knime.core.node.workflow.NativeNodeContainer;
 import org.knime.core.node.workflow.NodeContainer;
 import org.knime.core.node.workflow.NodeID;
 import org.knime.core.node.workflow.NodeUIInformation;
 import org.knime.core.node.workflow.SubNodeContainer;
+import org.knime.core.node.workflow.WorkflowAnnotationID;
 import org.knime.core.node.workflow.WorkflowManager;
 import org.knime.core.ui.wrapper.WorkflowManagerWrapper;
 import org.knime.core.webui.node.dialog.SettingsType;
@@ -43,11 +45,24 @@ final class WrapHTTPNodeUtil {
      * @param cfg
      * @return
      */
-    public static SubNodeContainer configureHTTPNodeAndResolveTemplates(final NodeContainer nc,
+    static SubNodeContainer configureHTTPNodeAndResolveTemplates(final NodeContainer nc,
         final List<Variable> variables, final NodeSettings nodeSettings, final RestSettings cfg) {
         final var rootWfm = nc.getParent();
-        final var subWorkflowManager =
-            rootWfm.createAndAddSubWorkflow(new PortType[0], new PortType[]{BufferedDataTable.TYPE}, "Hello World");
+
+        final var metanodeID = rootWfm.collapseIntoMetaNode(new NodeID[]{nc.getID()}, new WorkflowAnnotationID[0],
+            nc.getNodeAnnotation().getText()).getCollapsedMetanodeID();
+        final var componentID = rootWfm.convertMetaNodeToSubNode(metanodeID).getConvertedNodeID();
+        rootWfm.changeSubNodeOutputPorts(componentID,
+            new MetaPortInfo[]{
+                MetaPortInfo.builder().setPortType(FlowVariablePortObject.TYPE).build(),
+                MetaPortInfo.builder().setPortType(BufferedDataTable.TYPE).build()});
+        final var component = (SubNodeContainer)rootWfm.getNodeContainer(componentID);
+        final var componentWfm = component.getWorkflowManager();
+        final var httpNodeID =
+            componentWfm.getNodeContainers().stream()
+                .filter(n -> !n.getID().equals(component.getVirtualInNodeID())
+                    && !n.getID().equals(component.getVirtualOutNodeID()))
+                .map(NodeContainer::getID).findFirst().orElseThrow();
 
         String urlWithTemplate = cfg.getConstantURL();
         String bodyWithTemplate = "";
@@ -56,26 +71,24 @@ final class WrapHTTPNodeUtil {
         var bodyVariables = extractVariablesFromTemplate(bodyWithTemplate, variables);
 
         final var urlPerVariable =
-            addNodesToResolveTemplate(subWorkflowManager, urlWithTemplate, urlVariables, "constructedUrl");
+            addNodesToResolveTemplate(componentWfm, urlWithTemplate, urlVariables, "constructedUrl");
         final var bodyPerVariable =
-            addNodesToResolveTemplate(subWorkflowManager, bodyWithTemplate, bodyVariables, "constructedBody");
+            addNodesToResolveTemplate(componentWfm, bodyWithTemplate, bodyVariables, "constructedBody");
 
         if (urlPerVariable.isPresent() && bodyPerVariable.isPresent()) {
             // TODO: Merge and use as new predecessor below
             throw new UnsupportedOperationException("Need to implement merging of expression-built variables.");
         }
 
-        setVariablesInHttpNode(subWorkflowManager, nodeSettings, urlPerVariable, bodyPerVariable);
+        setVariablesInHttpNode(componentWfm, nodeSettings, urlPerVariable, bodyPerVariable);
         urlPerVariable.or(() -> bodyPerVariable)
-            .ifPresent(predecessor -> subWorkflowManager.addConnection(predecessor, 1, nc.getID(), 0));
-        subWorkflowManager.addConnection(nc.getID(), 1, subWorkflowManager.getID(), 0);
+            .ifPresent(predecessor -> componentWfm.addConnection(predecessor, 1, httpNodeID, 0));
+        componentWfm.addConnection(httpNodeID, 1, component.getVirtualOutNodeID(), 1);
 
-        new LayoutManager(WorkflowManagerWrapper.wrap(subWorkflowManager), new Random().nextLong()).doLayout(null);
+        new LayoutManager(WorkflowManagerWrapper.wrap(componentWfm), new Random().nextLong()).doLayout(null);
 
-        final var snc = (SubNodeContainer)rootWfm
-            .getNodeContainer(rootWfm.convertMetaNodeToSubNode(subWorkflowManager.getID()).getConvertedNodeID());
-        snc.setUIInformation(NodeUIInformation.builder().setNodeLocation(20, 30, -1, -1).build());
-        return snc;
+        component.setUIInformation(NodeUIInformation.builder().setNodeLocation(20, 30, -1, -1).build());
+        return component;
     }
 
     private static void setVariablesInHttpNode(final WorkflowManager componentWfm, final NodeSettings nodeSettings,
@@ -193,11 +206,11 @@ final class WrapHTTPNodeUtil {
                 "org.knime.js.base.node.configuration.input.integer.IntegerDialogNodeFactory",
                 new IntegerDialogNodeSettings());
         } else if (variable.type == Variable.VariableType.DOUBLE) {
-            return addAndConfigureNode(wfm, "org.knime.js.base.node.configuration.input.double.DoubleDialogNodeFactory",
+            return addAndConfigureNode(wfm, "org.knime.js.base.node.configuration.input.dbl.DoubleDialogNodeFactory",
                 new DoubleDialogNodeSettings());
         } else if (variable.type == Variable.VariableType.BOOLEAN) {
             return addAndConfigureNode(wfm,
-                "org.knime.js.base.node.configuration.input.boolean.BooleanDialogNodeFactory",
+                "org.knime.js.base.node.configuration.input.bool.BooleanDialogNodeFactory",
                 new BooleanDialogNodeSettings());
         } else {
             throw new UnsupportedOperationException("Unsupported variable type: " + variable.type);
