@@ -44,35 +44,19 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   23. Jan. 2016. (Gabor Bakos): created
+ *   Jul 9, 2025 (benjaminwilhelm): created
  */
 package org.knime.rest.nodes.post;
 
-import org.knime.core.node.NodeDialogPane;
-import org.knime.core.node.context.NodeCreationConfiguration;
-import org.knime.core.webui.node.dialog.kai.KaiNodeInterface;
-import org.knime.core.webui.node.dialog.kai.KaiNodeInterfaceFactory;
-import org.knime.rest.nodes.common.RestNodeFactory;
+import org.knime.rest.nodes.common.RestWithBodyKaiNodeInterface;
 
 /**
- * Node factory for the node of POST http method.
  *
- * @author Gabor Bakos
+ * @author Benjamin Wilhelm, KNIME GmbH, Berlin, Germany
  */
-public class RestPostNodeFactory extends RestNodeFactory<RestPostNodeModel> implements KaiNodeInterfaceFactory  {
+public final class RestPostKaiNodeInterface extends RestWithBodyKaiNodeInterface {
 
-    @Override
-    public RestPostNodeModel createNodeModel(final NodeCreationConfiguration cfg) {
-        return new RestPostNodeModel(cfg);
-    }
-
-    @Override
-    protected NodeDialogPane createNodeDialogPane(final NodeCreationConfiguration cfg) {
-        return new RestPostNodeDialog(cfg);
-    }
-
-    @Override
-    public KaiNodeInterface createKaiNodeInterface() {
-        return new RestPostKaiNodeInterface();
+    public RestPostKaiNodeInterface() {
+        super(() -> new RestPostSettings());
     }
 }
