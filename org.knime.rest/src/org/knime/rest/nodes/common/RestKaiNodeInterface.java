@@ -192,46 +192,7 @@ public abstract class RestKaiNodeInterface implements KaiNodeInterface {
 
         // Build RestGetSettings from the POJO
         final RestSettings cfg = m_settingsCreator.get();
-
-        // URL (mandatory)
-        cfg.setUseConstantURL(true);
-        cfg.setConstantURL(config.url);
-
-        // Optional headers
-        if (config.headers != null) {
-            for (Map.Entry<String, String> e : config.headers.entrySet()) {
-                cfg.getRequestHeaders().add(new RequestHeaderKeyItem(e.getKey(), e.getValue(),
-                        RestSettings.ReferenceType.Constant));
-            }
-        }
-
-        // followRedirects
-        if (config.followRedirects != null) {
-            cfg.setFollowRedirects(config.followRedirects);
-        }
-
-        // concurrency
-        if (config.concurrency != null) {
-            cfg.setConcurrency(config.concurrency);
-        }
-
-        // time‑outs
-        if (config.connectTimeout != null) {
-            cfg.setConnectTimeoutInSeconds(config.connectTimeout);
-        }
-        if (config.readTimeout != null) {
-            cfg.setReadTimeoutInSeconds(config.readTimeout);
-        }
-
-        // extract all response headers
-        if (config.extractAllResponseHeaders != null) {
-            cfg.setExtractAllResponseFields(config.extractAllResponseHeaders);
-        }
-
-        // body column name
-        if (config.bodyColumnName != null) {
-            cfg.setResponseBodyColumn(config.bodyColumnName);
-        }
+        RestKaiNodeConfigMapper.applyCommonConfig(config, cfg);
 
         // Finally write the settings
         final NodeAndVariableSettingsWO dialogWO = settings.get(MAIN_SETTINGS_TYPE);
