@@ -8,7 +8,6 @@ import java.util.Random;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.knime.base.node.preproc.table.cellextractor.CellExtractorSettings;
 import org.knime.core.node.BufferedDataTable;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettings;
@@ -49,7 +48,8 @@ final class WrapHTTPNodeUtil {
         final var rootWfm = nc.getParent();
         final var ncModelClass = nc.getNodeModel().getClass();
         final var collapseResult =
-            rootWfm.collapseIntoMetaNode(new NodeID[]{nc.getID()}, new WorkflowAnnotationID[0], "Hello World");
+            rootWfm.collapseIntoMetaNode(new NodeID[]{nc.getID()}, new WorkflowAnnotationID[0],
+                nc.getNodeAnnotation().getText());
         final var subWorkflowId = collapseResult.getCollapsedMetanodeID();
         rootWfm.changeMetaNodeOutputPorts(subWorkflowId, new MetaPortInfo[]{ //
             MetaPortInfo.builder().setPortType(BufferedDataTable.TYPE).build(), //
@@ -87,26 +87,26 @@ final class WrapHTTPNodeUtil {
             .ifPresent(predecessor -> componentWfm.addConnection(predecessor, 1, httpNodeId, 0));
         componentWfm.addConnection(httpNodeId, 1, component.getVirtualOutNodeID(), 1);
 
-        final var bodyCellExtractor = addAndConfigureNode(componentWfm,
-            "org.knime.base.node.preproc.table.cellextractor.CellExtractorNodeFactory",
-            new CellExtractorSettings(cfg.getResponseBodyColumn(), 1));
-
-        final var textView =
-            addAndConfigureNode(componentWfm, "org.knime.base.views.node.textview.TextViewNodeFactory", s -> {
-                s.addNodeSettings(SettingsType.VIEW.getConfigKey()).addString("richTextContent", "");
-                final var nodeSettingsVariables = s.addNodeSettings(SettingsType.VIEW.getVariablesConfigKey());
-                urlPerVariable.ifPresent(_urlExpression -> {
-                    final var variableSettings = new VariableSettings(s, SettingsType.VIEW);
-                    try {
-                        variableSettings.addUsedVariable("richTextContent", "extracted_cell");
-                    } catch (InvalidSettingsException ex) {
-                        throw new IllegalStateException(ex);
-                    }
-                    variableSettings.getVariableSettings().ifPresent(vars -> vars.copyTo(nodeSettingsVariables));
-                });
-            });
-        componentWfm.addConnection(httpNodeId, 1, bodyCellExtractor, 1);
-        componentWfm.addConnection(bodyCellExtractor, 1, textView, 0);
+//        final var bodyCellExtractor = addAndConfigureNode(componentWfm,
+//            "org.knime.base.node.preproc.table.cellextractor.CellExtractorNodeFactory",
+//            new CellExtractorSettings(cfg.getResponseBodyColumn(), 1));
+//
+//        final var textView =
+//            addAndConfigureNode(componentWfm, "org.knime.base.views.node.textview.TextViewNodeFactory", s -> {
+//                s.addNodeSettings(SettingsType.VIEW.getConfigKey()).addString("richTextContent", "");
+//                final var nodeSettingsVariables = s.addNodeSettings(SettingsType.VIEW.getVariablesConfigKey());
+//                urlPerVariable.ifPresent(_urlExpression -> {
+//                    final var variableSettings = new VariableSettings(s, SettingsType.VIEW);
+//                    try {
+//                        variableSettings.addUsedVariable("richTextContent", "extracted_cell");
+//                    } catch (InvalidSettingsException ex) {
+//                        throw new IllegalStateException(ex);
+//                    }
+//                    variableSettings.getVariableSettings().ifPresent(vars -> vars.copyTo(nodeSettingsVariables));
+//                });
+//            });
+//        componentWfm.addConnection(httpNodeId, 1, bodyCellExtractor, 1);
+//        componentWfm.addConnection(bodyCellExtractor, 1, textView, 0);
 
         // Add Text view preview
 
