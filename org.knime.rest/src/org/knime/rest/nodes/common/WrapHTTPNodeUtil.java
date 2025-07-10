@@ -63,6 +63,9 @@ final class WrapHTTPNodeUtil {
 
             String urlWithTemplate = cfg.getConstantURL();
             String bodyWithTemplate = "";
+            if (cfg instanceof RestWithBodySettings rwbs) {
+                bodyWithTemplate = rwbs.getConstantRequestBody();
+            }
 
             var urlVariables = extractVariablesFromTemplate(urlWithTemplate, variables);
             var bodyVariables = extractVariablesFromTemplate(bodyWithTemplate, variables);
