@@ -37,16 +37,63 @@ final class WrapHTTPNodeUtil {
     }
 
     /**
+     * Add a credentials configuration node based on the authentication configuration
+     * @param componentWfm The workflow manager to add the node to
+     * @param config The REST configuration containing authentication settings
+     * @return The NodeID of the created credentials configuration node, or null if no credentials needed
+     */
+    private static NodeID addCredentialsConfiguration(final WorkflowManager componentWfm, final RestKaiNodeConfig config) {
+        if (config.authentication == null || config.authentication.credentialsVariable == null) {
+            return null;
+        }
+
+        final String authType = config.authentication.type;
+        if (!authType.equals("Bearer") && !authType.equals("Basic")) {
+            return null;
+        }
+
+        final var credVar = config.authentication.credentialsVariable;
+        final boolean hideUsername = authType.equals("Bearer");
+
+        return addAndConfigureNode(componentWfm,
+            "org.knime.js.base.node.configuration.input.credentials.CredentialsDialogNodeFactory",
+            nodeSettings -> {
+                var modelSettings = nodeSettings.addNodeSettings("model");
+                modelSettings.addString("parameterName", credVar.name);
+                modelSettings.addString("label", credVar.title != null ? credVar.title : credVar.name);
+                modelSettings.addString("description", credVar.description != null ? credVar.description : "");
+                modelSettings.addString("usernameLabel", credVar.usernamePlaceholder != null ? credVar.usernamePlaceholder : "Username");
+                modelSettings.addString("passwordLabel", credVar.passwordOrTokenPlaceholder != null ? credVar.passwordOrTokenPlaceholder : (hideUsername ? "Token" : "Password"));
+                modelSettings.addString("flowVariableName", credVar.name);
+                modelSettings.addBoolean("prompt_username", !hideUsername);
+                modelSettings.addBoolean("hideInDialog", false);
+                modelSettings.addBoolean("required", true);
+                modelSettings.addBoolean("use_server_login", false);
+                modelSettings.addBoolean("no_display", false);
+                modelSettings.addString("error_message", "");
+
+                // Configure default value structure
+                var defaultValue = modelSettings.addNodeSettings("defaultValue");
+                defaultValue.addBoolean("isSavePassword", false);
+                defaultValue.addBoolean("useServerLoginCredentials", false);
+                var credentialsValue = defaultValue.addNodeSettings("credentialsValue");
+                credentialsValue.addBoolean("isCredentials_Internals", true);
+                credentialsValue.addString("name", "");
+                credentialsValue.addString("login", "");
+            });
+    }
+
+    /**
      * @param nc
-     * @param configAndTemplateVariables
      * @param nodeSettings
      * @param cfg
      * @param variableSetters
+     * @param configAndTemplateVariables
      * @return
      */
     static SubNodeContainer configureHTTPNodeAndResolveTemplates(final NativeNodeContainer nc,
-        final List<Variable> variables, final NodeSettings nodeSettings, final RestSettings cfg,
-        final List<Consumer<VariableSettings>> variableSetters) {
+        final List<Variable> variables, final RestKaiNodeConfig config, final NodeSettings nodeSettings,
+        final RestSettings cfg, final List<Consumer<VariableSettings>> variableSetters) {
         final var rootWfm = nc.getParent();
         try (var unused = rootWfm.lock()) {
             final var ncModelClass = nc.getNodeModel().getClass();
@@ -83,6 +130,8 @@ final class WrapHTTPNodeUtil {
             if (!otherVariables.isEmpty()) {
                 otherVariablesNodeId = variablesToKnimeNodes(componentWfm, otherVariables);
             }
+
+            NodeID credentialsNodeId = addCredentialsConfiguration(componentWfm, config);
 
             // TODO: Connect to http node
 

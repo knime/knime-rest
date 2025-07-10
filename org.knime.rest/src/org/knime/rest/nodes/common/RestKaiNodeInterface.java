@@ -266,7 +266,7 @@ public abstract class RestKaiNodeInterface implements KaiNodeInterface, KaiNodeI
                                         },
                                         "credentialsVariable": {
                                             "type": "object",
-                                            "description": "Not required in case of None authentication. For Basic, this variable holds a username and a password. For Bearer, it contains the API Key token."
+                                            "description": "Not required in case of None authentication. For Basic, this variable holds a username and a password. For Bearer, it contains the API Key token.",
                                             "properties": {
                                                 "name": {
                                                     "type": "string",
@@ -280,74 +280,17 @@ public abstract class RestKaiNodeInterface implements KaiNodeInterface, KaiNodeI
                                                     "type": "string",
                                                     "description": "Variable description that described for what this variable is used."
                                                 },
-                                                "usernamePlaceholder" {
+                                                "usernamePlaceholder": {
                                                     "type": "string",
                                                     "description": "Only used in case of Basic authentication. Short description that is used as placeholder for the username field in a visual interface.",
                                                     "default": "Username"
                                                 },
-                                                "passwordOrTokenPlaceholder" {
+                                                "passwordOrTokenPlaceholder": {
                                                     "type": "string",
                                                     "description": "Short description that is used as placeholder for the password or token field in a visual interface.",
                                                     "default": "Token"
                                                 }
                                             }
-                                        },
-                                        "password": {
-                                            "oneOf": [
-                                                {
-                                                    "type": "string",
-                                                    "description": "Password for Basic, Digest, or NTLM authentication"
-                                                },
-                                                {
-                                                    "type": "object",
-                                                    "properties": {
-                                                        "variableName": {
-                                                            "type": "string",
-                                                            "description": "Name of templateVariable to use for password. Variable must be defined in templateVariables array."
-                                                        }
-                                                    },
-                                                    "required": ["variableName"],
-                                                    "additionalProperties": false
-                                                }
-                                            ]
-                                        },
-                                        "domain": {
-                                            "oneOf": [
-                                                {
-                                                    "type": "string",
-                                                    "description": "Domain for NTLM authentication"
-                                                },
-                                                {
-                                                    "type": "object",
-                                                    "properties": {
-                                                        "variableName": {
-                                                            "type": "string",
-                                                            "description": "Name of templateVariable to use for domain. Variable must be defined in templateVariables array."
-                                                        }
-                                                    },
-                                                    "required": ["variableName"],
-                                                    "additionalProperties": false
-                                                }
-                                            ]
-                                        },
-                                        "token": {
-                                            "oneOf": [
-                                                {
-                                                    "type": "string",
-                                                    "description": "Bearer token for Bearer authentication"
-                                                },
-                                                {
-                                                    "type": "object",
-                                                    "properties": {
-                                                        "variableName": {
-                                                            "type": "string",
-                                                            "description": "Name of templateVariable to use for token. Variable must be defined in templateVariables array."
-                                                        }
-                                                    },
-                                                    "required": ["variableName"],
-                                                    "additionalProperties": false
-                                                }
-                                            ]
                                         }
                                     },
                                     "required": ["type"],
@@ -444,10 +387,7 @@ public abstract class RestKaiNodeInterface implements KaiNodeInterface, KaiNodeI
                     For other settings, use the variableName format to reference a single variable:
                     "followRedirects": {"variableName": "follow-redirects-setting"}
 
-
-                    Example: Authentication credentials should always use variables since the AI agent cannot provide actual credentials.
-                    Template variables must be defined in the templateVariables array with appropriate type, title,
-                    and description to help users configure them properly.
+                   Don't use the header settings to handle authentication, but use the provided configuration options instead.
                     """
                 .formatted(m_method.name());
         return new ConfigurePrompt(systemMessage, getOutputSchema());
@@ -568,7 +508,7 @@ public abstract class RestKaiNodeInterface implements KaiNodeInterface, KaiNodeI
         }
 
         return Optional.of(WrapHTTPNodeUtil.configureHTTPNodeAndResolveTemplates((NativeNodeContainer)nc,
-            templateVariables, nodeSettings, cfg, adjustVariables));
+            templateVariables, config, nodeSettings, cfg, adjustVariables));
 
     }
 
