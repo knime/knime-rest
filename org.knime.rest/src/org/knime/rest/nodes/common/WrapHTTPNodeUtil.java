@@ -8,13 +8,12 @@ import java.util.Random;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.knime.base.node.preproc.table.cellextractor.CellExtractorSettings;
 import org.knime.core.node.BufferedDataTable;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettings;
 import org.knime.core.node.port.MetaPortInfo;
-import org.knime.core.node.port.flowvariable.FlowVariablePortObject;
 import org.knime.core.node.workflow.NativeNodeContainer;
-import org.knime.core.node.workflow.NodeContainer;
 import org.knime.core.node.workflow.NodeID;
 import org.knime.core.node.workflow.NodeUIInformation;
 import org.knime.core.node.workflow.SubNodeContainer;
@@ -45,24 +44,22 @@ final class WrapHTTPNodeUtil {
      * @param cfg
      * @return
      */
-    static SubNodeContainer configureHTTPNodeAndResolveTemplates(final NodeContainer nc,
+    static SubNodeContainer configureHTTPNodeAndResolveTemplates(final NativeNodeContainer nc,
         final List<Variable> variables, final NodeSettings nodeSettings, final RestSettings cfg) {
         final var rootWfm = nc.getParent();
-
-        final var metanodeID = rootWfm.collapseIntoMetaNode(new NodeID[]{nc.getID()}, new WorkflowAnnotationID[0],
-            nc.getNodeAnnotation().getText()).getCollapsedMetanodeID();
-        final var componentID = rootWfm.convertMetaNodeToSubNode(metanodeID).getConvertedNodeID();
-        rootWfm.changeSubNodeOutputPorts(componentID,
-            new MetaPortInfo[]{
-                MetaPortInfo.builder().setPortType(FlowVariablePortObject.TYPE).build(),
-                MetaPortInfo.builder().setPortType(BufferedDataTable.TYPE).build()});
+        final var ncModelClass = nc.getNodeModel().getClass();
+        final var collapseResult =
+            rootWfm.collapseIntoMetaNode(new NodeID[]{nc.getID()}, new WorkflowAnnotationID[0], "Hello World");
+        final var subWorkflowId = collapseResult.getCollapsedMetanodeID();
+        rootWfm.changeMetaNodeOutputPorts(subWorkflowId, new MetaPortInfo[]{ //
+            MetaPortInfo.builder().setPortType(BufferedDataTable.TYPE).build(), //
+        });
+        final var componentID = rootWfm.convertMetaNodeToSubNode(subWorkflowId).getConvertedNodeID();
         final var component = (SubNodeContainer)rootWfm.getNodeContainer(componentID);
         final var componentWfm = component.getWorkflowManager();
-        final var httpNodeID =
-            componentWfm.getNodeContainers().stream()
-                .filter(n -> !n.getID().equals(component.getVirtualInNodeID())
-                    && !n.getID().equals(component.getVirtualOutNodeID()))
-                .map(NodeContainer::getID).findFirst().orElseThrow();
+
+
+        final var httpNodeId = componentWfm.findNodes(ncModelClass, false).keySet().stream().findFirst().orElseThrow();
 
         String urlWithTemplate = cfg.getConstantURL();
         String bodyWithTemplate = "";
@@ -81,9 +78,37 @@ final class WrapHTTPNodeUtil {
         }
 
         setVariablesInHttpNode(componentWfm, nodeSettings, urlPerVariable, bodyPerVariable);
+        try {
+            componentWfm.loadNodeSettings(httpNodeId, nodeSettings);
+        } catch (InvalidSettingsException e) {
+            // TODO Auto-generated catch block
+        }
         urlPerVariable.or(() -> bodyPerVariable)
-            .ifPresent(predecessor -> componentWfm.addConnection(predecessor, 1, httpNodeID, 0));
-        componentWfm.addConnection(httpNodeID, 1, component.getVirtualOutNodeID(), 1);
+            .ifPresent(predecessor -> componentWfm.addConnection(predecessor, 1, httpNodeId, 0));
+        componentWfm.addConnection(httpNodeId, 1, component.getVirtualOutNodeID(), 1);
+
+        final var bodyCellExtractor = addAndConfigureNode(componentWfm,
+            "org.knime.base.node.preproc.table.cellextractor.CellExtractorNodeFactory",
+            new CellExtractorSettings(cfg.getResponseBodyColumn(), 1));
+
+        final var textView =
+            addAndConfigureNode(componentWfm, "org.knime.base.views.node.textview.TextViewNodeFactory", s -> {
+                s.addNodeSettings(SettingsType.VIEW.getConfigKey()).addString("richTextContent", "");
+                final var nodeSettingsVariables = s.addNodeSettings(SettingsType.VIEW.getVariablesConfigKey());
+                urlPerVariable.ifPresent(_urlExpression -> {
+                    final var variableSettings = new VariableSettings(s, SettingsType.VIEW);
+                    try {
+                        variableSettings.addUsedVariable("richTextContent", "extracted_cell");
+                    } catch (InvalidSettingsException ex) {
+                        throw new IllegalStateException(ex);
+                    }
+                    variableSettings.getVariableSettings().ifPresent(vars -> vars.copyTo(nodeSettingsVariables));
+                });
+            });
+        componentWfm.addConnection(httpNodeId, 1, bodyCellExtractor, 1);
+        componentWfm.addConnection(bodyCellExtractor, 1, textView, 0);
+
+        // Add Text view preview
 
         new LayoutManager(WorkflowManagerWrapper.wrap(componentWfm), new Random().nextLong()).doLayout(null);
 
@@ -95,11 +120,6 @@ final class WrapHTTPNodeUtil {
         final Optional<NodeID> urlPerVariable, final Optional<NodeID> bodyPerVariable) {
         final var urlCfgKey = "Constant URI";
         final var bodyCfgKey = "Constant request body";
-        try {
-            final var modelSettings = nodeSettings.getNodeSettings("model");
-        } catch (InvalidSettingsException e) {
-            throw new IllegalStateException(e); // settings already added in kai node interface
-        }
         final var nodeSettingsVariables = nodeSettings.addNodeSettings(SettingsType.MODEL.getVariablesConfigKey());
         urlPerVariable.ifPresent(_urlExpression -> {
             final var variableSettings = new VariableSettings(nodeSettings, SettingsType.MODEL);
@@ -209,8 +229,7 @@ final class WrapHTTPNodeUtil {
             return addAndConfigureNode(wfm, "org.knime.js.base.node.configuration.input.dbl.DoubleDialogNodeFactory",
                 new DoubleDialogNodeSettings());
         } else if (variable.type == Variable.VariableType.BOOLEAN) {
-            return addAndConfigureNode(wfm,
-                "org.knime.js.base.node.configuration.input.bool.BooleanDialogNodeFactory",
+            return addAndConfigureNode(wfm, "org.knime.js.base.node.configuration.input.bool.BooleanDialogNodeFactory",
                 new BooleanDialogNodeSettings());
         } else {
             throw new UnsupportedOperationException("Unsupported variable type: " + variable.type);
@@ -234,7 +253,11 @@ final class WrapHTTPNodeUtil {
         try {
             var id = CoreUtil.createAndAddNode(factoryClass, null, 10, 10, wfm, false);
             final var nodeSettings = new NodeSettings("root");
-            ((NativeNodeContainer)wfm.getNodeContainer(id)).getModelSettingsUsingFlowObjectStack(); // Necessary to initialize the default model settings. Otherwise, the "model" field will not be present in the saved settings.
+            try {
+                ((NativeNodeContainer)wfm.getNodeContainer(id)).getModelSettingsUsingFlowObjectStack(); // Necessary to initialize the default model settings. Otherwise, the "model" field will not be present in the saved settings.
+            } catch (Exception ex) {
+                // E.g. nullpointer if not connected
+            }
 
             wfm.saveNodeSettings(id, nodeSettings);
             configureNodeSettings.accept(nodeSettings);

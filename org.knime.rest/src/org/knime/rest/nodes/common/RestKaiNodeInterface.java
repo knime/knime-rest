@@ -58,6 +58,7 @@ import java.util.function.Supplier;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettings;
 import org.knime.core.node.port.PortObjectSpec;
+import org.knime.core.node.workflow.NativeNodeContainer;
 import org.knime.core.node.workflow.NodeContainer;
 import org.knime.core.node.workflow.SubNodeContainer;
 import org.knime.core.webui.node.dialog.NodeAndVariableSettingsRO;
@@ -342,7 +343,7 @@ public abstract class RestKaiNodeInterface implements KaiNodeInterface, KaiNodeI
         }
 
         return Optional
-            .of(WrapHTTPNodeUtil.configureHTTPNodeAndResolveTemplates(nc, templateVariables, nodeSettings, cfg));
+            .of(WrapHTTPNodeUtil.configureHTTPNodeAndResolveTemplates((NativeNodeContainer)nc, templateVariables, nodeSettings, cfg));
 
     }
 
