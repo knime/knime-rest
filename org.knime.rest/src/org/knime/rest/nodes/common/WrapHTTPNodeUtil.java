@@ -1,8 +1,10 @@
 package org.knime.rest.nodes.common;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Random;
 import java.util.function.Consumer;
@@ -16,6 +18,7 @@ import org.knime.core.node.context.ports.ExtendablePortGroup;
 import org.knime.core.node.port.MetaPortInfo;
 import org.knime.core.node.port.flowvariable.FlowVariablePortObject;
 import org.knime.core.node.workflow.NativeNodeContainer;
+import org.knime.core.node.workflow.NodeAnnotation;
 import org.knime.core.node.workflow.NodeID;
 import org.knime.core.node.workflow.SubNodeContainer;
 import org.knime.core.node.workflow.WorkflowAnnotationID;
@@ -36,6 +39,18 @@ final class WrapHTTPNodeUtil {
 
     private WrapHTTPNodeUtil() {
 
+    }
+
+    /**
+     * Sets the label of a node annotation without text wrapping.
+     *
+     * @param nodeAnnotation The node annotation to update
+     * @param label The label to set
+     */
+    private static void setLabel(final NodeAnnotation nodeAnnotation, final String label) {
+        var data = nodeAnnotation.getData();
+        data.setText(label);
+        nodeAnnotation.copyFrom(data, false);
     }
 
     /**
@@ -126,10 +141,10 @@ final class WrapHTTPNodeUtil {
             var bodyVariables = extractVariablesFromTemplate(bodyWithTemplate, variables);
             var otherVariables = extractAllOtherVariables(urlVariables, bodyVariables, variables);
 
-            final var urlPerVariable =
-                addNodesToResolveTemplate(componentWfm, urlWithTemplate, urlVariables, "constructedUrl");
-            final var bodyPerVariable =
-                addNodesToResolveTemplate(componentWfm, bodyWithTemplate, bodyVariables, "constructedBody");
+            final var urlPerVariable = addNodesToResolveTemplate(componentWfm, urlWithTemplate, urlVariables,
+                "constructedUrl", "Construct URL");
+            final var bodyPerVariable = addNodesToResolveTemplate(componentWfm, bodyWithTemplate, bodyVariables,
+                "constructedBody", "Construct Body");
 
             NodeID otherVariablesNodeId = null;
             if (!otherVariables.isEmpty()) {
@@ -144,8 +159,9 @@ final class WrapHTTPNodeUtil {
             } catch (InvalidSettingsException e) {
                 // TODO Auto-generated catch block
             }
-            final var predecessorNodeID =
-                toPredecessor(componentWfm, urlPerVariable, bodyPerVariable, otherVariablesNodeId, credentialsNodeId);
+            final var predecessorNodeID = combineVariables(componentWfm, urlPerVariable.orElse(null),
+                bodyPerVariable.orElse(null), otherVariablesNodeId, credentialsNodeId);
+            componentWfm.executeUpToHere(predecessorNodeID);
             componentWfm.addConnection(predecessorNodeID, 1, httpNodeId, 0);
             componentWfm.addConnection(httpNodeId, 1, component.getVirtualOutNodeID(), 1);
 
@@ -170,8 +186,6 @@ final class WrapHTTPNodeUtil {
             //            componentWfm.addConnection(httpNodeId, 1, bodyCellExtractor, 1);
             //            componentWfm.addConnection(bodyCellExtractor, 1, textView, 0);
 
-            // Add Text view preview
-
             new LayoutManager(WorkflowManagerWrapper.wrap(componentWfm), new Random().nextLong()).doLayout(null);
             return component;
         }
@@ -184,28 +198,14 @@ final class WrapHTTPNodeUtil {
      * @param credentialsNodeId
      * @return the one predecessor of the HTTP node that contains all necessary variables.
      */
-    public static NodeID toPredecessor(final WorkflowManager wfm, final Optional<NodeID> urlPerVariable,
-        final Optional<NodeID> bodyPerVariable, final NodeID otherVariablesNodeId, final NodeID credentialsNodeId) {
-        final var numberOfPredecessors = (urlPerVariable.isPresent() ? 1 : 0) //
-            + (bodyPerVariable.isPresent() ? 1 : 0) //
-            + (otherVariablesNodeId == null ? 0 : 1) //
-            + (credentialsNodeId == null ? 0 : 1);
+    public static NodeID combineVariables(final WorkflowManager wfm, final NodeID... nodeIdsArr) {
+        final var nodeIds = Arrays.asList(nodeIdsArr);
+        final var numberOfPredecessors = nodeIds.stream().filter(Objects::nonNull).count();
         if (numberOfPredecessors == 0) {
             throw new IllegalStateException("Something went wrong. There should be predecessors");
         }
         if (numberOfPredecessors == 1) {
-            if (urlPerVariable.isPresent()) {
-                return urlPerVariable.get();
-            }
-            if (bodyPerVariable.isPresent()) {
-                return bodyPerVariable.get();
-            }
-            if (otherVariablesNodeId != null) {
-                return otherVariablesNodeId;
-            }
-            if (credentialsNodeId != null) {
-                return credentialsNodeId;
-            }
+            return nodeIds.get(0);
         }
         final var mergerNodeID =
             addAndConfigureNode(wfm, "org.knime.base.node.util.mergevariables.MergeVariables2NodeFactory", s -> {
@@ -220,17 +220,10 @@ final class WrapHTTPNodeUtil {
                 wfm.replaceNode(mergerNodeID, configuration);
             }));
         int count = 1;
-        if (urlPerVariable.isPresent()) {
-            wfm.addConnection(urlPerVariable.get(), 1, mergerNodeID, count++);
-        }
-        if (bodyPerVariable.isPresent()) {
-            wfm.addConnection(bodyPerVariable.get(), 1, mergerNodeID, count++);
-        }
-        if (otherVariablesNodeId != null) {
-            wfm.addConnection(otherVariablesNodeId, 1, mergerNodeID, count++);
-        }
-        if (credentialsNodeId != null) {
-            wfm.addConnection(credentialsNodeId, 1, mergerNodeID, count++);
+        for (var nodeId : nodeIds) {
+            if (nodeId != null && !nodeId.equals(mergerNodeID)) {
+                wfm.addConnection(nodeId, 1, mergerNodeID, count++);
+            }
         }
         return mergerNodeID;
 
@@ -307,7 +300,7 @@ final class WrapHTTPNodeUtil {
     }
 
     private static Optional<NodeID> addNodesToResolveTemplate(final WorkflowManager componentWfm, final String template,
-        final List<Variable> variables, final String outVarName) {
+        final List<Variable> variables, final String outVarName, final String label) {
         if (variables.isEmpty()) {
             return Optional.empty();
         }
@@ -322,6 +315,8 @@ final class WrapHTTPNodeUtil {
                 firstExpression.addString("createdFlowVariable", outVarName);
 
             });
+        var nodeAnnotation = componentWfm.getNodeContainer(expressionNode).getNodeAnnotation();
+        setLabel(nodeAnnotation, label);
         componentWfm.addConnection(predecessor, 1, expressionNode, 0);
         return Optional.of(expressionNode);
     }
@@ -329,18 +324,16 @@ final class WrapHTTPNodeUtil {
     /**
      * @param componentWfm
      * @param variables
-     * @return
+     * @return A NodeID that combines all variable nodes created from the provided list of variables.
      */
     public static NodeID variablesToKnimeNodes(final WorkflowManager componentWfm, final List<Variable> variables) {
-        NodeID predecessor = null;
-        for (var variable : variables) {
-            var newNode = addConfigurationNode(componentWfm, variable);
-            if (predecessor != null) {
-                componentWfm.addConnection(predecessor, 1, newNode, 0);
-            }
-            predecessor = newNode;
-        }
-        return predecessor;
+        final var nodes = variables.stream().map(variable -> {
+            var node = addConfigurationNode(componentWfm, variable);
+            var nodeAnnotation = componentWfm.getNodeContainer(node).getNodeAnnotation();
+            setLabel(nodeAnnotation, variable.title);
+            return node;
+        }).toList();
+        return combineVariables(componentWfm, nodes.toArray(NodeID[]::new));
     }
 
     private static String templateToExpression(final String template) {
