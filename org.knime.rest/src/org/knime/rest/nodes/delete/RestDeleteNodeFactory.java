@@ -50,6 +50,8 @@ package org.knime.rest.nodes.delete;
 
 import org.knime.core.node.NodeDialogPane;
 import org.knime.core.node.context.NodeCreationConfiguration;
+import org.knime.core.webui.node.dialog.kai.KaiNodeInterface;
+import org.knime.core.webui.node.dialog.kai.KaiNodeInterfaceFactory;
 import org.knime.rest.nodes.common.RestNodeFactory;
 
 /**
@@ -57,7 +59,7 @@ import org.knime.rest.nodes.common.RestNodeFactory;
  *
  * @author Gabor Bakos
  */
-public class RestDeleteNodeFactory extends RestNodeFactory<RestDeleteNodeModel> {
+public class RestDeleteNodeFactory extends RestNodeFactory<RestDeleteNodeModel> implements KaiNodeInterfaceFactory {
 
     /**
      * Constructor
@@ -75,4 +77,10 @@ public class RestDeleteNodeFactory extends RestNodeFactory<RestDeleteNodeModel> 
     protected NodeDialogPane createNodeDialogPane(final NodeCreationConfiguration cfg) {
         return new RestDeleteNodeDialog(cfg);
     }
+
+    @Override
+    public KaiNodeInterface createKaiNodeInterface() {
+        return new RestDeleteKaiNodeInterface();
+    }
+
 }

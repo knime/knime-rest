@@ -94,20 +94,30 @@ public abstract class RestKaiNodeInterface implements KaiNodeInterface, KaiNodeI
 
     // TODO make it work for other HTTP methods than GET
 
-    private Supplier<RestSettings> m_settingsCreator;
+    private final Supplier<RestSettings> m_settingsCreator;
 
-    protected RestKaiNodeInterface(final Supplier<RestSettings> settingsCreator) {
+    private final Method m_method;
+
+    private final boolean m_hasBody;
+
+    protected enum Method {
+            GET, POST, PUT, DELETE;
+    }
+
+    protected RestKaiNodeInterface(final Supplier<RestSettings> settingsCreator, final Method method) {
         m_settingsCreator = settingsCreator;
+        m_method = method;
+        m_hasBody = m_method != Method.GET;
     }
 
     private static final SettingsType MAIN_SETTINGS_TYPE = SettingsType.MODEL;
 
     // --- JSON schema that the model must follow ----------------------------------------------
-    private static final String OUTPUT_SCHEMA =
-        """
+    private String getOutputSchema() {
+        return """
                             {
                     "$schema": "http://json-schema.org/draft-07/schema#",
-                    "title": "RestGetNodeConfiguration",
+                    "title": "RestNodeConfiguration",
                     "type": "object",
                     "properties": {
                         "configuration": {
@@ -118,10 +128,7 @@ public abstract class RestKaiNodeInterface implements KaiNodeInterface, KaiNodeI
                                     "format": "uri",
                                     "description": "Absolute request URL. Supports templating via `{{var-name}}` with variables defined in `templateVariables`."
                                 },
-                                "body": {
-                                    "type": "string",
-                                    "description": "Request body. Supports templating via `{{var-name}}` with variables defined in `templateVariables`."
-                                },
+                                %s
                                 "headers": {
                                     "type": "object",
                                     "description": "HTTP header map (string values)",
@@ -208,7 +215,14 @@ public abstract class RestKaiNodeInterface implements KaiNodeInterface, KaiNodeI
                     ],
                     "additionalProperties": false
                 }
-                       """;
+                       """.formatted(m_hasBody ? """
+                                 "body": {
+                                    "type": "string",
+                                    "description": "Request body. Supports templating via `{{var-name}}` with variables defined in `templateVariables`."
+                                },
+
+                               """ : "");
+    }
 
     // -----------------------------------------------------------------------------------------
 
@@ -222,11 +236,11 @@ public abstract class RestKaiNodeInterface implements KaiNodeInterface, KaiNodeI
         final PortObjectSpec[] specs) {
         // A concise system message instructing the LLM what to do and how to respond.
         final String systemMessage = """
-                You are configuring a KNIME \"GET Request\" node. Return **only** a JSON object matching the
+                You are configuring a KNIME \"%s Request\" node. Return **only** a JSON object matching the
                 schema provided. Populate at least the mandatory \"url\" field and, where useful, headers or
                 time‑outs. Do not wrap the JSON in markdown, prose, or back‑ticks – the raw JSON is required.
-                """;
-        return new ConfigurePrompt(systemMessage, OUTPUT_SCHEMA);
+                """.formatted(m_method.name());
+        return new ConfigurePrompt(systemMessage, getOutputSchema());
     }
 
     @Override

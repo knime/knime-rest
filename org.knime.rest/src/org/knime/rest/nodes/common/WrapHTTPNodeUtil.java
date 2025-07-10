@@ -227,7 +227,10 @@ final class WrapHTTPNodeUtil {
                 new IntegerDialogNodeSettings());
         } else if (variable.type == Variable.VariableType.DOUBLE) {
             return addAndConfigureNode(wfm, "org.knime.js.base.node.configuration.input.dbl.DoubleDialogNodeFactory",
-                new DoubleDialogNodeSettings());
+                new DoubleDialogNodeSettings(variable.name, //
+                    variable.title, //
+                    variable.description, //
+                    (Double)variable.defaultValue));
         } else if (variable.type == Variable.VariableType.BOOLEAN) {
             return addAndConfigureNode(wfm, "org.knime.js.base.node.configuration.input.bool.BooleanDialogNodeFactory",
                 new BooleanDialogNodeSettings());

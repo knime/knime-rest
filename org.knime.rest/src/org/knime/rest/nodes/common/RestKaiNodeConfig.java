@@ -7,6 +7,7 @@ import java.util.Map;
  */
 public class RestKaiNodeConfig {
     public String url;
+    public String body;
     public Map<String, String> headers;
     public Boolean followRedirects;
     public Integer connectTimeout;

@@ -50,6 +50,7 @@ package org.knime.rest.nodes.put;
 
 import org.knime.core.node.NodeDialogPane;
 import org.knime.core.node.context.NodeCreationConfiguration;
+import org.knime.core.webui.node.dialog.kai.KaiNodeInterfaceFactory;
 import org.knime.rest.nodes.common.RestNodeFactory;
 
 /**
@@ -57,7 +58,7 @@ import org.knime.rest.nodes.common.RestNodeFactory;
  *
  * @author Gabor Bakos
  */
-public class RestPutNodeFactory extends RestNodeFactory<RestPutNodeModel> {
+public class RestPutNodeFactory extends RestNodeFactory<RestPutNodeModel> implements KaiNodeInterfaceFactory {
 
     @Override
     public RestPutNodeModel createNodeModel(final NodeCreationConfiguration cfg) {
@@ -67,5 +68,10 @@ public class RestPutNodeFactory extends RestNodeFactory<RestPutNodeModel> {
     @Override
     protected NodeDialogPane createNodeDialogPane(final NodeCreationConfiguration cfg) {
         return new RestPutNodeDialog(cfg);
+    }
+
+    @Override
+    public RestPutKaiNodeInterface createKaiNodeInterface() {
+        return new RestPutKaiNodeInterface();
     }
 }

@@ -8,7 +8,7 @@ import java.util.Map;
 public final class RestKaiNodeConfigMapper {
     private RestKaiNodeConfigMapper() {}
 
-    public static void applyCommonConfig(RestKaiNodeConfig config, RestSettings cfg) {
+    public static void applyCommonConfig(final RestKaiNodeConfig config, final RestSettings cfg) {
         cfg.setUseConstantURL(true);
         cfg.setConstantURL(config.url);
         if (config.headers != null) {
@@ -34,17 +34,10 @@ public final class RestKaiNodeConfigMapper {
         if (config.bodyColumnName != null) {
             cfg.setResponseBodyColumn(config.bodyColumnName);
         }
-    }
 
-    public static void applyBodyConfig(RestWithBodyKaiNodeConfig config, RestWithBodySettings cfg) {
-        if (config.useConstantRequestBody != null) {
-            cfg.setUseConstantRequestBody(config.useConstantRequestBody);
-        }
-        if (config.constantRequestBody != null) {
-            cfg.setConstantRequestBody(config.constantRequestBody);
-        }
-        if (config.requestBodyColumn != null) {
-            cfg.setRequestBodyColumn(config.requestBodyColumn);
+        if (cfg instanceof RestWithBodySettings withBodyCfg && config.body != null) {
+            withBodyCfg.setUseConstantRequestBody(true);
+            withBodyCfg.setConstantRequestBody(config.body);
         }
     }
 }

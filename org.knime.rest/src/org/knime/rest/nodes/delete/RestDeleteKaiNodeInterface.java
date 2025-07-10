@@ -44,19 +44,20 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   Jul 9, 2025 (benjaminwilhelm): created
+ *   Jul 10, 2025 (hornm): created
  */
-package org.knime.rest.nodes.post;
+package org.knime.rest.nodes.delete;
 
 import org.knime.rest.nodes.common.RestKaiNodeInterface;
 
 /**
  *
- * @author Benjamin Wilhelm, KNIME GmbH, Berlin, Germany
+ * @author Martin Horn, KNIME GmbH, Konstanz, Germany
  */
-public final class RestPostKaiNodeInterface extends RestKaiNodeInterface {
+public class RestDeleteKaiNodeInterface extends RestKaiNodeInterface {
 
-    public RestPostKaiNodeInterface() {
-        super(() -> new RestPostSettings(), Method.POST);
+    public RestDeleteKaiNodeInterface() {
+        super(() -> new RestDeleteSettings(), Method.DELETE);
     }
+
 }

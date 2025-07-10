@@ -57,6 +57,6 @@ import org.knime.rest.nodes.common.RestKaiNodeInterface;
 public final class RestGetKaiNodeInterface extends RestKaiNodeInterface {
 
     public RestGetKaiNodeInterface() {
-        super(() -> new RestGetSettings());
+        super(() -> new RestGetSettings(), Method.GET);
     }
 }
