@@ -313,7 +313,11 @@ final class WrapHTTPNodeUtil {
         } else if (variable.type == Variable.VariableType.INT) {
             return addAndConfigureNode(wfm,
                 "org.knime.js.base.node.configuration.input.integer.IntegerDialogNodeFactory",
-                new IntegerDialogNodeSettings());
+                new IntegerDialogNodeSettings(variable.name, //
+                    variable.title, //
+                    variable.description, //
+                    (Integer)variable.defaultValue //
+                ));
         } else if (variable.type == Variable.VariableType.DOUBLE) {
             return addAndConfigureNode(wfm, "org.knime.js.base.node.configuration.input.dbl.DoubleDialogNodeFactory",
                 new DoubleDialogNodeSettings(variable.name, //
@@ -322,7 +326,11 @@ final class WrapHTTPNodeUtil {
                     (Double)variable.defaultValue));
         } else if (variable.type == Variable.VariableType.BOOLEAN) {
             return addAndConfigureNode(wfm, "org.knime.js.base.node.configuration.input.bool.BooleanDialogNodeFactory",
-                new BooleanDialogNodeSettings());
+                new BooleanDialogNodeSettings(variable.name, //
+                    variable.title, //
+                    variable.description, //
+                    (Boolean)variable.defaultValue //
+                ));
         } else {
             throw new UnsupportedOperationException("Unsupported variable type: " + variable.type);
         }
