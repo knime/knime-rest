@@ -15,7 +15,6 @@ import org.knime.core.node.NodeSettings;
 import org.knime.core.node.port.MetaPortInfo;
 import org.knime.core.node.workflow.NativeNodeContainer;
 import org.knime.core.node.workflow.NodeID;
-import org.knime.core.node.workflow.NodeUIInformation;
 import org.knime.core.node.workflow.SubNodeContainer;
 import org.knime.core.node.workflow.WorkflowAnnotationID;
 import org.knime.core.node.workflow.WorkflowManager;
@@ -57,6 +56,7 @@ final class WrapHTTPNodeUtil {
             });
             final var componentID = rootWfm.convertMetaNodeToSubNode(subWorkflowId).getConvertedNodeID();
             final var component = (SubNodeContainer)rootWfm.getNodeContainer(componentID);
+            component.setUIInformation(nc.getUIInformation());
             final var componentWfm = component.getWorkflowManager();
 
             final var httpNodeId =
@@ -112,8 +112,6 @@ final class WrapHTTPNodeUtil {
             // Add Text view preview
 
             new LayoutManager(WorkflowManagerWrapper.wrap(componentWfm), new Random().nextLong()).doLayout(null);
-
-            component.setUIInformation(NodeUIInformation.builder().setNodeLocation(20, 30, -1, -1).build());
             return component;
         }
     }
