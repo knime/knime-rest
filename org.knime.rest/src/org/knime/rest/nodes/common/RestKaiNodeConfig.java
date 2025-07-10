@@ -16,15 +16,20 @@ public class RestKaiNodeConfig {
     public ConstantOrVariable<Boolean> extractAllResponseHeaders;
     public ConstantOrVariable<String> bodyColumnName;
     public Authentication authentication;
-    
+
     /**
      * Authentication configuration for the REST request.
      */
     public static class Authentication {
-        public String type; // "None", "Basic", "Digest", "NTLM", "Kerberos", "Bearer"
-        public ConstantOrVariable<String> username;
-        public ConstantOrVariable<String> password;
-        public ConstantOrVariable<String> domain; // For NTLM
-        public ConstantOrVariable<String> token; // For Bearer
+        public String type; // "None", "Basic", "Bearer"
+        public CredentialsVariable credentialsVariable;
+
+        public static class CredentialsVariable {
+            public String name;
+            public String title;
+            public String description;
+            public String usernamePlaceholder;
+            public String passwordOrTokenPlaceholder;
+        }
     }
 }

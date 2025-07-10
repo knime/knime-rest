@@ -7,6 +7,8 @@ import java.util.function.Consumer;
 
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.webui.node.dialog.internal.VariableSettings;
+import org.knime.rest.generic.TokenAuthentication;
+import org.knime.rest.generic.UsernamePasswordAuthentication;
 
 /**
  * Utility class for mapping configuration POJOs to RestSettings/RestWithBodySettings.
@@ -127,83 +129,33 @@ public final class RestKaiNodeConfigMapper {
         if (config.authentication != null) {
             final String authType = config.authentication.type;
             if (authType != null && !authType.equals("None")) {
+
                 // Find the appropriate authentication configuration and enable it
                 for (var authConfig : cfg.getAuthorizationConfigurations()) {
-                    if (authConfig.getName().equals(authType)) {
-                        // Disable all other authentication methods
-                        for (var otherAuth : cfg.getAuthorizationConfigurations()) {
-                            otherAuth.setEnabled(false);
-                        }
-                        // Enable this authentication method
-                        authConfig.setEnabled(true);
-
-                        // Handle username/password authentication (Basic, Digest, NTLM)
-                        if (authType.equals("Basic") || authType.equals("Digest") || authType.equals("NTLM (Labs)")) {
-                            if (config.authentication.username != null) {
-                                if (config.authentication.username.isVariable()) {
-                                    final String variableName = config.authentication.username.getVariableName();
-                                    final String authKey = authType + " auth";
-                                    variableSetters.add(vs -> {
-                                        try {
-                                            //vs.getOrCreateVariableSettings(authKey).addUsedVariable("username",
-                                            //    variableName);
-                                        } catch (Exception e) {
-                                            // TODO Auto-generated catch block
-                                        }
-                                    });
-                                }
-                            }
-
-                            if (config.authentication.password != null) {
-                                if (config.authentication.password.isVariable()) {
-                                    final String variableName = config.authentication.password.getVariableName();
-                                    final String authKey = authType + " auth";
-                                    variableSetters.add(vs -> {
-                                        try {
-                                            //vs.getOrCreateVariableSettings(authKey).addUsedVariable("password",
-                                            //    variableName);
-                                        } catch (Exception e) {
-                                            // TODO Auto-generated catch block
-                                        }
-                                    });
-                                }
-                            }
-
-                            // Handle domain for NTLM
-                            if (authType.equals("NTLM (Labs)") && config.authentication.domain != null) {
-                                if (config.authentication.domain.isVariable()) {
-                                    final String variableName = config.authentication.domain.getVariableName();
-                                    variableSetters.add(vs -> {
-                                        try {
-                                           // vs.getOrCreateVariableSettings("NTLM-auth");
-                                            //vs
-                                            //    .addUsedVariable("org.knime.rest.auth.ntlm.domain", variableName);
-                                        } catch (Exception e) {
-                                            // TODO Auto-generated catch block
-                                        }
-                                    });
-                                }
-                            }
-                        }
-
-                        // Handle Bearer token authentication
-                        if (authType.equals("Bearer") && config.authentication.token != null) {
-                            if (config.authentication.token.isVariable()) {
-                                final String variableName = config.authentication.token.getVariableName();
-                                variableSetters.add(vs -> {
-                                    try {
-                                        //vs.getOrCreateVariableSettings("Bearer auth").addUsedVariable("password",
-                                        //    variableName);
-                                    } catch (Exception e) {
-                                        // TODO Auto-generated catch block
-                                    }
-                                });
-                            }
-                        }
-                        break;
+                    if (!authConfig.getName().equals(authType)) {
+                        authConfig.setEnabled(false);
+                        continue;
                     }
+                    // Enable this authentication method
+                    authConfig.setEnabled(true);
+
+                    // Handle username/password authentication (Basic, Digest, NTLM)
+                    if (authType.equals("Basic")) {
+                        final var usernamePasswordAuthConfig = (UsernamePasswordAuthentication)(authConfig.getUserConfiguration());
+                        usernamePasswordAuthConfig.setUseCredentials(true);
+                        usernamePasswordAuthConfig.setCredential(config.authentication.credentialsVariable.name);
+                    }
+
+                    // Handle Bearer token authentication
+                    if (authType.equals("Bearer")) {
+                        final var tokenAuthConfig = (TokenAuthentication)(authConfig.getUserConfiguration());
+                        tokenAuthConfig.setUseCredentials(true);
+                        tokenAuthConfig.setCredential(config.authentication.credentialsVariable.name);
+                    }
+                    break;
                 }
             }
+
         }
 
         if (cfg instanceof RestWithBodySettings withBodyCfg && config.body != null) {

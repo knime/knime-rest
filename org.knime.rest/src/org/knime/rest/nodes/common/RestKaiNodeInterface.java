@@ -130,7 +130,7 @@ public abstract class RestKaiNodeInterface implements KaiNodeInterface, KaiNodeI
                                 %s
                                 "headers": {
                                     "type": "object",
-                                    "description": "HTTP header map (string values)",
+                                    "description": "HTTP header map (string values). For Authentication, don't use these headers but use the provided configuration options of this node.",
                                     "additionalProperties": {
                                         "type": "string"
                                     }
@@ -260,28 +260,37 @@ public abstract class RestKaiNodeInterface implements KaiNodeInterface, KaiNodeI
                                     "properties": {
                                         "type": {
                                             "type": "string",
-                                            "enum": ["None", "Basic", "Digest", "NTLM", "Kerberos", "Bearer"],
+                                            "enum": ["None", "Basic", "Bearer"],
                                             "description": "Authentication type",
                                             "default": "None"
                                         },
-                                        "username": {
-                                            "oneOf": [
-                                                {
+                                        "credentialsVariable": {
+                                            "type": "object",
+                                            "description": "Not required in case of None authentication. For Basic, this variable holds a username and a password. For Bearer, it contains the API Key token."
+                                            "properties": {
+                                                "name": {
                                                     "type": "string",
-                                                    "description": "Username for Basic, Digest, or NTLM authentication"
+                                                    "description": "Variable name. Use kebap case. To avoid colisions, it should NOT be used as name for any of the templateVariables."
                                                 },
-                                                {
-                                                    "type": "object",
-                                                    "properties": {
-                                                        "variableName": {
-                                                            "type": "string",
-                                                            "description": "Name of templateVariable to use for username. Variable must be defined in templateVariables array."
-                                                        }
-                                                    },
-                                                    "required": ["variableName"],
-                                                    "additionalProperties": false
+                                                "title": {
+                                                    "type": "string",
+                                                    "description": "Variable title that describes for what this variable is used."
+                                                },
+                                                "description": {
+                                                    "type": "string",
+                                                    "description": "Variable description that described for what this variable is used."
+                                                },
+                                                "usernamePlaceholder" {
+                                                    "type": "string",
+                                                    "description": "Only used in case of Basic authentication. Short description that is used as placeholder for the username field in a visual interface.",
+                                                    "default": "Username"
+                                                },
+                                                "passwordOrTokenPlaceholder" {
+                                                    "type": "string",
+                                                    "description": "Short description that is used as placeholder for the password or token field in a visual interface.",
+                                                    "default": "Token"
                                                 }
-                                            ]
+                                            }
                                         },
                                         "password": {
                                             "oneOf": [
@@ -394,13 +403,16 @@ public abstract class RestKaiNodeInterface implements KaiNodeInterface, KaiNodeI
                     ],
                     "additionalProperties": false
                 }
-                       """.formatted(m_hasBody ? """
-                                 "body": {
-                                    "type": "string",
-                                    "description": "Request body. Supports templating via `{{var-name}}` with variables defined in `templateVariables`."
-                                },
+                       """
+            .formatted(m_hasBody
+                ? """
+                          "body": {
+                             "type": "string",
+                             "description": "Request body. Supports templating via `{{var-name}}` with variables defined in `templateVariables`."
+                         },
 
-                               """ : "");
+                        """
+                : "");
     }
 
     // -----------------------------------------------------------------------------------------
@@ -414,35 +426,30 @@ public abstract class RestKaiNodeInterface implements KaiNodeInterface, KaiNodeI
     public ConfigurePrompt getConfigurePrompt(final Map<SettingsType, NodeAndVariableSettingsRO> settings,
         final PortObjectSpec[] specs) {
         // A concise system message instructing the LLM what to do and how to respond.
-        final String systemMessage = """
-                You are configuring a KNIME \"%s Request\" node. Return **only** a JSON object matching the
-                schema provided. Populate at least the mandatory \"url\" field and, where useful, headers,
-                authentication, or time‑outs. Do not wrap the JSON in markdown, prose, or back‑ticks – the raw JSON is required.
+        final String systemMessage =
+            """
+                    You are configuring a KNIME \"%s Request\" node. Return **only** a JSON object matching the
+                    schema provided. Populate at least the mandatory \"url\" field and, where useful, headers,
+                    authentication, or time‑outs. Do not wrap the JSON in markdown, prose, or back‑ticks – the raw JSON is required.
 
-                For most settings, you can choose between providing a constant value or using a template variable:
-                - Use **constant values** when the setting should be fixed (e.g., timeout values, column names)
-                - Use **template variables** when the value should be configurable by the user or when you cannot
-                  determine the appropriate value (e.g., API keys, bearer tokens, passwords, environment-specific settings)
+                    For most settings, you can choose between providing a constant value or using a template variable:
+                    - Use **constant values** when the setting should be fixed (e.g., timeout values, column names)
+                    - Use **template variables** when the value should be configurable by the user or when you cannot
+                      determine the appropriate value (e.g., API keys, bearer tokens, passwords, environment-specific settings)
 
-                For url and body fields, use **{{variableName}}** syntax to embed variables within strings:
-                "url": "https://api.example.com/users/{{userId}}/posts/{{postId}}"
-                "body": "{'key': '{{apiKey}}', 'data': '{{userData}}'}"
+                    For url and body fields, use **{{variableName}}** syntax to embed variables within strings:
+                    "url": "https://api.example.com/users/{{userId}}/posts/{{postId}}"
+                    "body": "{'key': '{{apiKey}}', 'data': '{{userData}}'}"
 
-                For other settings, use the variableName format to reference a single variable:
-                "followRedirects": {"variableName": "follow-redirects-setting"}
+                    For other settings, use the variableName format to reference a single variable:
+                    "followRedirects": {"variableName": "follow-redirects-setting"}
 
-                For authentication, choose the appropriate type and provide credentials via variables:
-                - "None": No authentication required
-                - "Basic": Username/password authentication
-                - "Digest": Digest authentication with username/password
-                - "NTLM": Windows NTLM authentication with username/password/domain
-                - "Kerberos": Kerberos authentication
-                - "Bearer": Bearer token authentication
 
-                Example: Authentication credentials should always use variables since the AI agent cannot provide actual credentials.
-                Template variables must be defined in the templateVariables array with appropriate type, title,
-                and description to help users configure them properly.
-                """.formatted(m_method.name());
+                    Example: Authentication credentials should always use variables since the AI agent cannot provide actual credentials.
+                    Template variables must be defined in the templateVariables array with appropriate type, title,
+                    and description to help users configure them properly.
+                    """
+                .formatted(m_method.name());
         return new ConfigurePrompt(systemMessage, getOutputSchema());
     }
 
@@ -560,8 +567,8 @@ public abstract class RestKaiNodeInterface implements KaiNodeInterface, KaiNodeI
             // TODO (LOGGER + error response)
         }
 
-        return Optional
-            .of(WrapHTTPNodeUtil.configureHTTPNodeAndResolveTemplates((NativeNodeContainer)nc, templateVariables, nodeSettings, cfg, adjustVariables));
+        return Optional.of(WrapHTTPNodeUtil.configureHTTPNodeAndResolveTemplates((NativeNodeContainer)nc,
+            templateVariables, nodeSettings, cfg, adjustVariables));
 
     }
 
