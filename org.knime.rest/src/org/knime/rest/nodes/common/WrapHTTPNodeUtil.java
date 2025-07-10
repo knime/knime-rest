@@ -5,6 +5,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Random;
+import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -40,10 +41,12 @@ final class WrapHTTPNodeUtil {
      * @param configAndTemplateVariables
      * @param nodeSettings
      * @param cfg
+     * @param variableSetters
      * @return
      */
     static SubNodeContainer configureHTTPNodeAndResolveTemplates(final NativeNodeContainer nc,
-        final List<Variable> variables, final NodeSettings nodeSettings, final RestSettings cfg) {
+        final List<Variable> variables, final NodeSettings nodeSettings, final RestSettings cfg,
+        final List<Consumer<VariableSettings>> variableSetters) {
         final var rootWfm = nc.getParent();
         try (var unused = rootWfm.lock()) {
             final var ncModelClass = nc.getNodeModel().getClass();
@@ -69,18 +72,27 @@ final class WrapHTTPNodeUtil {
 
             var urlVariables = extractVariablesFromTemplate(urlWithTemplate, variables);
             var bodyVariables = extractVariablesFromTemplate(bodyWithTemplate, variables);
+            var otherVariables = extractAllOtherVariables(urlVariables, bodyVariables, variables);
 
             final var urlPerVariable =
                 addNodesToResolveTemplate(componentWfm, urlWithTemplate, urlVariables, "constructedUrl");
             final var bodyPerVariable =
                 addNodesToResolveTemplate(componentWfm, bodyWithTemplate, bodyVariables, "constructedBody");
 
+            NodeID otherVariablesNodeId = null;
+            if (!otherVariables.isEmpty()) {
+                otherVariablesNodeId = variablesToKnimeNodes(componentWfm, otherVariables);
+            }
+
+            // TODO: Connect to http node
+
+
             if (urlPerVariable.isPresent() && bodyPerVariable.isPresent()) {
                 // TODO: Merge and use as new predecessor below
                 throw new UnsupportedOperationException("Need to implement merging of expression-built variables.");
             }
 
-            setVariablesInHttpNode(componentWfm, nodeSettings, urlPerVariable, bodyPerVariable);
+            setVariablesInHttpNode(componentWfm, nodeSettings, urlPerVariable, bodyPerVariable, variableSetters);
             try {
                 componentWfm.loadNodeSettings(httpNodeId, nodeSettings);
             } catch (InvalidSettingsException e) {
@@ -90,26 +102,26 @@ final class WrapHTTPNodeUtil {
                 .ifPresent(predecessor -> componentWfm.addConnection(predecessor, 1, httpNodeId, 0));
             componentWfm.addConnection(httpNodeId, 1, component.getVirtualOutNodeID(), 1);
 
-//            final var bodyCellExtractor = addAndConfigureNode(componentWfm,
-//                "org.knime.base.node.preproc.table.cellextractor.CellExtractorNodeFactory",
-//                new CellExtractorSettings(cfg.getResponseBodyColumn(), 1));
-//
-//            final var textView =
-//                addAndConfigureNode(componentWfm, "org.knime.base.views.node.textview.TextViewNodeFactory", s -> {
-//                    s.addNodeSettings(SettingsType.VIEW.getConfigKey()).addString("richTextContent", "");
-//                    final var nodeSettingsVariables = s.addNodeSettings(SettingsType.VIEW.getVariablesConfigKey());
-//                    urlPerVariable.ifPresent(_urlExpression -> {
-//                        final var variableSettings = new VariableSettings(s, SettingsType.VIEW);
-//                        try {
-//                            variableSettings.addUsedVariable("richTextContent", "extracted_cell");
-//                        } catch (InvalidSettingsException ex) {
-//                            throw new IllegalStateException(ex);
-//                        }
-//                        variableSettings.getVariableSettings().ifPresent(vars -> vars.copyTo(nodeSettingsVariables));
-//                    });
-//                });
-//            componentWfm.addConnection(httpNodeId, 1, bodyCellExtractor, 1);
-//            componentWfm.addConnection(bodyCellExtractor, 1, textView, 0);
+            //            final var bodyCellExtractor = addAndConfigureNode(componentWfm,
+            //                "org.knime.base.node.preproc.table.cellextractor.CellExtractorNodeFactory",
+            //                new CellExtractorSettings(cfg.getResponseBodyColumn(), 1));
+            //
+            //            final var textView =
+            //                addAndConfigureNode(componentWfm, "org.knime.base.views.node.textview.TextViewNodeFactory", s -> {
+            //                    s.addNodeSettings(SettingsType.VIEW.getConfigKey()).addString("richTextContent", "");
+            //                    final var nodeSettingsVariables = s.addNodeSettings(SettingsType.VIEW.getVariablesConfigKey());
+            //                    urlPerVariable.ifPresent(_urlExpression -> {
+            //                        final var variableSettings = new VariableSettings(s, SettingsType.VIEW);
+            //                        try {
+            //                            variableSettings.addUsedVariable("richTextContent", "extracted_cell");
+            //                        } catch (InvalidSettingsException ex) {
+            //                            throw new IllegalStateException(ex);
+            //                        }
+            //                        variableSettings.getVariableSettings().ifPresent(vars -> vars.copyTo(nodeSettingsVariables));
+            //                    });
+            //                });
+            //            componentWfm.addConnection(httpNodeId, 1, bodyCellExtractor, 1);
+            //            componentWfm.addConnection(bodyCellExtractor, 1, textView, 0);
 
             // Add Text view preview
 
@@ -118,8 +130,17 @@ final class WrapHTTPNodeUtil {
         }
     }
 
+    private static List<Variable> extractAllOtherVariables(final List<Variable> urlVariables,
+        final List<Variable> bodyVariables, final List<Variable> variables) {
+        if (variables == null || variables.isEmpty()) {
+            return List.of();
+        }
+        return variables.stream().filter(var -> !urlVariables.contains(var) && !bodyVariables.contains(var)).toList();
+
+    }
+
     private static void setVariablesInHttpNode(final WorkflowManager componentWfm, final NodeSettings nodeSettings,
-        final Optional<NodeID> urlPerVariable, final Optional<NodeID> bodyPerVariable) {
+        final Optional<NodeID> urlPerVariable, final Optional<NodeID> bodyPerVariable, final List<Consumer<VariableSettings>> variableSetters) {
         final var urlCfgKey = "Constant URI";
         final var bodyCfgKey = "Constant request body";
         final var nodeSettingsVariables = nodeSettings.addNodeSettings(SettingsType.MODEL.getVariablesConfigKey());
@@ -141,6 +162,13 @@ final class WrapHTTPNodeUtil {
             }
             variableSettings.getVariableSettings().ifPresent(vars -> vars.copyTo(nodeSettingsVariables));
         });
+        if (!variableSetters.isEmpty()) {
+            final var variableSettings = new VariableSettings(nodeSettings, SettingsType.MODEL);
+
+            variableSetters.forEach(setter -> setter.accept(variableSettings));
+            variableSettings.getVariableSettings().ifPresent(vars -> vars.copyTo(nodeSettingsVariables));
+
+        }
     }
 
     static final Pattern TEMPLATE_PATTERN = Pattern.compile("\\{\\{(.*?)\\}\\}");
@@ -176,14 +204,7 @@ final class WrapHTTPNodeUtil {
         if (variables.isEmpty()) {
             return Optional.empty();
         }
-        NodeID predecessor = null;
-        for (var variable : variables) {
-            var newNode = addConfigurationNode(componentWfm, variable);
-            if (predecessor != null) {
-                componentWfm.addConnection(predecessor, 1, newNode, 0);
-            }
-            predecessor = newNode;
-        }
+        NodeID predecessor = variablesToKnimeNodes(componentWfm, variables);
 
         var expression = templateToExpression(template);
         var expressionNode = addAndConfigureNode(componentWfm,
@@ -196,6 +217,23 @@ final class WrapHTTPNodeUtil {
             });
         componentWfm.addConnection(predecessor, 1, expressionNode, 0);
         return Optional.of(expressionNode);
+    }
+
+    /**
+     * @param componentWfm
+     * @param variables
+     * @return
+     */
+    public static NodeID variablesToKnimeNodes(final WorkflowManager componentWfm, final List<Variable> variables) {
+        NodeID predecessor = null;
+        for (var variable : variables) {
+            var newNode = addConfigurationNode(componentWfm, variable);
+            if (predecessor != null) {
+                componentWfm.addConnection(predecessor, 1, newNode, 0);
+            }
+            predecessor = newNode;
+        }
+        return predecessor;
     }
 
     private static String templateToExpression(final String template) {

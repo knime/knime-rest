@@ -67,9 +67,8 @@ import org.knime.core.webui.node.dialog.SettingsType;
 import org.knime.core.webui.node.dialog.kai.KaiNodeInterface;
 import org.knime.rest.nodes.KaiNodeInterfaceWithComponentWrapper;
 
-import com.google.gson.Gson;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
  * Kai interface implementation for the GET Request node. The implementation exposes the most important settings of
@@ -137,33 +136,213 @@ public abstract class RestKaiNodeInterface implements KaiNodeInterface, KaiNodeI
                                     }
                                 },
                                 "followRedirects": {
-                                    "type": "boolean",
-                                    "default": true
+                                    "oneOf": [
+                                        {
+                                            "type": "boolean",
+                                            "default": true
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "variableName": {
+                                                    "type": "string",
+                                                    "description": "Name of templateVariable to use for followRedirects. Variable must be defined in templateVariables array."
+                                                }
+                                            },
+                                            "required": ["variableName"],
+                                            "additionalProperties": false
+                                        }
+                                    ]
                                 },
                                 "connectTimeout": {
-                                    "type": "integer",
-                                    "minimum": 0,
-                                    "description": "Connection timeout in seconds"
+                                    "oneOf": [
+                                        {
+                                            "type": "integer",
+                                            "minimum": 0,
+                                            "description": "Connection timeout in seconds"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "variableName": {
+                                                    "type": "string",
+                                                    "description": "Name of templateVariable to use for connectTimeout. Variable must be defined in templateVariables array."
+                                                }
+                                            },
+                                            "required": ["variableName"],
+                                            "additionalProperties": false
+                                        }
+                                    ]
                                 },
                                 "readTimeout": {
-                                    "type": "integer",
-                                    "minimum": 0,
-                                    "description": "Read timeout in seconds"
+                                    "oneOf": [
+                                        {
+                                            "type": "integer",
+                                            "minimum": 0,
+                                            "description": "Read timeout in seconds"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "variableName": {
+                                                    "type": "string",
+                                                    "description": "Name of templateVariable to use for readTimeout. Variable must be defined in templateVariables array."
+                                                }
+                                            },
+                                            "required": ["variableName"],
+                                            "additionalProperties": false
+                                        }
+                                    ]
                                 },
                                 "concurrency": {
-                                    "type": "integer",
-                                    "minimum": 1,
-                                    "maximum": 32,
-                                    "description": "Number of parallel requests"
+                                    "oneOf": [
+                                        {
+                                            "type": "integer",
+                                            "minimum": 1,
+                                            "maximum": 32,
+                                            "description": "Number of parallel requests"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "variableName": {
+                                                    "type": "string",
+                                                    "description": "Name of templateVariable to use for concurrency. Variable must be defined in templateVariables array."
+                                                }
+                                            },
+                                            "required": ["variableName"],
+                                            "additionalProperties": false
+                                        }
+                                    ]
                                 },
                                 "extractAllResponseHeaders": {
-                                    "type": "boolean",
-                                    "default": false
+                                    "oneOf": [
+                                        {
+                                            "type": "boolean",
+                                            "default": false
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "variableName": {
+                                                    "type": "string",
+                                                    "description": "Name of templateVariable to use for extractAllResponseHeaders. Variable must be defined in templateVariables array."
+                                                }
+                                            },
+                                            "required": ["variableName"],
+                                            "additionalProperties": false
+                                        }
+                                    ]
                                 },
                                 "bodyColumnName": {
-                                    "type": "string",
-                                    "description": "Name of the output column holding the response body",
-                                    "default": "body"
+                                    "oneOf": [
+                                        {
+                                            "type": "string",
+                                            "description": "Name of the output column holding the response body",
+                                            "default": "body"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "variableName": {
+                                                    "type": "string",
+                                                    "description": "Name of templateVariable to use for bodyColumnName. Variable must be defined in templateVariables array."
+                                                }
+                                            },
+                                            "required": ["variableName"],
+                                            "additionalProperties": false
+                                        }
+                                    ]
+                                },
+                                "authentication": {
+                                    "type": "object",
+                                    "description": "Authentication configuration for the REST request",
+                                    "properties": {
+                                        "type": {
+                                            "type": "string",
+                                            "enum": ["None", "Basic", "Digest", "NTLM", "Kerberos", "Bearer"],
+                                            "description": "Authentication type",
+                                            "default": "None"
+                                        },
+                                        "username": {
+                                            "oneOf": [
+                                                {
+                                                    "type": "string",
+                                                    "description": "Username for Basic, Digest, or NTLM authentication"
+                                                },
+                                                {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "variableName": {
+                                                            "type": "string",
+                                                            "description": "Name of templateVariable to use for username. Variable must be defined in templateVariables array."
+                                                        }
+                                                    },
+                                                    "required": ["variableName"],
+                                                    "additionalProperties": false
+                                                }
+                                            ]
+                                        },
+                                        "password": {
+                                            "oneOf": [
+                                                {
+                                                    "type": "string",
+                                                    "description": "Password for Basic, Digest, or NTLM authentication"
+                                                },
+                                                {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "variableName": {
+                                                            "type": "string",
+                                                            "description": "Name of templateVariable to use for password. Variable must be defined in templateVariables array."
+                                                        }
+                                                    },
+                                                    "required": ["variableName"],
+                                                    "additionalProperties": false
+                                                }
+                                            ]
+                                        },
+                                        "domain": {
+                                            "oneOf": [
+                                                {
+                                                    "type": "string",
+                                                    "description": "Domain for NTLM authentication"
+                                                },
+                                                {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "variableName": {
+                                                            "type": "string",
+                                                            "description": "Name of templateVariable to use for domain. Variable must be defined in templateVariables array."
+                                                        }
+                                                    },
+                                                    "required": ["variableName"],
+                                                    "additionalProperties": false
+                                                }
+                                            ]
+                                        },
+                                        "token": {
+                                            "oneOf": [
+                                                {
+                                                    "type": "string",
+                                                    "description": "Bearer token for Bearer authentication"
+                                                },
+                                                {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "variableName": {
+                                                            "type": "string",
+                                                            "description": "Name of templateVariable to use for token. Variable must be defined in templateVariables array."
+                                                        }
+                                                    },
+                                                    "required": ["variableName"],
+                                                    "additionalProperties": false
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    "required": ["type"],
+                                    "additionalProperties": false
                                 }
                             },
                             "required": [
@@ -237,8 +416,32 @@ public abstract class RestKaiNodeInterface implements KaiNodeInterface, KaiNodeI
         // A concise system message instructing the LLM what to do and how to respond.
         final String systemMessage = """
                 You are configuring a KNIME \"%s Request\" node. Return **only** a JSON object matching the
-                schema provided. Populate at least the mandatory \"url\" field and, where useful, headers or
-                time‑outs. Do not wrap the JSON in markdown, prose, or back‑ticks – the raw JSON is required.
+                schema provided. Populate at least the mandatory \"url\" field and, where useful, headers,
+                authentication, or time‑outs. Do not wrap the JSON in markdown, prose, or back‑ticks – the raw JSON is required.
+
+                For most settings, you can choose between providing a constant value or using a template variable:
+                - Use **constant values** when the setting should be fixed (e.g., timeout values, column names)
+                - Use **template variables** when the value should be configurable by the user or when you cannot
+                  determine the appropriate value (e.g., API keys, bearer tokens, passwords, environment-specific settings)
+
+                For url and body fields, use **{{variableName}}** syntax to embed variables within strings:
+                "url": "https://api.example.com/users/{{userId}}/posts/{{postId}}"
+                "body": "{'key': '{{apiKey}}', 'data': '{{userData}}'}"
+
+                For other settings, use the variableName format to reference a single variable:
+                "followRedirects": {"variableName": "follow-redirects-setting"}
+
+                For authentication, choose the appropriate type and provide credentials via variables:
+                - "None": No authentication required
+                - "Basic": Username/password authentication
+                - "Digest": Digest authentication with username/password
+                - "NTLM": Windows NTLM authentication with username/password/domain
+                - "Kerberos": Kerberos authentication
+                - "Bearer": Bearer token authentication
+
+                Example: Authentication credentials should always use variables since the AI agent cannot provide actual credentials.
+                Template variables must be defined in the templateVariables array with appropriate type, title,
+                and description to help users configure them properly.
                 """.formatted(m_method.name());
         return new ConfigurePrompt(systemMessage, getOutputSchema());
     }
@@ -255,11 +458,12 @@ public abstract class RestKaiNodeInterface implements KaiNodeInterface, KaiNodeI
         // Parse the JSON returned by the model, expecting {"data": {...}}
         final RestKaiNodeConfig config;
         try {
-            JsonObject root = JsonParser.parseString(response.trim()).getAsJsonObject();
-            if (!root.has("data") || !root.get("data").isJsonObject()) {
+            ObjectMapper mapper = new ObjectMapper();
+            JsonNode root = mapper.readTree(response.trim());
+            if (!root.has("data") || !root.get("data").isObject()) {
                 throw new IllegalArgumentException("Response JSON must have a 'data' object property");
             }
-            config = new Gson().fromJson(root.getAsJsonObject("data").get("configuration"), RestKaiNodeConfig.class);
+            config = mapper.convertValue(root.get("data").get("configuration"), RestKaiNodeConfig.class);
         } catch (Exception ex) {
             throw new IllegalArgumentException(
                 "Model response is not valid JSON or does not match expected schema: " + ex.getMessage(), ex);
@@ -317,12 +521,12 @@ public abstract class RestKaiNodeInterface implements KaiNodeInterface, KaiNodeI
         // Parse the JSON returned by the model, expecting {"data": {...}}
         final ConfigurationAndTemplate configAndTemplateVariables;
         try {
-            JsonObject root = JsonParser.parseString(response.trim()).getAsJsonObject();
-            if (!root.has("data") || !root.get("data").isJsonObject()) {
+            ObjectMapper mapper = new ObjectMapper();
+            JsonNode root = mapper.readTree(response.trim());
+            if (!root.has("data") || !root.get("data").isObject()) {
                 throw new IllegalArgumentException("Response JSON must have a 'data' object property");
             }
-            configAndTemplateVariables =
-                new Gson().fromJson(root.getAsJsonObject("data"), ConfigurationAndTemplate.class);
+            configAndTemplateVariables = mapper.convertValue(root.get("data"), ConfigurationAndTemplate.class);
         } catch (Exception ex) {
             throw new IllegalArgumentException(
                 "Model response is not valid JSON or does not match expected schema: " + ex.getMessage(), ex);
@@ -337,7 +541,7 @@ public abstract class RestKaiNodeInterface implements KaiNodeInterface, KaiNodeI
 
         // Build RestGetSettings from the POJO
         final RestSettings cfg = m_settingsCreator.get();
-        RestKaiNodeConfigMapper.applyCommonConfig(config, cfg);
+        final var adjustVariables = RestKaiNodeConfigMapper.applyCommonConfig(config, cfg);
 
         final var wfm = nc.getParent();
         final var nodeSettings = new NodeSettings("http node settings");
@@ -357,7 +561,7 @@ public abstract class RestKaiNodeInterface implements KaiNodeInterface, KaiNodeI
         }
 
         return Optional
-            .of(WrapHTTPNodeUtil.configureHTTPNodeAndResolveTemplates((NativeNodeContainer)nc, templateVariables, nodeSettings, cfg));
+            .of(WrapHTTPNodeUtil.configureHTTPNodeAndResolveTemplates((NativeNodeContainer)nc, templateVariables, nodeSettings, cfg, adjustVariables));
 
     }
 

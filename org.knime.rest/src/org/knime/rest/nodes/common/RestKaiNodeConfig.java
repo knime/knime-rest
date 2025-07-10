@@ -9,10 +9,22 @@ public class RestKaiNodeConfig {
     public String url;
     public String body;
     public Map<String, String> headers;
-    public Boolean followRedirects;
-    public Integer connectTimeout;
-    public Integer readTimeout;
-    public Integer concurrency;
-    public Boolean extractAllResponseHeaders;
-    public String bodyColumnName;
+    public ConstantOrVariable<Boolean> followRedirects;
+    public ConstantOrVariable<Integer> connectTimeout;
+    public ConstantOrVariable<Integer> readTimeout;
+    public ConstantOrVariable<Integer> concurrency;
+    public ConstantOrVariable<Boolean> extractAllResponseHeaders;
+    public ConstantOrVariable<String> bodyColumnName;
+    public Authentication authentication;
+    
+    /**
+     * Authentication configuration for the REST request.
+     */
+    public static class Authentication {
+        public String type; // "None", "Basic", "Digest", "NTLM", "Kerberos", "Bearer"
+        public ConstantOrVariable<String> username;
+        public ConstantOrVariable<String> password;
+        public ConstantOrVariable<String> domain; // For NTLM
+        public ConstantOrVariable<String> token; // For Bearer
+    }
 }
