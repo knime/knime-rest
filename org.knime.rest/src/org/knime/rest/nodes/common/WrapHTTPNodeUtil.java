@@ -12,7 +12,9 @@ import java.util.regex.Pattern;
 import org.knime.core.node.BufferedDataTable;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettings;
+import org.knime.core.node.context.ports.ExtendablePortGroup;
 import org.knime.core.node.port.MetaPortInfo;
+import org.knime.core.node.port.flowvariable.FlowVariablePortObject;
 import org.knime.core.node.workflow.NativeNodeContainer;
 import org.knime.core.node.workflow.NodeID;
 import org.knime.core.node.workflow.SubNodeContainer;
@@ -38,11 +40,13 @@ final class WrapHTTPNodeUtil {
 
     /**
      * Add a credentials configuration node based on the authentication configuration
+     *
      * @param componentWfm The workflow manager to add the node to
      * @param config The REST configuration containing authentication settings
      * @return The NodeID of the created credentials configuration node, or null if no credentials needed
      */
-    private static NodeID addCredentialsConfiguration(final WorkflowManager componentWfm, final RestKaiNodeConfig config) {
+    private static NodeID addCredentialsConfiguration(final WorkflowManager componentWfm,
+        final RestKaiNodeConfig config) {
         if (config.authentication == null || config.authentication.credentialsVariable == null) {
             return null;
         }
@@ -56,14 +60,15 @@ final class WrapHTTPNodeUtil {
         final boolean hideUsername = authType.equals("Bearer");
 
         return addAndConfigureNode(componentWfm,
-            "org.knime.js.base.node.configuration.input.credentials.CredentialsDialogNodeFactory",
-            nodeSettings -> {
+            "org.knime.js.base.node.configuration.input.credentials.CredentialsDialogNodeFactory", nodeSettings -> {
                 var modelSettings = nodeSettings.addNodeSettings("model");
                 modelSettings.addString("parameterName", credVar.name);
                 modelSettings.addString("label", credVar.title != null ? credVar.title : credVar.name);
                 modelSettings.addString("description", credVar.description != null ? credVar.description : "");
-                modelSettings.addString("usernameLabel", credVar.usernamePlaceholder != null ? credVar.usernamePlaceholder : "Username");
-                modelSettings.addString("passwordLabel", credVar.passwordOrTokenPlaceholder != null ? credVar.passwordOrTokenPlaceholder : (hideUsername ? "Token" : "Password"));
+                modelSettings.addString("usernameLabel",
+                    credVar.usernamePlaceholder != null ? credVar.usernamePlaceholder : "Username");
+                modelSettings.addString("passwordLabel", credVar.passwordOrTokenPlaceholder != null
+                    ? credVar.passwordOrTokenPlaceholder : (hideUsername ? "Token" : "Password"));
                 modelSettings.addString("flowVariableName", credVar.name);
                 modelSettings.addBoolean("prompt_username", !hideUsername);
                 modelSettings.addBoolean("hideInDialog", false);
@@ -133,22 +138,15 @@ final class WrapHTTPNodeUtil {
 
             NodeID credentialsNodeId = addCredentialsConfiguration(componentWfm, config);
 
-            // TODO: Connect to http node
-
-
-            if (urlPerVariable.isPresent() && bodyPerVariable.isPresent()) {
-                // TODO: Merge and use as new predecessor below
-                throw new UnsupportedOperationException("Need to implement merging of expression-built variables.");
-            }
-
             setVariablesInHttpNode(componentWfm, nodeSettings, urlPerVariable, bodyPerVariable, variableSetters);
             try {
                 componentWfm.loadNodeSettings(httpNodeId, nodeSettings);
             } catch (InvalidSettingsException e) {
                 // TODO Auto-generated catch block
             }
-            urlPerVariable.or(() -> bodyPerVariable)
-                .ifPresent(predecessor -> componentWfm.addConnection(predecessor, 1, httpNodeId, 0));
+            final var predecessorNodeID =
+                toPredecessor(componentWfm, urlPerVariable, bodyPerVariable, otherVariablesNodeId, credentialsNodeId);
+            componentWfm.addConnection(predecessorNodeID, 1, httpNodeId, 0);
             componentWfm.addConnection(httpNodeId, 1, component.getVirtualOutNodeID(), 1);
 
             //            final var bodyCellExtractor = addAndConfigureNode(componentWfm,
@@ -179,6 +177,65 @@ final class WrapHTTPNodeUtil {
         }
     }
 
+    /**
+     * @param urlPerVariable
+     * @param bodyPerVariable
+     * @param otherVariablesNodeId
+     * @param credentialsNodeId
+     * @return the one predecessor of the HTTP node that contains all necessary variables.
+     */
+    public static NodeID toPredecessor(final WorkflowManager wfm, final Optional<NodeID> urlPerVariable,
+        final Optional<NodeID> bodyPerVariable, final NodeID otherVariablesNodeId, final NodeID credentialsNodeId) {
+        final var numberOfPredecessors = (urlPerVariable.isPresent() ? 1 : 0) //
+            + (bodyPerVariable.isPresent() ? 1 : 0) //
+            + (otherVariablesNodeId == null ? 0 : 1) //
+            + (credentialsNodeId == null ? 0 : 1);
+        if (numberOfPredecessors == 0) {
+            throw new IllegalStateException("Something went wrong. There should be predecessors");
+        }
+        if (numberOfPredecessors == 1) {
+            if (urlPerVariable.isPresent()) {
+                return urlPerVariable.get();
+            }
+            if (bodyPerVariable.isPresent()) {
+                return bodyPerVariable.get();
+            }
+            if (otherVariablesNodeId != null) {
+                return otherVariablesNodeId;
+            }
+            if (credentialsNodeId != null) {
+                return credentialsNodeId;
+            }
+        }
+        final var mergerNodeID =
+            addAndConfigureNode(wfm, "org.knime.base.node.util.mergevariables.MergeVariables2NodeFactory", s -> {
+            });
+        final var mergerNC = ((NativeNodeContainer)wfm.getNodeContainer(mergerNodeID));
+        mergerNC.getNode().getCopyOfCreationConfig()
+            .ifPresent(configuration -> configuration.getPortConfig().ifPresent(portConfig -> {
+                final var group = (ExtendablePortGroup)portConfig.getGroup("input");
+                for (int i = 0; i < numberOfPredecessors - 2; i++) {
+                    group.addPort(FlowVariablePortObject.TYPE);
+                }
+                wfm.replaceNode(mergerNodeID, configuration);
+            }));
+        int count = 1;
+        if (urlPerVariable.isPresent()) {
+            wfm.addConnection(urlPerVariable.get(), 1, mergerNodeID, count++);
+        }
+        if (bodyPerVariable.isPresent()) {
+            wfm.addConnection(bodyPerVariable.get(), 1, mergerNodeID, count++);
+        }
+        if (otherVariablesNodeId != null) {
+            wfm.addConnection(otherVariablesNodeId, 1, mergerNodeID, count++);
+        }
+        if (credentialsNodeId != null) {
+            wfm.addConnection(credentialsNodeId, 1, mergerNodeID, count++);
+        }
+        return mergerNodeID;
+
+    }
+
     private static List<Variable> extractAllOtherVariables(final List<Variable> urlVariables,
         final List<Variable> bodyVariables, final List<Variable> variables) {
         if (variables == null || variables.isEmpty()) {
@@ -189,7 +246,8 @@ final class WrapHTTPNodeUtil {
     }
 
     private static void setVariablesInHttpNode(final WorkflowManager componentWfm, final NodeSettings nodeSettings,
-        final Optional<NodeID> urlPerVariable, final Optional<NodeID> bodyPerVariable, final List<Consumer<VariableSettings>> variableSetters) {
+        final Optional<NodeID> urlPerVariable, final Optional<NodeID> bodyPerVariable,
+        final List<Consumer<VariableSettings>> variableSetters) {
         final var urlCfgKey = "Constant URI";
         final var bodyCfgKey = "Constant request body";
         final var nodeSettingsVariables = nodeSettings.addNodeSettings(SettingsType.MODEL.getVariablesConfigKey());
