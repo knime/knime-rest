@@ -46,74 +46,75 @@ final class WrapHTTPNodeUtil {
     static SubNodeContainer configureHTTPNodeAndResolveTemplates(final NativeNodeContainer nc,
         final List<Variable> variables, final NodeSettings nodeSettings, final RestSettings cfg) {
         final var rootWfm = nc.getParent();
-        final var ncModelClass = nc.getNodeModel().getClass();
-        final var collapseResult =
-            rootWfm.collapseIntoMetaNode(new NodeID[]{nc.getID()}, new WorkflowAnnotationID[0],
-                nc.getNodeAnnotation().getText());
-        final var subWorkflowId = collapseResult.getCollapsedMetanodeID();
-        rootWfm.changeMetaNodeOutputPorts(subWorkflowId, new MetaPortInfo[]{ //
-            MetaPortInfo.builder().setPortType(BufferedDataTable.TYPE).build(), //
-        });
-        final var componentID = rootWfm.convertMetaNodeToSubNode(subWorkflowId).getConvertedNodeID();
-        final var component = (SubNodeContainer)rootWfm.getNodeContainer(componentID);
-        final var componentWfm = component.getWorkflowManager();
+        try (var unused = rootWfm.lock()) {
+            final var ncModelClass = nc.getNodeModel().getClass();
+            final var collapseResult = rootWfm.collapseIntoMetaNode(new NodeID[]{nc.getID()},
+                new WorkflowAnnotationID[0], nc.getNodeAnnotation().getText());
+            final var subWorkflowId = collapseResult.getCollapsedMetanodeID();
+            rootWfm.changeMetaNodeOutputPorts(subWorkflowId, new MetaPortInfo[]{ //
+                MetaPortInfo.builder().setPortType(BufferedDataTable.TYPE).build(), //
+            });
+            final var componentID = rootWfm.convertMetaNodeToSubNode(subWorkflowId).getConvertedNodeID();
+            final var component = (SubNodeContainer)rootWfm.getNodeContainer(componentID);
+            final var componentWfm = component.getWorkflowManager();
 
+            final var httpNodeId =
+                componentWfm.findNodes(ncModelClass, false).keySet().stream().findFirst().orElseThrow();
 
-        final var httpNodeId = componentWfm.findNodes(ncModelClass, false).keySet().stream().findFirst().orElseThrow();
+            String urlWithTemplate = cfg.getConstantURL();
+            String bodyWithTemplate = "";
 
-        String urlWithTemplate = cfg.getConstantURL();
-        String bodyWithTemplate = "";
+            var urlVariables = extractVariablesFromTemplate(urlWithTemplate, variables);
+            var bodyVariables = extractVariablesFromTemplate(bodyWithTemplate, variables);
 
-        var urlVariables = extractVariablesFromTemplate(urlWithTemplate, variables);
-        var bodyVariables = extractVariablesFromTemplate(bodyWithTemplate, variables);
+            final var urlPerVariable =
+                addNodesToResolveTemplate(componentWfm, urlWithTemplate, urlVariables, "constructedUrl");
+            final var bodyPerVariable =
+                addNodesToResolveTemplate(componentWfm, bodyWithTemplate, bodyVariables, "constructedBody");
 
-        final var urlPerVariable =
-            addNodesToResolveTemplate(componentWfm, urlWithTemplate, urlVariables, "constructedUrl");
-        final var bodyPerVariable =
-            addNodesToResolveTemplate(componentWfm, bodyWithTemplate, bodyVariables, "constructedBody");
+            if (urlPerVariable.isPresent() && bodyPerVariable.isPresent()) {
+                // TODO: Merge and use as new predecessor below
+                throw new UnsupportedOperationException("Need to implement merging of expression-built variables.");
+            }
 
-        if (urlPerVariable.isPresent() && bodyPerVariable.isPresent()) {
-            // TODO: Merge and use as new predecessor below
-            throw new UnsupportedOperationException("Need to implement merging of expression-built variables.");
+            setVariablesInHttpNode(componentWfm, nodeSettings, urlPerVariable, bodyPerVariable);
+            try {
+                componentWfm.loadNodeSettings(httpNodeId, nodeSettings);
+            } catch (InvalidSettingsException e) {
+                // TODO Auto-generated catch block
+            }
+            urlPerVariable.or(() -> bodyPerVariable)
+                .ifPresent(predecessor -> componentWfm.addConnection(predecessor, 1, httpNodeId, 0));
+            componentWfm.addConnection(httpNodeId, 1, component.getVirtualOutNodeID(), 1);
+
+            final var bodyCellExtractor = addAndConfigureNode(componentWfm,
+                "org.knime.base.node.preproc.table.cellextractor.CellExtractorNodeFactory",
+                new CellExtractorSettings(cfg.getResponseBodyColumn(), 1));
+
+            final var textView =
+                addAndConfigureNode(componentWfm, "org.knime.base.views.node.textview.TextViewNodeFactory", s -> {
+                    s.addNodeSettings(SettingsType.VIEW.getConfigKey()).addString("richTextContent", "");
+                    final var nodeSettingsVariables = s.addNodeSettings(SettingsType.VIEW.getVariablesConfigKey());
+                    urlPerVariable.ifPresent(_urlExpression -> {
+                        final var variableSettings = new VariableSettings(s, SettingsType.VIEW);
+                        try {
+                            variableSettings.addUsedVariable("richTextContent", "extracted_cell");
+                        } catch (InvalidSettingsException ex) {
+                            throw new IllegalStateException(ex);
+                        }
+                        variableSettings.getVariableSettings().ifPresent(vars -> vars.copyTo(nodeSettingsVariables));
+                    });
+                });
+            componentWfm.addConnection(httpNodeId, 1, bodyCellExtractor, 1);
+            componentWfm.addConnection(bodyCellExtractor, 1, textView, 0);
+
+            // Add Text view preview
+
+            new LayoutManager(WorkflowManagerWrapper.wrap(componentWfm), new Random().nextLong()).doLayout(null);
+
+            component.setUIInformation(NodeUIInformation.builder().setNodeLocation(20, 30, -1, -1).build());
+            return component;
         }
-
-        setVariablesInHttpNode(componentWfm, nodeSettings, urlPerVariable, bodyPerVariable);
-        try {
-            componentWfm.loadNodeSettings(httpNodeId, nodeSettings);
-        } catch (InvalidSettingsException e) {
-            // TODO Auto-generated catch block
-        }
-        urlPerVariable.or(() -> bodyPerVariable)
-            .ifPresent(predecessor -> componentWfm.addConnection(predecessor, 1, httpNodeId, 0));
-        componentWfm.addConnection(httpNodeId, 1, component.getVirtualOutNodeID(), 1);
-
-//        final var bodyCellExtractor = addAndConfigureNode(componentWfm,
-//            "org.knime.base.node.preproc.table.cellextractor.CellExtractorNodeFactory",
-//            new CellExtractorSettings(cfg.getResponseBodyColumn(), 1));
-//
-//        final var textView =
-//            addAndConfigureNode(componentWfm, "org.knime.base.views.node.textview.TextViewNodeFactory", s -> {
-//                s.addNodeSettings(SettingsType.VIEW.getConfigKey()).addString("richTextContent", "");
-//                final var nodeSettingsVariables = s.addNodeSettings(SettingsType.VIEW.getVariablesConfigKey());
-//                urlPerVariable.ifPresent(_urlExpression -> {
-//                    final var variableSettings = new VariableSettings(s, SettingsType.VIEW);
-//                    try {
-//                        variableSettings.addUsedVariable("richTextContent", "extracted_cell");
-//                    } catch (InvalidSettingsException ex) {
-//                        throw new IllegalStateException(ex);
-//                    }
-//                    variableSettings.getVariableSettings().ifPresent(vars -> vars.copyTo(nodeSettingsVariables));
-//                });
-//            });
-//        componentWfm.addConnection(httpNodeId, 1, bodyCellExtractor, 1);
-//        componentWfm.addConnection(bodyCellExtractor, 1, textView, 0);
-
-        // Add Text view preview
-
-        new LayoutManager(WorkflowManagerWrapper.wrap(componentWfm), new Random().nextLong()).doLayout(null);
-
-        component.setUIInformation(NodeUIInformation.builder().setNodeLocation(20, 30, -1, -1).build());
-        return component;
     }
 
     private static void setVariablesInHttpNode(final WorkflowManager componentWfm, final NodeSettings nodeSettings,
