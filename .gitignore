@@ -6,3 +6,4 @@
 **/.polyglot.build.properties
 **/.polyglot.feature.xml
 **/.polyglot.META-INF
+*/lib/*.jar

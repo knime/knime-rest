@@ -3,13 +3,14 @@ Bundle-ManifestVersion: 2
 Bundle-Name: KNIME REST Client Node (Webpage Retriever)
 Bundle-SymbolicName: org.knime.rest.webpageretriever;singleton:=true
 Bundle-Version: 5.9.0.qualifier
+Bundle-ClassPath: .,
+ lib/jsoup-1.17.2.jar
 Bundle-Vendor: KNIME AG, Zurich, Switzerland
 Require-Bundle: org.knime.base;bundle-version="[5.6.0,6.0.0)",
  jakarta.ws.rs-api;bundle-version="[3.1.0,4.0.0)",
  org.apache.cxf.cxf-rt-rs-client;bundle-version="[4.0.3,5.0.0)",
  org.apache.commons.lang3;bundle-version="[3.18.0,4.0.0)",
  org.knime.rest;bundle-version="[5.9.0,6.0.0)",
- org.jsoup;bundle-version="[1.20.0,2.0.0)",
  org.apache.cxf.cxf-rt-transports-http
 Bundle-RequiredExecutionEnvironment: JavaSE-17
 Bundle-ActivationPolicy: lazy
