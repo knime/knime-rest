@@ -18,11 +18,6 @@
               factory-class="org.knime.rest.nodes.patch.RestPatchNodeFactory"
               hidden="false">
         </node>
-        <node
-              category-path="/toolintegration/rest"
-              deprecated="false"
-              factory-class="org.knime.rest.nodes.webpageretriever.WebpageRetrieverNodeFactory">
-        </node>
         <node category-path="/toolintegration/rest" factory-class="org.knime.rest.nodes.head.RestHeadNodeFactory" after="org.knime.rest.nodes.get.RestGetNodeFactory"/>
     </extension>
     <extension

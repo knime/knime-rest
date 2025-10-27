@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<?eclipse version="3.2"?>
+<plugin>
+    <extension point="org.knime.workbench.repository.nodes">
+        <node
+              category-path="/toolintegration/rest"
+              deprecated="false"
+              factory-class="org.knime.rest.nodes.webpageretriever.WebpageRetrieverNodeFactory">
+        </node>
+    </extension>
+</plugin>
