@@ -35,15 +35,6 @@
 	  Pro: Works well for dependencies that themselves have a lot of transitive dependencies.
 	  Contra: Alters the maven dependency tree, which may be confusing.
 	 -->
-	 <!-- 
-	<dependencies>
-		<dependency>
-			<groupId>com.icegreen</groupId>
-			<artifactId>greenmail</artifactId>
-			<version>1.6.5</version>
-		</dependency>
-	</dependencies>
-	 -->
 	<dependencies>
 		<dependency>
 		    <groupId>org.jsoup</groupId>
