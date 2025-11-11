@@ -39,7 +39,6 @@ try {
                 'knime-python-legacy',
                 'knime-reporting',
                 'knime-rest',
-                'knime-scripting-editor',
                 'knime-stats',
                 'knime-streaming',
                 'knime-textprocessing',
