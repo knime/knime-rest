@@ -729,7 +729,7 @@ propagated with or for interoperation with KNIME.
    </license>
 
    <requires>
-      <import feature="org.knime.features.credentials.base" version="0.0.0"/>
+      <import feature="org.knime.features.credentials.base" version="5.9.0"/>
    </requires>
 
    <plugin
