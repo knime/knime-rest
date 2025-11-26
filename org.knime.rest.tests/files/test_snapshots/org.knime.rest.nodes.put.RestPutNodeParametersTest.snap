@@ -1,0 +1,2933 @@
+{
+  "data" : {
+    "model" : {
+      "urlMode" : "CONSTANT",
+      "constantURL" : "https://www.google.com",
+      "basicAuth" : {
+        "basicAuthcredentialsType" : "MANUAL",
+        "basicAuthParameters" : {
+          "username" : {
+            "isHiddenPassword" : false,
+            "isHiddenSecondFactor" : false,
+            "username" : ""
+          },
+          "password" : {
+            "isHiddenPassword" : false,
+            "isHiddenSecondFactor" : false,
+            "username" : ""
+          }
+        }
+      },
+      "bearerAuth" : {
+        "bearerAuthcredentialsType" : "MANUAL",
+        "bearerAuthParameters" : {
+          "username" : {
+            "isHiddenPassword" : false,
+            "isHiddenSecondFactor" : false,
+            "username" : ""
+          },
+          "password" : {
+            "isHiddenPassword" : false,
+            "isHiddenSecondFactor" : false,
+            "username" : ""
+          }
+        }
+      },
+      "digestAuth" : {
+        "digestAuthcredentialsType" : "MANUAL",
+        "digestAuthParameters" : {
+          "username" : {
+            "isHiddenPassword" : false,
+            "isHiddenSecondFactor" : false,
+            "username" : ""
+          },
+          "password" : {
+            "isHiddenPassword" : false,
+            "isHiddenSecondFactor" : false,
+            "username" : ""
+          }
+        }
+      },
+      "ntlmAuth" : {
+        "ntlmAuthcredentialsType" : "MANUAL",
+        "ntlmAuthParameters" : {
+          "username" : {
+            "isHiddenPassword" : false,
+            "isHiddenSecondFactor" : false,
+            "username" : ""
+          },
+          "password" : {
+            "isHiddenPassword" : false,
+            "isHiddenSecondFactor" : false,
+            "username" : ""
+          }
+        }
+      },
+      "domain" : "",
+      "proxyMode" : "GLOBAL",
+      "nodeSpecificProxyParameters" : {
+        "proxyProtocol" : "HTTP",
+        "proxyPort" : 8080,
+        "useProxyAuth" : false,
+        "useProxyExcludeHosts" : false,
+        "proxyExcludedHosts" : [ ]
+      },
+      "proxyAuth" : {
+        "proxyAuthcredentialsType" : "MANUAL",
+        "proxyAuthParameters" : {
+          "username" : {
+            "isHiddenPassword" : false,
+            "isHiddenSecondFactor" : false,
+            "username" : ""
+          },
+          "password" : {
+            "isHiddenPassword" : false,
+            "isHiddenSecondFactor" : false,
+            "username" : ""
+          }
+        }
+      },
+      "concurrency" : 1,
+      "useDelay" : false,
+      "delay" : 0,
+      "sslIgnoreHostNameErrors" : false,
+      "sslTrustAll" : false,
+      "requestHeaders" : [ ],
+      "failOnMissingHeaders" : "FAIL",
+      "pauseOnRateLimit" : "FALSE",
+      "rateLimitCooldownSeconds" : 60,
+      "retryOnServerErrors" : false,
+      "maxRetries" : 3,
+      "retryDelaySeconds" : 1,
+      "invalidURLPolicy" : "MISSING",
+      "failOnConnectionProblems" : "INSERT_MISSING_VALUE",
+      "failOnClientErrors" : "INSERT_MISSING_VALUE",
+      "failOnServerErrors" : "INSERT_MISSING_VALUE",
+      "extractAllResponseFields" : "CUSTOM",
+      "responseHeaders" : [ ],
+      "responseBodyColumn" : "body",
+      "outputErrorCause" : false,
+      "followRedirects" : true,
+      "connectTimeoutInSeconds" : 5,
+      "readTimeoutInSeconds" : 120,
+      "legacyTimeout" : 0,
+      "allowChunking" : true,
+      "requestBodyParameters" : {
+        "dataOrBodyContentType" : "CUSTOM"
+      }
+    }
+  },
+  "schema" : {
+    "type" : "object",
+    "properties" : {
+      "model" : {
+        "type" : "object",
+        "properties" : {
+          "allowChunking" : {
+            "type" : "boolean",
+            "title" : "Send large data in chunks",
+            "description" : "Specifies whether HTTP Chunked Transfer Encoding is allowed to be used by the node. If enabled,\nmessages with a large body size are being sent to the server in a series of chunks.\n",
+            "default" : true
+          },
+          "authType" : {
+            "oneOf" : [ {
+              "const" : "NONE",
+              "title" : "None"
+            }, {
+              "const" : "BASIC_AUTH",
+              "title" : "Basic auth"
+            }, {
+              "const" : "BEARER_TOKEN",
+              "title" : "Bearer token"
+            }, {
+              "const" : "DIGEST_AUTH",
+              "title" : "Digest auth"
+            }, {
+              "const" : "NTLM_AUTH",
+              "title" : "NTLM"
+            }, {
+              "const" : "KERBEROS",
+              "title" : "Kerberos"
+            }, {
+              "const" : "AUTH_VIA_INPUT_PORT",
+              "title" : "Auth via input port"
+            } ],
+            "title" : "Authentication type",
+            "description" : "The type of the used authentication.\n<ul>\n<li><b>None</b>: No authentication is required.</li>\n<li><b>Basic auth</b>: Authentication with username and password.</li>\n<li><b>Bearer token</b>: Authentication with a bearer token.</li>\n<li><b>Digest auth</b>: Authentication with username and password using digest authentication.</li>\n<li><b>NTLM</b>: Authentication with username and password using NTLM authentication.</li>\n<li><b>Kerberos</b>: Kerberos ticket based authentication</li>\n<li><b>Auth via input port</b></li>\n</ul>"
+          },
+          "authenticationInputPortSummary" : {
+            "type" : "object"
+          },
+          "basicAuth" : {
+            "type" : "object",
+            "properties" : {
+              "basicAuthParameters" : {
+                "type" : "object",
+                "properties" : {
+                  "flowVarName" : {
+                    "type" : "string",
+                    "title" : "Credentials variable",
+                    "description" : "The flow variable containing the credentials which are used for authentication.\n"
+                  },
+                  "password" : {
+                    "type" : "object",
+                    "properties" : {
+                      "password" : {
+                        "type" : "string",
+                        "default" : ""
+                      },
+                      "secondFactor" : {
+                        "type" : "string",
+                        "default" : ""
+                      },
+                      "username" : {
+                        "type" : "string",
+                        "default" : ""
+                      }
+                    },
+                    "title" : "Password",
+                    "description" : "The password for authentication.",
+                    "default" : {
+                      "isHiddenPassword" : false,
+                      "isHiddenSecondFactor" : false,
+                      "username" : ""
+                    }
+                  },
+                  "username" : {
+                    "type" : "object",
+                    "properties" : {
+                      "password" : {
+                        "type" : "string",
+                        "default" : ""
+                      },
+                      "secondFactor" : {
+                        "type" : "string",
+                        "default" : ""
+                      },
+                      "username" : {
+                        "type" : "string",
+                        "default" : ""
+                      }
+                    },
+                    "title" : "Username",
+                    "description" : "The user name for authentication.",
+                    "default" : {
+                      "isHiddenPassword" : false,
+                      "isHiddenSecondFactor" : false,
+                      "username" : ""
+                    }
+                  }
+                },
+                "default" : {
+                  "username" : {
+                    "isHiddenPassword" : false,
+                    "isHiddenSecondFactor" : false,
+                    "username" : ""
+                  },
+                  "password" : {
+                    "isHiddenPassword" : false,
+                    "isHiddenSecondFactor" : false,
+                    "username" : ""
+                  }
+                }
+              },
+              "basicAuthcredentialsType" : {
+                "oneOf" : [ {
+                  "const" : "MANUAL",
+                  "title" : "Manual"
+                }, {
+                  "const" : "FLOW_VARIABLE",
+                  "title" : "Variable"
+                } ],
+                "title" : "Credentials type",
+                "description" : "The type of credentials used for authentication.\n<ul>\n<li><b>Manual</b>: Use manual credential input.</li>\n<li><b>Variable</b>: Use a credentials flow variable.</li>\n</ul>",
+                "default" : "MANUAL"
+              }
+            },
+            "default" : {
+              "basicAuthcredentialsType" : "MANUAL",
+              "basicAuthParameters" : {
+                "username" : {
+                  "isHiddenPassword" : false,
+                  "isHiddenSecondFactor" : false,
+                  "username" : ""
+                },
+                "password" : {
+                  "isHiddenPassword" : false,
+                  "isHiddenSecondFactor" : false,
+                  "username" : ""
+                }
+              }
+            }
+          },
+          "bearerAuth" : {
+            "type" : "object",
+            "properties" : {
+              "bearerAuthParameters" : {
+                "type" : "object",
+                "properties" : {
+                  "flowVarName" : {
+                    "type" : "string",
+                    "title" : "Credentials variable",
+                    "description" : "The flow variable containing the credentials which are used for authentication.\n"
+                  },
+                  "password" : {
+                    "type" : "object",
+                    "properties" : {
+                      "password" : {
+                        "type" : "string",
+                        "default" : ""
+                      },
+                      "secondFactor" : {
+                        "type" : "string",
+                        "default" : ""
+                      },
+                      "username" : {
+                        "type" : "string",
+                        "default" : ""
+                      }
+                    },
+                    "title" : "Token",
+                    "description" : "The password for authentication.",
+                    "default" : {
+                      "isHiddenPassword" : false,
+                      "isHiddenSecondFactor" : false,
+                      "username" : ""
+                    }
+                  },
+                  "username" : {
+                    "type" : "object",
+                    "properties" : {
+                      "password" : {
+                        "type" : "string",
+                        "default" : ""
+                      },
+                      "secondFactor" : {
+                        "type" : "string",
+                        "default" : ""
+                      },
+                      "username" : {
+                        "type" : "string",
+                        "default" : ""
+                      }
+                    },
+                    "title" : "Username",
+                    "description" : "The user name for authentication.",
+                    "default" : {
+                      "isHiddenPassword" : false,
+                      "isHiddenSecondFactor" : false,
+                      "username" : ""
+                    }
+                  }
+                },
+                "default" : {
+                  "username" : {
+                    "isHiddenPassword" : false,
+                    "isHiddenSecondFactor" : false,
+                    "username" : ""
+                  },
+                  "password" : {
+                    "isHiddenPassword" : false,
+                    "isHiddenSecondFactor" : false,
+                    "username" : ""
+                  }
+                }
+              },
+              "bearerAuthcredentialsType" : {
+                "oneOf" : [ {
+                  "const" : "MANUAL",
+                  "title" : "Manual"
+                }, {
+                  "const" : "FLOW_VARIABLE",
+                  "title" : "Variable"
+                } ],
+                "title" : "Credentials type",
+                "description" : "The type of credentials used for authentication.\n<ul>\n<li><b>Manual</b>: Use manual credential input.</li>\n<li><b>Variable</b>: Use a credentials flow variable.</li>\n</ul>",
+                "default" : "MANUAL"
+              }
+            },
+            "default" : {
+              "bearerAuthcredentialsType" : "MANUAL",
+              "bearerAuthParameters" : {
+                "username" : {
+                  "isHiddenPassword" : false,
+                  "isHiddenSecondFactor" : false,
+                  "username" : ""
+                },
+                "password" : {
+                  "isHiddenPassword" : false,
+                  "isHiddenSecondFactor" : false,
+                  "username" : ""
+                }
+              }
+            }
+          },
+          "concurrency" : {
+            "type" : "integer",
+            "format" : "int32",
+            "title" : "Concurrency",
+            "description" : "Number of concurrent requests.",
+            "default" : 1
+          },
+          "connectTimeoutInSeconds" : {
+            "type" : "integer",
+            "format" : "int32",
+            "title" : "Connect timeout (s)",
+            "description" : "The connection timeout is the timeout in making the initial connection. In case of HTTPS, this\nincludes completing the SSL handshake. This timeout is set in seconds.\n",
+            "default" : 5
+          },
+          "constantURL" : {
+            "type" : "string",
+            "title" : "URL",
+            "description" : "The URL for the GET request.",
+            "default" : "https://www.google.com"
+          },
+          "delay" : {
+            "type" : "integer",
+            "format" : "int64",
+            "title" : "Delay (ms)",
+            "description" : "Delay between two consecutive requests in milliseconds.",
+            "default" : 0
+          },
+          "digestAuth" : {
+            "type" : "object",
+            "properties" : {
+              "digestAuthParameters" : {
+                "type" : "object",
+                "properties" : {
+                  "flowVarName" : {
+                    "type" : "string",
+                    "title" : "Credentials variable",
+                    "description" : "The flow variable containing the credentials which are used for authentication.\n"
+                  },
+                  "password" : {
+                    "type" : "object",
+                    "properties" : {
+                      "password" : {
+                        "type" : "string",
+                        "default" : ""
+                      },
+                      "secondFactor" : {
+                        "type" : "string",
+                        "default" : ""
+                      },
+                      "username" : {
+                        "type" : "string",
+                        "default" : ""
+                      }
+                    },
+                    "title" : "Password",
+                    "description" : "The password for authentication.",
+                    "default" : {
+                      "isHiddenPassword" : false,
+                      "isHiddenSecondFactor" : false,
+                      "username" : ""
+                    }
+                  },
+                  "username" : {
+                    "type" : "object",
+                    "properties" : {
+                      "password" : {
+                        "type" : "string",
+                        "default" : ""
+                      },
+                      "secondFactor" : {
+                        "type" : "string",
+                        "default" : ""
+                      },
+                      "username" : {
+                        "type" : "string",
+                        "default" : ""
+                      }
+                    },
+                    "title" : "Username",
+                    "description" : "The user name for authentication.",
+                    "default" : {
+                      "isHiddenPassword" : false,
+                      "isHiddenSecondFactor" : false,
+                      "username" : ""
+                    }
+                  }
+                },
+                "default" : {
+                  "username" : {
+                    "isHiddenPassword" : false,
+                    "isHiddenSecondFactor" : false,
+                    "username" : ""
+                  },
+                  "password" : {
+                    "isHiddenPassword" : false,
+                    "isHiddenSecondFactor" : false,
+                    "username" : ""
+                  }
+                }
+              },
+              "digestAuthcredentialsType" : {
+                "oneOf" : [ {
+                  "const" : "MANUAL",
+                  "title" : "Manual"
+                }, {
+                  "const" : "FLOW_VARIABLE",
+                  "title" : "Variable"
+                } ],
+                "title" : "Credentials type",
+                "description" : "The type of credentials used for authentication.\n<ul>\n<li><b>Manual</b>: Use manual credential input.</li>\n<li><b>Variable</b>: Use a credentials flow variable.</li>\n</ul>",
+                "default" : "MANUAL"
+              }
+            },
+            "default" : {
+              "digestAuthcredentialsType" : "MANUAL",
+              "digestAuthParameters" : {
+                "username" : {
+                  "isHiddenPassword" : false,
+                  "isHiddenSecondFactor" : false,
+                  "username" : ""
+                },
+                "password" : {
+                  "isHiddenPassword" : false,
+                  "isHiddenSecondFactor" : false,
+                  "username" : ""
+                }
+              }
+            }
+          },
+          "domain" : {
+            "type" : "string",
+            "title" : "Domain",
+            "description" : "The Windows domain used for NTLM authentication.",
+            "default" : ""
+          },
+          "extractAllResponseFields" : {
+            "oneOf" : [ {
+              "const" : "CUSTOM",
+              "title" : "Custom"
+            }, {
+              "const" : "ALL",
+              "title" : "All"
+            } ],
+            "title" : "Extract all fields",
+            "description" : "If checked, all header fields present in the first response are extracted into columns.\n",
+            "default" : "CUSTOM"
+          },
+          "failOnClientErrors" : {
+            "oneOf" : [ {
+              "const" : "INSERT_MISSING_VALUE",
+              "title" : "Insert missing value"
+            }, {
+              "const" : "FAIL_NODE",
+              "title" : "Fail node"
+            } ],
+            "title" : "Client-side errors (HTTP 4XX)",
+            "description" : "These options describe what should happen if a response with a 4XX status code is received. These\nstatus codes usually describe client-side errors such as malformed requests.\n",
+            "default" : "INSERT_MISSING_VALUE"
+          },
+          "failOnConnectionProblems" : {
+            "oneOf" : [ {
+              "const" : "INSERT_MISSING_VALUE",
+              "title" : "Insert missing value"
+            }, {
+              "const" : "FAIL_NODE",
+              "title" : "Fail node"
+            } ],
+            "title" : "Fail on connection problems (e.g. timeout, certificate errors, …)",
+            "description" : "This option describes what should happen if there was a problem establishing the connection to the\nserver. The node either fails in execution or outputs a missing value in the row of the output table.\n",
+            "default" : "INSERT_MISSING_VALUE"
+          },
+          "failOnMissingHeaders" : {
+            "oneOf" : [ {
+              "const" : "FAIL",
+              "title" : "Fail"
+            }, {
+              "const" : "SKIP",
+              "title" : "Skip"
+            } ],
+            "title" : "Fail on missing header value",
+            "description" : "Setting this option makes the node fail once a header input value is not available anymore,\ne.g. due to a missing value. Is enabled by default.\n",
+            "default" : "FAIL"
+          },
+          "failOnServerErrors" : {
+            "oneOf" : [ {
+              "const" : "INSERT_MISSING_VALUE",
+              "title" : "Insert missing value"
+            }, {
+              "const" : "FAIL_NODE",
+              "title" : "Fail node"
+            } ],
+            "title" : "Server-side errors (HTTP 5XX)",
+            "description" : "These options describe what should happen if a response with a 5XX status code is received. These\nstatus codes usually describe errors on the server side.\n",
+            "default" : "INSERT_MISSING_VALUE"
+          },
+          "followRedirects" : {
+            "type" : "boolean",
+            "title" : "Follow redirects",
+            "description" : "If checked, the node will follow redirects (HTTP status code 3xx).\n",
+            "default" : true
+          },
+          "invalidURLPolicy" : {
+            "oneOf" : [ {
+              "const" : "MISSING",
+              "title" : "Insert missing value"
+            }, {
+              "const" : "FAIL",
+              "title" : "Fail node"
+            }, {
+              "const" : "SKIP",
+              "title" : "Remove row"
+            } ],
+            "title" : "Handling of invalid URLs",
+            "description" : "Specifies how invalid URLs are handled. Depending on the selected mode,\nthis node either inserts missing values as responses, fails the node execution on encountering the first\ninvalid URL, or omits such rows from the output. The latter option filters rows based on URL validity of the\n URL column. For REST client nodes, all URLs conforming to\n <a href=\"https://www.rfc-editor.org/rfc/rfc1738\">RFC 1738</a> and using the HTTP or HTTPS protocol are\n considered valid.\n",
+            "default" : "MISSING"
+          },
+          "kerberosAuthParameters" : {
+            "type" : "object"
+          },
+          "legacyTimeout" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 0
+          },
+          "maxRetries" : {
+            "type" : "integer",
+            "format" : "int32",
+            "title" : "Number of retries",
+            "description" : "Number of additional attempts that will be made after the initial request has failed.\n",
+            "default" : 3
+          },
+          "nodeSpecificProxyParameters" : {
+            "type" : "object",
+            "properties" : {
+              "proxyExcludedHosts" : {
+                "type" : "array",
+                "items" : {
+                  "type" : "object",
+                  "properties" : {
+                    "host" : {
+                      "type" : "string",
+                      "title" : "Excluded host",
+                      "description" : "Host that should be ignored by the proxy."
+                    }
+                  }
+                },
+                "title" : "Selected hosts",
+                "description" : "List of hosts that should be ignored by the proxy.",
+                "default" : [ ]
+              },
+              "proxyHost" : {
+                "type" : "string",
+                "title" : "Proxy host",
+                "description" : "Specifies the proxy host address."
+              },
+              "proxyModeCopy" : {
+                "oneOf" : [ {
+                  "const" : "GLOBAL",
+                  "title" : "Use KNIME-wide proxy settings"
+                }, {
+                  "const" : "LOCAL",
+                  "title" : "Use node-specific proxy settings"
+                }, {
+                  "const" : "NONE",
+                  "title" : "Direct connection"
+                } ]
+              },
+              "proxyPort" : {
+                "type" : "integer",
+                "format" : "int32",
+                "title" : "Proxy port",
+                "description" : "Specifies the port that should be used at the proxy host.",
+                "default" : 8080
+              },
+              "proxyProtocol" : {
+                "oneOf" : [ {
+                  "const" : "HTTP",
+                  "title" : "HTTP"
+                }, {
+                  "const" : "HTTPS",
+                  "title" : "HTTPS"
+                }, {
+                  "const" : "SOCKS",
+                  "title" : "SOCKS"
+                } ],
+                "title" : "Proxy protocol",
+                "description" : "This option describes the proxy protocol to use. HTTP, HTTPS and SOCKS can be selected.\n",
+                "default" : "HTTP"
+              },
+              "useProxyAuth" : {
+                "type" : "boolean",
+                "title" : "Use proxy authentication",
+                "description" : "Enable if the proxy requires authentication.",
+                "default" : false
+              },
+              "useProxyExcludeHosts" : {
+                "type" : "boolean",
+                "title" : "Exclude hosts from proxy",
+                "description" : "Enable to specify hosts that will be ignored by the proxy. Requests to excluded hosts will use a\ndirect connection.\n",
+                "default" : false
+              }
+            },
+            "default" : {
+              "proxyProtocol" : "HTTP",
+              "proxyPort" : 8080,
+              "useProxyAuth" : false,
+              "useProxyExcludeHosts" : false,
+              "proxyExcludedHosts" : [ ]
+            }
+          },
+          "noneAuthParameters" : {
+            "type" : "object"
+          },
+          "ntlmAuth" : {
+            "type" : "object",
+            "properties" : {
+              "ntlmAuthParameters" : {
+                "type" : "object",
+                "properties" : {
+                  "flowVarName" : {
+                    "type" : "string",
+                    "title" : "Credentials variable",
+                    "description" : "The flow variable containing the credentials which are used for authentication.\n"
+                  },
+                  "password" : {
+                    "type" : "object",
+                    "properties" : {
+                      "password" : {
+                        "type" : "string",
+                        "default" : ""
+                      },
+                      "secondFactor" : {
+                        "type" : "string",
+                        "default" : ""
+                      },
+                      "username" : {
+                        "type" : "string",
+                        "default" : ""
+                      }
+                    },
+                    "title" : "Password",
+                    "description" : "The password for authentication.",
+                    "default" : {
+                      "isHiddenPassword" : false,
+                      "isHiddenSecondFactor" : false,
+                      "username" : ""
+                    }
+                  },
+                  "username" : {
+                    "type" : "object",
+                    "properties" : {
+                      "password" : {
+                        "type" : "string",
+                        "default" : ""
+                      },
+                      "secondFactor" : {
+                        "type" : "string",
+                        "default" : ""
+                      },
+                      "username" : {
+                        "type" : "string",
+                        "default" : ""
+                      }
+                    },
+                    "title" : "Username",
+                    "description" : "The user name for authentication.",
+                    "default" : {
+                      "isHiddenPassword" : false,
+                      "isHiddenSecondFactor" : false,
+                      "username" : ""
+                    }
+                  }
+                },
+                "default" : {
+                  "username" : {
+                    "isHiddenPassword" : false,
+                    "isHiddenSecondFactor" : false,
+                    "username" : ""
+                  },
+                  "password" : {
+                    "isHiddenPassword" : false,
+                    "isHiddenSecondFactor" : false,
+                    "username" : ""
+                  }
+                }
+              },
+              "ntlmAuthcredentialsType" : {
+                "oneOf" : [ {
+                  "const" : "MANUAL",
+                  "title" : "Manual"
+                }, {
+                  "const" : "FLOW_VARIABLE",
+                  "title" : "Variable"
+                } ],
+                "title" : "Credentials type",
+                "description" : "The type of credentials used for authentication.\n<ul>\n<li><b>Manual</b>: Use manual credential input.</li>\n<li><b>Variable</b>: Use a credentials flow variable.</li>\n</ul>",
+                "default" : "MANUAL"
+              }
+            },
+            "default" : {
+              "ntlmAuthcredentialsType" : "MANUAL",
+              "ntlmAuthParameters" : {
+                "username" : {
+                  "isHiddenPassword" : false,
+                  "isHiddenSecondFactor" : false,
+                  "username" : ""
+                },
+                "password" : {
+                  "isHiddenPassword" : false,
+                  "isHiddenSecondFactor" : false,
+                  "username" : ""
+                }
+              }
+            }
+          },
+          "outputErrorCause" : {
+            "type" : "boolean",
+            "title" : "Output additional column with error cause",
+            "description" : "If enabled, each output row corresponding to a request will contain an additional cell that, in\ncase the request has failed, will provide a description of the error cause.\n",
+            "default" : false
+          },
+          "pauseOnRateLimit" : {
+            "oneOf" : [ {
+              "const" : "FALSE",
+              "title" : "False"
+            }, {
+              "const" : "FIXED_DELAY",
+              "title" : "Fixed delay"
+            } ],
+            "title" : "Pause execution (and retry)",
+            "description" : "Enable to pause execution and retry when receiving rate limiting errors (HTTP 429).\n",
+            "default" : "FALSE"
+          },
+          "proxyAuth" : {
+            "type" : "object",
+            "properties" : {
+              "proxyAuthParameters" : {
+                "type" : "object",
+                "properties" : {
+                  "flowVarName" : {
+                    "type" : "string",
+                    "title" : "Credentials variable",
+                    "description" : "The flow variable containing the credentials which are used for proxy authentication."
+                  },
+                  "password" : {
+                    "type" : "object",
+                    "properties" : {
+                      "password" : {
+                        "type" : "string",
+                        "default" : ""
+                      },
+                      "secondFactor" : {
+                        "type" : "string",
+                        "default" : ""
+                      },
+                      "username" : {
+                        "type" : "string",
+                        "default" : ""
+                      }
+                    },
+                    "title" : "Password",
+                    "description" : "The password for proxy authentication.",
+                    "default" : {
+                      "isHiddenPassword" : false,
+                      "isHiddenSecondFactor" : false,
+                      "username" : ""
+                    }
+                  },
+                  "username" : {
+                    "type" : "object",
+                    "properties" : {
+                      "password" : {
+                        "type" : "string",
+                        "default" : ""
+                      },
+                      "secondFactor" : {
+                        "type" : "string",
+                        "default" : ""
+                      },
+                      "username" : {
+                        "type" : "string",
+                        "default" : ""
+                      }
+                    },
+                    "title" : "Username",
+                    "description" : "The user name for proxy authentication.",
+                    "default" : {
+                      "isHiddenPassword" : false,
+                      "isHiddenSecondFactor" : false,
+                      "username" : ""
+                    }
+                  }
+                },
+                "default" : {
+                  "username" : {
+                    "isHiddenPassword" : false,
+                    "isHiddenSecondFactor" : false,
+                    "username" : ""
+                  },
+                  "password" : {
+                    "isHiddenPassword" : false,
+                    "isHiddenSecondFactor" : false,
+                    "username" : ""
+                  }
+                }
+              },
+              "proxyAuthcredentialsType" : {
+                "oneOf" : [ {
+                  "const" : "MANUAL",
+                  "title" : "Manual"
+                }, {
+                  "const" : "FLOW_VARIABLE",
+                  "title" : "Variable"
+                } ],
+                "title" : "Credentials type",
+                "description" : "The type of credentials used for proxy authentication.\n<ul>\n<li><b>Manual</b>: Use manual credential input.</li>\n<li><b>Variable</b>: Use a credentials flow variable.</li>\n</ul>",
+                "default" : "MANUAL"
+              }
+            },
+            "default" : {
+              "proxyAuthcredentialsType" : "MANUAL",
+              "proxyAuthParameters" : {
+                "username" : {
+                  "isHiddenPassword" : false,
+                  "isHiddenSecondFactor" : false,
+                  "username" : ""
+                },
+                "password" : {
+                  "isHiddenPassword" : false,
+                  "isHiddenSecondFactor" : false,
+                  "username" : ""
+                }
+              }
+            }
+          },
+          "proxyMode" : {
+            "oneOf" : [ {
+              "const" : "GLOBAL",
+              "title" : "Use KNIME-wide proxy settings"
+            }, {
+              "const" : "LOCAL",
+              "title" : "Use node-specific proxy settings"
+            }, {
+              "const" : "NONE",
+              "title" : "Direct connection"
+            } ],
+            "title" : "Proxy mode",
+            "description" : "Specifies how the proxy should be configured.\n<ul>\n<li><b>Use KNIME-wide proxy settings</b>: Uses the same proxy as the KNIME platform. In the KNIME Analytics Platform, this can be changed under\n<tt>File > Preferences > General > Network Connections</tt>.\n</li>\n<li><b>Use node-specific proxy settings</b>: This option enables the configuration fields in the \"Proxy\" section.\n</li>\n<li><b>Direct connection</b>: This option disables the proxy for this POST node. This will bypass KNIME-wide proxies as well.\n</li>\n</ul>",
+            "default" : "GLOBAL"
+          },
+          "rateLimitCooldownSeconds" : {
+            "type" : "integer",
+            "format" : "int64",
+            "title" : "Rate limiting cooldown (s)",
+            "description" : "The cooldown delay in seconds to wait when receiving rate limiting errors (HTTP 429).\n",
+            "default" : 60
+          },
+          "readTimeoutInSeconds" : {
+            "type" : "integer",
+            "format" : "int32",
+            "title" : "Read timeout (s)",
+            "description" : "The read timeout is the time to wait until the first byte of data is read. Increasing this timeout\nmakes sense if you have a slow connection or you expect the server will take a long time to prepare\nyour response. This timeout is set in seconds.\n",
+            "default" : 120
+          },
+          "requestBodyParameters" : {
+            "type" : "object",
+            "properties" : {
+              "columnRequestBody" : {
+                "type" : "string",
+                "title" : "Body column",
+                "description" : "The column containing the body content for the request."
+              },
+              "constantRequestBody" : {
+                "type" : "string",
+                "title" : "Custom body content",
+                "description" : "The custom body content used for the request body."
+              },
+              "dataOrBodyContentType" : {
+                "oneOf" : [ {
+                  "const" : "CUSTOM",
+                  "title" : "Custom"
+                }, {
+                  "const" : "COLUMN",
+                  "title" : "Column"
+                } ],
+                "title" : "Data / Body content",
+                "description" : "The body of the request.\n<ul>\n<li><b>Custom</b>: Use constant body.</li>\n<li><b>Column</b>: Use column's content as body.</li>\n</ul>",
+                "default" : "CUSTOM"
+              }
+            },
+            "default" : {
+              "dataOrBodyContentType" : "CUSTOM"
+            }
+          },
+          "requestHeaders" : {
+            "type" : "array",
+            "items" : {
+              "type" : "object",
+              "properties" : {
+                "columnValueReference" : {
+                  "type" : "string",
+                  "title" : "Value",
+                  "description" : "The column header value.\n"
+                },
+                "constantValueReference" : {
+                  "type" : "string",
+                  "title" : "Value",
+                  "description" : "The value for the header which can be a constant value or a reference to a flow\nvariable, a column, a credential name, or a credential password (see the kind option).\n",
+                  "default" : ""
+                },
+                "credentialValueReference" : {
+                  "type" : "string",
+                  "title" : "Value",
+                  "description" : "The credential header value.\n"
+                },
+                "flowVariableValueReference" : {
+                  "type" : "string",
+                  "title" : "Value",
+                  "description" : "The flow variable header value.\n"
+                },
+                "key" : {
+                  "type" : "string",
+                  "title" : "Header key",
+                  "description" : "The HTTP header key, e.g. <tt>Accept</tt> or <tt>X-Custom-Key</tt>. Note that some\nheader keys such as <tt>Origin</tt> are silently ignored by default for security reasons. You can configure\nKNIME AP to allow any header key by setting the <tt>sun.net.http.allowRestrictedHeaders</tt> system property\n in the <i>knime.ini</i> configuration file to <tt>true</tt>.\n",
+                  "default" : ""
+                },
+                "kind" : {
+                  "oneOf" : [ {
+                    "const" : "Constant",
+                    "title" : "Constant"
+                  }, {
+                    "const" : "FlowVariable",
+                    "title" : "Flow variable"
+                  }, {
+                    "const" : "Column",
+                    "title" : "Column"
+                  }, {
+                    "const" : "CredentialName",
+                    "title" : "Username"
+                  }, {
+                    "const" : "CredentialPassword",
+                    "title" : "Password"
+                  } ],
+                  "title" : "Type",
+                  "description" : "The type of the value specified.\n\n<ul>\n<li><b>Constant</b>: Use a constant value.</li>\n<li><b>Flow variable</b>: Use the value of a flow variable.</li>\n<li><b>Column</b>: Use the value of a column in the current row.</li>\n<li><b>Username</b>: Use the name of a stored credential.</li>\n<li><b>Password</b>: Use the password of a stored credential.</li>\n</ul>",
+                  "default" : "Constant"
+                }
+              }
+            },
+            "title" : "Request headers",
+            "description" : "Define custom request headers. Each header consists of a key, value, and kind specification.\n",
+            "default" : [ ]
+          },
+          "responseBodyColumn" : {
+            "type" : "string",
+            "title" : "Body",
+            "description" : "Name of the response body column in the output table.",
+            "default" : "body"
+          },
+          "responseHeaders" : {
+            "type" : "array",
+            "items" : {
+              "type" : "object",
+              "properties" : {
+                "headerKey" : {
+                  "type" : "string",
+                  "title" : "Header key",
+                  "description" : "The name of the header to extract.",
+                  "default" : ""
+                },
+                "outputColumnName" : {
+                  "type" : "string",
+                  "title" : "Column name",
+                  "description" : "The name of the output column.",
+                  "default" : ""
+                },
+                "type" : {
+                  "oneOf" : [ {
+                    "const" : "STRING",
+                    "title" : "String"
+                  }, {
+                    "const" : "INT",
+                    "title" : "Number (Integer)"
+                  } ],
+                  "title" : "Header type",
+                  "description" : "The KNIME data type the header should be converted into.",
+                  "default" : "STRING"
+                }
+              }
+            },
+            "title" : "Response headers",
+            "description" : "Define which response headers to extract into output columns.\n",
+            "default" : [ ]
+          },
+          "retryDelaySeconds" : {
+            "type" : "integer",
+            "format" : "int64",
+            "title" : "Retry delay (s)",
+            "description" : "The base delay to be applied between retry attempts in seconds. The actual delay increases exponentially\nwith each retry attempt.\n",
+            "default" : 1
+          },
+          "retryOnServerErrors" : {
+            "type" : "boolean",
+            "title" : "Retry on server errors",
+            "description" : "Enable automatic retries for server-side errors (HTTP 5XX).",
+            "default" : false
+          },
+          "sslIgnoreHostNameErrors" : {
+            "type" : "boolean",
+            "title" : "Ignore hostname mismatches",
+            "description" : "If checked, the node trusts the server's SSL certificate even if it was generated for a different host.\n",
+            "default" : false
+          },
+          "sslTrustAll" : {
+            "type" : "boolean",
+            "title" : "Trust all certificates",
+            "description" : "If checked, the node trusts all certificates regardless of their origin or expiration date.\n",
+            "default" : false
+          },
+          "urlColumn" : {
+            "type" : "string",
+            "title" : "URL column",
+            "description" : "Column containing the URLs for the requests."
+          },
+          "urlMode" : {
+            "oneOf" : [ {
+              "const" : "CONSTANT",
+              "title" : "Constant URL"
+            }, {
+              "const" : "COLUMN",
+              "title" : "URL from column"
+            } ],
+            "title" : "Request URL",
+            "description" : "Select a constant URL or a column from the input table that contains the URLs that you want to request.\n",
+            "default" : "CONSTANT"
+          },
+          "useDelay" : {
+            "type" : "boolean",
+            "title" : "Enable delay",
+            "description" : "Enable delay between consecutive requests to avoid overloading the web service.",
+            "default" : false
+          }
+        }
+      }
+    }
+  },
+  "ui_schema" : {
+    "elements" : [ {
+      "label" : "API Connection",
+      "type" : "Section",
+      "elements" : [ {
+        "type" : "Control",
+        "scope" : "#/properties/model/properties/urlMode"
+      }, {
+        "type" : "Control",
+        "scope" : "#/properties/model/properties/constantURL",
+        "options" : {
+          "validation" : {
+            "minLength" : {
+              "errorMessage" : "The field cannot be empty (it must contain at least one character).",
+              "parameters" : {
+                "minLength" : 1
+              }
+            }
+          }
+        },
+        "rule" : {
+          "effect" : "SHOW",
+          "condition" : {
+            "scope" : "#/properties/model/properties/urlMode",
+            "schema" : {
+              "oneOf" : [ {
+                "const" : "CONSTANT"
+              } ]
+            }
+          }
+        }
+      }, {
+        "type" : "Control",
+        "scope" : "#/properties/model/properties/urlColumn",
+        "options" : {
+          "format" : "dropDown"
+        },
+        "providedOptions" : [ "possibleValues" ],
+        "rule" : {
+          "effect" : "SHOW",
+          "condition" : {
+            "scope" : "#/properties/model/properties/urlMode",
+            "schema" : {
+              "oneOf" : [ {
+                "const" : "COLUMN"
+              } ]
+            }
+          }
+        }
+      } ]
+    }, {
+      "label" : "Authentication",
+      "type" : "Section",
+      "elements" : [ {
+        "type" : "Control",
+        "id" : "#/properties/model/properties/authenticationInputPortSummary",
+        "options" : {
+          "format" : "textMessage"
+        },
+        "providedOptions" : [ "message" ]
+      }, {
+        "type" : "Control",
+        "scope" : "#/properties/model/properties/authType",
+        "options" : {
+          "format" : "dropDown"
+        },
+        "providedOptions" : [ "possibleValues" ]
+      }, {
+        "type" : "Control",
+        "scope" : "#/properties/model/properties/basicAuth/properties/basicAuthcredentialsType",
+        "options" : {
+          "format" : "valueSwitch"
+        },
+        "rule" : {
+          "effect" : "SHOW",
+          "condition" : {
+            "scope" : "#/properties/model/properties/authType",
+            "schema" : {
+              "oneOf" : [ {
+                "const" : "BASIC_AUTH"
+              } ]
+            }
+          }
+        }
+      }, {
+        "type" : "Control",
+        "scope" : "#/properties/model/properties/basicAuth/properties/basicAuthParameters/properties/flowVarName",
+        "options" : {
+          "format" : "dropDown"
+        },
+        "providedOptions" : [ "possibleValues" ],
+        "rule" : {
+          "effect" : "SHOW",
+          "condition" : {
+            "type" : "AND",
+            "conditions" : [ {
+              "scope" : "#/properties/model/properties/authType",
+              "schema" : {
+                "oneOf" : [ {
+                  "const" : "BASIC_AUTH"
+                } ]
+              }
+            }, {
+              "scope" : "#/properties/model/properties/basicAuth/properties/basicAuthcredentialsType",
+              "schema" : {
+                "not" : {
+                  "oneOf" : [ {
+                    "const" : "MANUAL"
+                  } ]
+                }
+              }
+            } ]
+          }
+        }
+      }, {
+        "type" : "Control",
+        "scope" : "#/properties/model/properties/basicAuth/properties/basicAuthParameters/properties/username",
+        "options" : {
+          "hasPassword" : false,
+          "usernameLabel" : "Username",
+          "format" : "credentials"
+        },
+        "rule" : {
+          "effect" : "SHOW",
+          "condition" : {
+            "type" : "AND",
+            "conditions" : [ {
+              "scope" : "#/properties/model/properties/authType",
+              "schema" : {
+                "oneOf" : [ {
+                  "const" : "BASIC_AUTH"
+                } ]
+              }
+            }, {
+              "scope" : "#/properties/model/properties/basicAuth/properties/basicAuthcredentialsType",
+              "schema" : {
+                "oneOf" : [ {
+                  "const" : "MANUAL"
+                } ]
+              }
+            } ]
+          }
+        }
+      }, {
+        "type" : "Control",
+        "scope" : "#/properties/model/properties/basicAuth/properties/basicAuthParameters/properties/password",
+        "options" : {
+          "hasUsername" : false,
+          "passwordLabel" : "Password",
+          "format" : "credentials"
+        },
+        "rule" : {
+          "effect" : "SHOW",
+          "condition" : {
+            "type" : "AND",
+            "conditions" : [ {
+              "scope" : "#/properties/model/properties/authType",
+              "schema" : {
+                "oneOf" : [ {
+                  "const" : "BASIC_AUTH"
+                } ]
+              }
+            }, {
+              "scope" : "#/properties/model/properties/basicAuth/properties/basicAuthcredentialsType",
+              "schema" : {
+                "oneOf" : [ {
+                  "const" : "MANUAL"
+                } ]
+              }
+            } ]
+          }
+        }
+      }, {
+        "type" : "Control",
+        "scope" : "#/properties/model/properties/bearerAuth/properties/bearerAuthcredentialsType",
+        "options" : {
+          "format" : "valueSwitch"
+        },
+        "rule" : {
+          "effect" : "SHOW",
+          "condition" : {
+            "scope" : "#/properties/model/properties/authType",
+            "schema" : {
+              "oneOf" : [ {
+                "const" : "BEARER_TOKEN"
+              } ]
+            }
+          }
+        }
+      }, {
+        "type" : "Control",
+        "scope" : "#/properties/model/properties/bearerAuth/properties/bearerAuthParameters/properties/flowVarName",
+        "options" : {
+          "format" : "dropDown"
+        },
+        "providedOptions" : [ "possibleValues" ],
+        "rule" : {
+          "effect" : "SHOW",
+          "condition" : {
+            "type" : "AND",
+            "conditions" : [ {
+              "scope" : "#/properties/model/properties/authType",
+              "schema" : {
+                "oneOf" : [ {
+                  "const" : "BEARER_TOKEN"
+                } ]
+              }
+            }, {
+              "scope" : "#/properties/model/properties/bearerAuth/properties/bearerAuthcredentialsType",
+              "schema" : {
+                "not" : {
+                  "oneOf" : [ {
+                    "const" : "MANUAL"
+                  } ]
+                }
+              }
+            } ]
+          }
+        }
+      }, {
+        "type" : "Control",
+        "scope" : "#/properties/model/properties/bearerAuth/properties/bearerAuthParameters/properties/username",
+        "options" : {
+          "hasPassword" : false,
+          "usernameLabel" : "Username",
+          "format" : "credentials"
+        },
+        "rule" : {
+          "effect" : "SHOW",
+          "condition" : {
+            "schema" : {
+              "not" : { }
+            }
+          }
+        }
+      }, {
+        "type" : "Control",
+        "scope" : "#/properties/model/properties/bearerAuth/properties/bearerAuthParameters/properties/password",
+        "options" : {
+          "hasUsername" : false,
+          "passwordLabel" : "",
+          "format" : "credentials"
+        },
+        "rule" : {
+          "effect" : "SHOW",
+          "condition" : {
+            "type" : "AND",
+            "conditions" : [ {
+              "scope" : "#/properties/model/properties/authType",
+              "schema" : {
+                "oneOf" : [ {
+                  "const" : "BEARER_TOKEN"
+                } ]
+              }
+            }, {
+              "scope" : "#/properties/model/properties/bearerAuth/properties/bearerAuthcredentialsType",
+              "schema" : {
+                "oneOf" : [ {
+                  "const" : "MANUAL"
+                } ]
+              }
+            } ]
+          }
+        }
+      }, {
+        "type" : "Control",
+        "scope" : "#/properties/model/properties/digestAuth/properties/digestAuthcredentialsType",
+        "options" : {
+          "format" : "valueSwitch"
+        },
+        "rule" : {
+          "effect" : "SHOW",
+          "condition" : {
+            "scope" : "#/properties/model/properties/authType",
+            "schema" : {
+              "oneOf" : [ {
+                "const" : "DIGEST_AUTH"
+              } ]
+            }
+          }
+        }
+      }, {
+        "type" : "Control",
+        "scope" : "#/properties/model/properties/digestAuth/properties/digestAuthParameters/properties/flowVarName",
+        "options" : {
+          "format" : "dropDown"
+        },
+        "providedOptions" : [ "possibleValues" ],
+        "rule" : {
+          "effect" : "SHOW",
+          "condition" : {
+            "type" : "AND",
+            "conditions" : [ {
+              "scope" : "#/properties/model/properties/authType",
+              "schema" : {
+                "oneOf" : [ {
+                  "const" : "DIGEST_AUTH"
+                } ]
+              }
+            }, {
+              "scope" : "#/properties/model/properties/digestAuth/properties/digestAuthcredentialsType",
+              "schema" : {
+                "not" : {
+                  "oneOf" : [ {
+                    "const" : "MANUAL"
+                  } ]
+                }
+              }
+            } ]
+          }
+        }
+      }, {
+        "type" : "Control",
+        "scope" : "#/properties/model/properties/digestAuth/properties/digestAuthParameters/properties/username",
+        "options" : {
+          "hasPassword" : false,
+          "usernameLabel" : "Username",
+          "format" : "credentials"
+        },
+        "rule" : {
+          "effect" : "SHOW",
+          "condition" : {
+            "type" : "AND",
+            "conditions" : [ {
+              "scope" : "#/properties/model/properties/authType",
+              "schema" : {
+                "oneOf" : [ {
+                  "const" : "DIGEST_AUTH"
+                } ]
+              }
+            }, {
+              "scope" : "#/properties/model/properties/digestAuth/properties/digestAuthcredentialsType",
+              "schema" : {
+                "oneOf" : [ {
+                  "const" : "MANUAL"
+                } ]
+              }
+            } ]
+          }
+        }
+      }, {
+        "type" : "Control",
+        "scope" : "#/properties/model/properties/digestAuth/properties/digestAuthParameters/properties/password",
+        "options" : {
+          "hasUsername" : false,
+          "passwordLabel" : "Password",
+          "format" : "credentials"
+        },
+        "rule" : {
+          "effect" : "SHOW",
+          "condition" : {
+            "type" : "AND",
+            "conditions" : [ {
+              "scope" : "#/properties/model/properties/authType",
+              "schema" : {
+                "oneOf" : [ {
+                  "const" : "DIGEST_AUTH"
+                } ]
+              }
+            }, {
+              "scope" : "#/properties/model/properties/digestAuth/properties/digestAuthcredentialsType",
+              "schema" : {
+                "oneOf" : [ {
+                  "const" : "MANUAL"
+                } ]
+              }
+            } ]
+          }
+        }
+      }, {
+        "type" : "Control",
+        "scope" : "#/properties/model/properties/ntlmAuth/properties/ntlmAuthcredentialsType",
+        "options" : {
+          "format" : "valueSwitch"
+        },
+        "rule" : {
+          "effect" : "SHOW",
+          "condition" : {
+            "scope" : "#/properties/model/properties/authType",
+            "schema" : {
+              "oneOf" : [ {
+                "const" : "NTLM_AUTH"
+              } ]
+            }
+          }
+        }
+      }, {
+        "type" : "Control",
+        "scope" : "#/properties/model/properties/ntlmAuth/properties/ntlmAuthParameters/properties/flowVarName",
+        "options" : {
+          "format" : "dropDown"
+        },
+        "providedOptions" : [ "possibleValues" ],
+        "rule" : {
+          "effect" : "SHOW",
+          "condition" : {
+            "type" : "AND",
+            "conditions" : [ {
+              "scope" : "#/properties/model/properties/authType",
+              "schema" : {
+                "oneOf" : [ {
+                  "const" : "NTLM_AUTH"
+                } ]
+              }
+            }, {
+              "scope" : "#/properties/model/properties/ntlmAuth/properties/ntlmAuthcredentialsType",
+              "schema" : {
+                "not" : {
+                  "oneOf" : [ {
+                    "const" : "MANUAL"
+                  } ]
+                }
+              }
+            } ]
+          }
+        }
+      }, {
+        "type" : "Control",
+        "scope" : "#/properties/model/properties/ntlmAuth/properties/ntlmAuthParameters/properties/username",
+        "options" : {
+          "hasPassword" : false,
+          "usernameLabel" : "Username",
+          "format" : "credentials"
+        },
+        "rule" : {
+          "effect" : "SHOW",
+          "condition" : {
+            "type" : "AND",
+            "conditions" : [ {
+              "scope" : "#/properties/model/properties/authType",
+              "schema" : {
+                "oneOf" : [ {
+                  "const" : "NTLM_AUTH"
+                } ]
+              }
+            }, {
+              "scope" : "#/properties/model/properties/ntlmAuth/properties/ntlmAuthcredentialsType",
+              "schema" : {
+                "oneOf" : [ {
+                  "const" : "MANUAL"
+                } ]
+              }
+            } ]
+          }
+        }
+      }, {
+        "type" : "Control",
+        "scope" : "#/properties/model/properties/ntlmAuth/properties/ntlmAuthParameters/properties/password",
+        "options" : {
+          "hasUsername" : false,
+          "passwordLabel" : "Password",
+          "format" : "credentials"
+        },
+        "rule" : {
+          "effect" : "SHOW",
+          "condition" : {
+            "type" : "AND",
+            "conditions" : [ {
+              "scope" : "#/properties/model/properties/authType",
+              "schema" : {
+                "oneOf" : [ {
+                  "const" : "NTLM_AUTH"
+                } ]
+              }
+            }, {
+              "scope" : "#/properties/model/properties/ntlmAuth/properties/ntlmAuthcredentialsType",
+              "schema" : {
+                "oneOf" : [ {
+                  "const" : "MANUAL"
+                } ]
+              }
+            } ]
+          }
+        }
+      }, {
+        "type" : "Control",
+        "scope" : "#/properties/model/properties/domain",
+        "rule" : {
+          "effect" : "SHOW",
+          "condition" : {
+            "scope" : "#/properties/model/properties/authType",
+            "schema" : {
+              "oneOf" : [ {
+                "const" : "NTLM_AUTH"
+              } ]
+            }
+          }
+        }
+      } ]
+    }, {
+      "label" : "Performance and Rate Control",
+      "type" : "Section",
+      "elements" : [ {
+        "type" : "Control",
+        "scope" : "#/properties/model/properties/concurrency",
+        "options" : {
+          "validation" : {
+            "max" : {
+              "errorMessage" : "The value must not exceed 2147483647.",
+              "parameters" : {
+                "isExclusive" : false,
+                "max" : 2.147483647E9
+              }
+            },
+            "min" : {
+              "errorMessage" : "The value must be at least 1.",
+              "parameters" : {
+                "isExclusive" : false,
+                "min" : 1.0
+              }
+            }
+          }
+        }
+      }, {
+        "type" : "Control",
+        "scope" : "#/properties/model/properties/useDelay",
+        "options" : {
+          "format" : "checkbox"
+        }
+      }, {
+        "type" : "Control",
+        "scope" : "#/properties/model/properties/delay",
+        "options" : {
+          "validation" : {
+            "max" : {
+              "errorMessage" : "Value too large to process without risking precision loss (> 9007199254740991).",
+              "parameters" : {
+                "isExclusive" : false,
+                "max" : 9.007199254740991E15
+              }
+            },
+            "min" : {
+              "errorMessage" : "The value must be at least 0.",
+              "parameters" : {
+                "isExclusive" : false,
+                "min" : 0.0
+              }
+            }
+          }
+        },
+        "rule" : {
+          "effect" : "SHOW",
+          "condition" : {
+            "scope" : "#/properties/model/properties/useDelay",
+            "schema" : {
+              "const" : true
+            }
+          }
+        }
+      } ]
+    }, {
+      "label" : "Request Headers",
+      "type" : "Section",
+      "elements" : [ {
+        "type" : "Control",
+        "scope" : "#/properties/model/properties/requestHeaders",
+        "options" : {
+          "detail" : [ {
+            "type" : "Control",
+            "scope" : "#/properties/key"
+          }, {
+            "type" : "Control",
+            "scope" : "#/properties/kind"
+          }, {
+            "type" : "Control",
+            "scope" : "#/properties/constantValueReference",
+            "rule" : {
+              "effect" : "SHOW",
+              "condition" : {
+                "scope" : "#/properties/kind",
+                "schema" : {
+                  "oneOf" : [ {
+                    "const" : "Constant"
+                  } ]
+                }
+              }
+            }
+          }, {
+            "type" : "Control",
+            "scope" : "#/properties/flowVariableValueReference",
+            "options" : {
+              "format" : "dropDown"
+            },
+            "providedOptions" : [ "possibleValues" ],
+            "rule" : {
+              "effect" : "SHOW",
+              "condition" : {
+                "scope" : "#/properties/kind",
+                "schema" : {
+                  "oneOf" : [ {
+                    "const" : "FlowVariable"
+                  } ]
+                }
+              }
+            }
+          }, {
+            "type" : "Control",
+            "scope" : "#/properties/columnValueReference",
+            "options" : {
+              "format" : "dropDown"
+            },
+            "providedOptions" : [ "possibleValues" ],
+            "rule" : {
+              "effect" : "SHOW",
+              "condition" : {
+                "scope" : "#/properties/kind",
+                "schema" : {
+                  "oneOf" : [ {
+                    "const" : "Column"
+                  } ]
+                }
+              }
+            }
+          }, {
+            "type" : "Control",
+            "scope" : "#/properties/credentialValueReference",
+            "options" : {
+              "format" : "dropDown"
+            },
+            "providedOptions" : [ "possibleValues" ],
+            "rule" : {
+              "effect" : "SHOW",
+              "condition" : {
+                "scope" : "#/properties/kind",
+                "schema" : {
+                  "oneOf" : [ {
+                    "const" : "CredentialName"
+                  }, {
+                    "const" : "CredentialPassword"
+                  } ]
+                }
+              }
+            }
+          } ],
+          "addButtonText" : "Add header parameter",
+          "arrayElementTitle" : "Request Header"
+        }
+      }, {
+        "type" : "Control",
+        "scope" : "#/properties/model/properties/failOnMissingHeaders"
+      } ]
+    }, {
+      "label" : "Request Body",
+      "type" : "Section",
+      "elements" : [ {
+        "type" : "Control",
+        "scope" : "#/properties/model/properties/requestBodyParameters/properties/dataOrBodyContentType"
+      }, {
+        "type" : "Control",
+        "scope" : "#/properties/model/properties/requestBodyParameters/properties/constantRequestBody",
+        "options" : {
+          "rows" : 5,
+          "format" : "textArea"
+        },
+        "rule" : {
+          "effect" : "SHOW",
+          "condition" : {
+            "scope" : "#/properties/model/properties/requestBodyParameters/properties/dataOrBodyContentType",
+            "schema" : {
+              "oneOf" : [ {
+                "const" : "CUSTOM"
+              } ]
+            }
+          }
+        }
+      }, {
+        "type" : "Control",
+        "scope" : "#/properties/model/properties/requestBodyParameters/properties/columnRequestBody",
+        "options" : {
+          "format" : "dropDown"
+        },
+        "providedOptions" : [ "possibleValues" ],
+        "rule" : {
+          "effect" : "SHOW",
+          "condition" : {
+            "scope" : "#/properties/model/properties/requestBodyParameters/properties/dataOrBodyContentType",
+            "schema" : {
+              "oneOf" : [ {
+                "const" : "COLUMN"
+              } ]
+            }
+          }
+        }
+      } ]
+    }, {
+      "label" : "Timing, Retries and Errors",
+      "type" : "Section",
+      "elements" : [ {
+        "type" : "Control",
+        "scope" : "#/properties/model/properties/pauseOnRateLimit",
+        "options" : {
+          "format" : "valueSwitch"
+        }
+      }, {
+        "type" : "Control",
+        "scope" : "#/properties/model/properties/rateLimitCooldownSeconds",
+        "options" : {
+          "validation" : {
+            "max" : {
+              "errorMessage" : "Value too large to process without risking precision loss (> 9007199254740991).",
+              "parameters" : {
+                "isExclusive" : false,
+                "max" : 9.007199254740991E15
+              }
+            },
+            "min" : {
+              "errorMessage" : "The value must be at least 1.",
+              "parameters" : {
+                "isExclusive" : false,
+                "min" : 1.0
+              }
+            }
+          }
+        },
+        "rule" : {
+          "effect" : "SHOW",
+          "condition" : {
+            "scope" : "#/properties/model/properties/pauseOnRateLimit",
+            "schema" : {
+              "oneOf" : [ {
+                "const" : "FIXED_DELAY"
+              } ]
+            }
+          }
+        }
+      }, {
+        "type" : "Control",
+        "scope" : "#/properties/model/properties/retryOnServerErrors",
+        "options" : {
+          "format" : "checkbox"
+        }
+      }, {
+        "type" : "HorizontalLayout",
+        "elements" : [ {
+          "type" : "Control",
+          "scope" : "#/properties/model/properties/maxRetries",
+          "options" : {
+            "validation" : {
+              "max" : {
+                "errorMessage" : "The value must not exceed 2147483647.",
+                "parameters" : {
+                  "isExclusive" : false,
+                  "max" : 2.147483647E9
+                }
+              },
+              "min" : {
+                "errorMessage" : "The value must be at least 0.",
+                "parameters" : {
+                  "isExclusive" : false,
+                  "min" : 0.0
+                }
+              }
+            }
+          },
+          "rule" : {
+            "effect" : "SHOW",
+            "condition" : {
+              "scope" : "#/properties/model/properties/retryOnServerErrors",
+              "schema" : {
+                "const" : true
+              }
+            }
+          }
+        }, {
+          "type" : "Control",
+          "scope" : "#/properties/model/properties/retryDelaySeconds",
+          "options" : {
+            "validation" : {
+              "max" : {
+                "errorMessage" : "Value too large to process without risking precision loss (> 9007199254740991).",
+                "parameters" : {
+                  "isExclusive" : false,
+                  "max" : 9.007199254740991E15
+                }
+              },
+              "min" : {
+                "errorMessage" : "The value must be at least 1.",
+                "parameters" : {
+                  "isExclusive" : false,
+                  "min" : 1.0
+                }
+              }
+            }
+          },
+          "rule" : {
+            "effect" : "SHOW",
+            "condition" : {
+              "scope" : "#/properties/model/properties/retryOnServerErrors",
+              "schema" : {
+                "const" : true
+              }
+            }
+          }
+        } ]
+      }, {
+        "type" : "Control",
+        "scope" : "#/properties/model/properties/invalidURLPolicy",
+        "options" : {
+          "format" : "radio",
+          "radioLayout" : "vertical"
+        }
+      }, {
+        "type" : "Control",
+        "scope" : "#/properties/model/properties/failOnConnectionProblems",
+        "options" : {
+          "format" : "valueSwitch"
+        }
+      }, {
+        "type" : "Control",
+        "scope" : "#/properties/model/properties/failOnClientErrors",
+        "options" : {
+          "format" : "valueSwitch"
+        }
+      }, {
+        "type" : "Control",
+        "scope" : "#/properties/model/properties/failOnServerErrors",
+        "options" : {
+          "format" : "valueSwitch"
+        }
+      } ]
+    }, {
+      "label" : "Output",
+      "type" : "Section",
+      "elements" : [ {
+        "type" : "Control",
+        "scope" : "#/properties/model/properties/extractAllResponseFields",
+        "options" : {
+          "format" : "valueSwitch"
+        }
+      }, {
+        "type" : "Control",
+        "scope" : "#/properties/model/properties/responseHeaders",
+        "options" : {
+          "detail" : [ {
+            "type" : "Control",
+            "scope" : "#/properties/headerKey"
+          }, {
+            "type" : "HorizontalLayout",
+            "elements" : [ {
+              "type" : "Control",
+              "scope" : "#/properties/outputColumnName"
+            }, {
+              "type" : "Control",
+              "scope" : "#/properties/type"
+            } ]
+          } ],
+          "addButtonText" : "Add header output column",
+          "arrayElementTitle" : "Response Header"
+        },
+        "providedOptions" : [ "elementDefaultValue" ],
+        "rule" : {
+          "effect" : "HIDE",
+          "condition" : {
+            "scope" : "#/properties/model/properties/extractAllResponseFields",
+            "schema" : {
+              "oneOf" : [ {
+                "const" : "ALL"
+              } ]
+            }
+          }
+        }
+      }, {
+        "type" : "Control",
+        "scope" : "#/properties/model/properties/responseBodyColumn",
+        "options" : {
+          "validation" : {
+            "minLength" : {
+              "errorMessage" : "The field cannot be empty (it must contain at least one character).",
+              "parameters" : {
+                "minLength" : 1
+              }
+            }
+          }
+        }
+      }, {
+        "type" : "Control",
+        "scope" : "#/properties/model/properties/outputErrorCause",
+        "options" : {
+          "format" : "checkbox"
+        }
+      }, {
+        "type" : "Control",
+        "scope" : "#/properties/model/properties/followRedirects",
+        "options" : {
+          "format" : "checkbox",
+          "isAdvanced" : true
+        }
+      }, {
+        "type" : "Control",
+        "scope" : "#/properties/model/properties/connectTimeoutInSeconds",
+        "options" : {
+          "validation" : {
+            "max" : {
+              "errorMessage" : "The value must not exceed 2147483647.",
+              "parameters" : {
+                "isExclusive" : false,
+                "max" : 2.147483647E9
+              }
+            },
+            "min" : {
+              "errorMessage" : "The value must be at least 1.",
+              "parameters" : {
+                "isExclusive" : false,
+                "min" : 1.0
+              }
+            }
+          },
+          "isAdvanced" : true
+        }
+      }, {
+        "type" : "Control",
+        "scope" : "#/properties/model/properties/readTimeoutInSeconds",
+        "options" : {
+          "validation" : {
+            "max" : {
+              "errorMessage" : "The value must not exceed 2147483647.",
+              "parameters" : {
+                "isExclusive" : false,
+                "max" : 2.147483647E9
+              }
+            },
+            "min" : {
+              "errorMessage" : "The value must be at least 1.",
+              "parameters" : {
+                "isExclusive" : false,
+                "min" : 1.0
+              }
+            }
+          },
+          "isAdvanced" : true
+        }
+      }, {
+        "type" : "Control",
+        "scope" : "#/properties/model/properties/allowChunking",
+        "options" : {
+          "format" : "checkbox",
+          "isAdvanced" : true
+        }
+      } ]
+    }, {
+      "label" : "Proxy",
+      "type" : "Section",
+      "options" : {
+        "isAdvanced" : true
+      },
+      "elements" : [ {
+        "type" : "Control",
+        "scope" : "#/properties/model/properties/proxyMode"
+      }, {
+        "type" : "Control",
+        "scope" : "#/properties/model/properties/nodeSpecificProxyParameters/properties/proxyProtocol",
+        "rule" : {
+          "effect" : "SHOW",
+          "condition" : {
+            "scope" : "#/properties/model/properties/proxyMode",
+            "schema" : {
+              "oneOf" : [ {
+                "const" : "LOCAL"
+              } ]
+            }
+          }
+        }
+      }, {
+        "type" : "Control",
+        "scope" : "#/properties/model/properties/nodeSpecificProxyParameters/properties/proxyHost",
+        "options" : {
+          "validation" : {
+            "minLength" : {
+              "errorMessage" : "The field cannot be empty (it must contain at least one character).",
+              "parameters" : {
+                "minLength" : 1
+              }
+            }
+          }
+        },
+        "rule" : {
+          "effect" : "SHOW",
+          "condition" : {
+            "scope" : "#/properties/model/properties/proxyMode",
+            "schema" : {
+              "oneOf" : [ {
+                "const" : "LOCAL"
+              } ]
+            }
+          }
+        }
+      }, {
+        "type" : "Control",
+        "scope" : "#/properties/model/properties/nodeSpecificProxyParameters/properties/proxyPort",
+        "options" : {
+          "validation" : {
+            "max" : {
+              "errorMessage" : "The value must not exceed 2147483647.",
+              "parameters" : {
+                "isExclusive" : false,
+                "max" : 2.147483647E9
+              }
+            },
+            "min" : {
+              "errorMessage" : "The value must be at least 1.",
+              "parameters" : {
+                "isExclusive" : false,
+                "min" : 1.0
+              }
+            }
+          }
+        },
+        "rule" : {
+          "effect" : "SHOW",
+          "condition" : {
+            "scope" : "#/properties/model/properties/proxyMode",
+            "schema" : {
+              "oneOf" : [ {
+                "const" : "LOCAL"
+              } ]
+            }
+          }
+        }
+      }, {
+        "type" : "Control",
+        "scope" : "#/properties/model/properties/nodeSpecificProxyParameters/properties/useProxyAuth",
+        "options" : {
+          "format" : "checkbox"
+        },
+        "rule" : {
+          "effect" : "SHOW",
+          "condition" : {
+            "scope" : "#/properties/model/properties/proxyMode",
+            "schema" : {
+              "oneOf" : [ {
+                "const" : "LOCAL"
+              } ]
+            }
+          }
+        }
+      }, {
+        "type" : "Control",
+        "scope" : "#/properties/model/properties/proxyAuth/properties/proxyAuthcredentialsType",
+        "options" : {
+          "format" : "valueSwitch"
+        },
+        "rule" : {
+          "effect" : "SHOW",
+          "condition" : {
+            "type" : "AND",
+            "conditions" : [ {
+              "scope" : "#/properties/model/properties/proxyMode",
+              "schema" : {
+                "oneOf" : [ {
+                  "const" : "LOCAL"
+                } ]
+              }
+            }, {
+              "scope" : "#/properties/model/properties/nodeSpecificProxyParameters/properties/useProxyAuth",
+              "schema" : {
+                "const" : true
+              }
+            } ]
+          }
+        }
+      }, {
+        "type" : "Control",
+        "scope" : "#/properties/model/properties/proxyAuth/properties/proxyAuthParameters/properties/flowVarName",
+        "options" : {
+          "format" : "dropDown"
+        },
+        "providedOptions" : [ "possibleValues" ],
+        "rule" : {
+          "effect" : "SHOW",
+          "condition" : {
+            "type" : "AND",
+            "conditions" : [ {
+              "type" : "AND",
+              "conditions" : [ {
+                "scope" : "#/properties/model/properties/proxyMode",
+                "schema" : {
+                  "oneOf" : [ {
+                    "const" : "LOCAL"
+                  } ]
+                }
+              }, {
+                "scope" : "#/properties/model/properties/nodeSpecificProxyParameters/properties/useProxyAuth",
+                "schema" : {
+                  "const" : true
+                }
+              } ]
+            }, {
+              "scope" : "#/properties/model/properties/proxyAuth/properties/proxyAuthcredentialsType",
+              "schema" : {
+                "not" : {
+                  "oneOf" : [ {
+                    "const" : "MANUAL"
+                  } ]
+                }
+              }
+            } ]
+          }
+        }
+      }, {
+        "type" : "Control",
+        "scope" : "#/properties/model/properties/proxyAuth/properties/proxyAuthParameters/properties/username",
+        "options" : {
+          "hasPassword" : false,
+          "usernameLabel" : "Username",
+          "format" : "credentials"
+        },
+        "rule" : {
+          "effect" : "SHOW",
+          "condition" : {
+            "type" : "AND",
+            "conditions" : [ {
+              "type" : "AND",
+              "conditions" : [ {
+                "scope" : "#/properties/model/properties/proxyMode",
+                "schema" : {
+                  "oneOf" : [ {
+                    "const" : "LOCAL"
+                  } ]
+                }
+              }, {
+                "scope" : "#/properties/model/properties/nodeSpecificProxyParameters/properties/useProxyAuth",
+                "schema" : {
+                  "const" : true
+                }
+              } ]
+            }, {
+              "scope" : "#/properties/model/properties/proxyAuth/properties/proxyAuthcredentialsType",
+              "schema" : {
+                "oneOf" : [ {
+                  "const" : "MANUAL"
+                } ]
+              }
+            } ]
+          }
+        }
+      }, {
+        "type" : "Control",
+        "scope" : "#/properties/model/properties/proxyAuth/properties/proxyAuthParameters/properties/password",
+        "options" : {
+          "hasUsername" : false,
+          "passwordLabel" : "Password",
+          "format" : "credentials"
+        },
+        "rule" : {
+          "effect" : "SHOW",
+          "condition" : {
+            "type" : "AND",
+            "conditions" : [ {
+              "type" : "AND",
+              "conditions" : [ {
+                "scope" : "#/properties/model/properties/proxyMode",
+                "schema" : {
+                  "oneOf" : [ {
+                    "const" : "LOCAL"
+                  } ]
+                }
+              }, {
+                "scope" : "#/properties/model/properties/nodeSpecificProxyParameters/properties/useProxyAuth",
+                "schema" : {
+                  "const" : true
+                }
+              } ]
+            }, {
+              "scope" : "#/properties/model/properties/proxyAuth/properties/proxyAuthcredentialsType",
+              "schema" : {
+                "oneOf" : [ {
+                  "const" : "MANUAL"
+                } ]
+              }
+            } ]
+          }
+        }
+      }, {
+        "type" : "Control",
+        "scope" : "#/properties/model/properties/nodeSpecificProxyParameters/properties/useProxyExcludeHosts",
+        "options" : {
+          "format" : "checkbox"
+        },
+        "rule" : {
+          "effect" : "SHOW",
+          "condition" : {
+            "scope" : "#/properties/model/properties/proxyMode",
+            "schema" : {
+              "oneOf" : [ {
+                "const" : "LOCAL"
+              } ]
+            }
+          }
+        }
+      }, {
+        "type" : "Control",
+        "scope" : "#/properties/model/properties/nodeSpecificProxyParameters/properties/proxyExcludedHosts",
+        "options" : {
+          "detail" : [ {
+            "type" : "Control",
+            "scope" : "#/properties/host"
+          } ],
+          "addButtonText" : "Add host",
+          "elementLayout" : "HORIZONTAL_SINGLE_LINE"
+        },
+        "providedOptions" : [ "elementDefaultValue" ],
+        "rule" : {
+          "effect" : "SHOW",
+          "condition" : {
+            "type" : "AND",
+            "conditions" : [ {
+              "scope" : "#/properties/model/properties/proxyMode",
+              "schema" : {
+                "oneOf" : [ {
+                  "const" : "LOCAL"
+                } ]
+              }
+            }, {
+              "scope" : "#/properties/model/properties/nodeSpecificProxyParameters/properties/useProxyExcludeHosts",
+              "schema" : {
+                "const" : true
+              }
+            } ]
+          }
+        }
+      } ]
+    }, {
+      "label" : "Security and Certificates",
+      "type" : "Section",
+      "options" : {
+        "isAdvanced" : true
+      },
+      "elements" : [ {
+        "type" : "Control",
+        "scope" : "#/properties/model/properties/sslIgnoreHostNameErrors",
+        "options" : {
+          "format" : "checkbox"
+        }
+      }, {
+        "type" : "Control",
+        "scope" : "#/properties/model/properties/sslTrustAll",
+        "options" : {
+          "format" : "checkbox"
+        }
+      } ]
+    } ]
+  },
+  "persist" : {
+    "type" : "object",
+    "properties" : {
+      "model" : {
+        "type" : "object",
+        "properties" : {
+          "urlMode" : {
+            "configPaths" : [ [ "Use constant URI" ] ]
+          },
+          "constantURL" : {
+            "configKey" : "Constant URI"
+          },
+          "urlColumn" : {
+            "configKey" : "URI column"
+          },
+          "authenticationInputPortSummary" : { },
+          "authType" : {
+            "configPaths" : [ [ "None_enabled" ], [ "Basic_enabled" ], [ "Bearer_enabled" ], [ "Digest_enabled" ], [ "NTLM (Labs)_enabled" ], [ "Kerberos_enabled" ] ]
+          },
+          "noneAuthParameters" : {
+            "configPaths" : [ ]
+          },
+          "basicAuth" : {
+            "type" : "object",
+            "properties" : {
+              "basicAuthcredentialsType" : {
+                "configPaths" : [ ]
+              },
+              "basicAuthParameters" : {
+                "type" : "object",
+                "properties" : {
+                  "flowVarName" : {
+                    "configKey" : "credentials"
+                  },
+                  "username" : {
+                    "configPaths" : [ [ "username" ] ]
+                  },
+                  "password" : {
+                    "configPaths" : [ [ "password" ] ]
+                  }
+                },
+                "propertiesRoute" : [ ".." ]
+              }
+            },
+            "configKey" : "BASIC auth",
+            "route" : [ "Basic" ]
+          },
+          "bearerAuth" : {
+            "type" : "object",
+            "properties" : {
+              "bearerAuthcredentialsType" : {
+                "configPaths" : [ ]
+              },
+              "bearerAuthParameters" : {
+                "type" : "object",
+                "properties" : {
+                  "flowVarName" : {
+                    "configKey" : "credentials"
+                  },
+                  "username" : {
+                    "configPaths" : [ [ "username" ] ]
+                  },
+                  "password" : {
+                    "configPaths" : [ [ "password" ] ]
+                  }
+                },
+                "propertiesRoute" : [ ".." ]
+              }
+            },
+            "configKey" : "Bearer auth",
+            "route" : [ "Bearer" ]
+          },
+          "digestAuth" : {
+            "type" : "object",
+            "properties" : {
+              "digestAuthcredentialsType" : {
+                "configPaths" : [ ]
+              },
+              "digestAuthParameters" : {
+                "type" : "object",
+                "properties" : {
+                  "flowVarName" : {
+                    "configKey" : "credentials"
+                  },
+                  "username" : {
+                    "configPaths" : [ [ "username" ] ]
+                  },
+                  "password" : {
+                    "configPaths" : [ [ "password" ] ]
+                  }
+                },
+                "propertiesRoute" : [ ".." ]
+              }
+            },
+            "configKey" : "Digest auth",
+            "route" : [ "Digest" ]
+          },
+          "ntlmAuth" : {
+            "type" : "object",
+            "properties" : {
+              "ntlmAuthcredentialsType" : {
+                "configPaths" : [ ]
+              },
+              "ntlmAuthParameters" : {
+                "type" : "object",
+                "properties" : {
+                  "flowVarName" : {
+                    "configKey" : "credentials"
+                  },
+                  "username" : {
+                    "configPaths" : [ [ "username" ] ]
+                  },
+                  "password" : {
+                    "configPaths" : [ [ "password" ] ]
+                  }
+                },
+                "propertiesRoute" : [ ".." ]
+              }
+            },
+            "configKey" : "NTLM-auth",
+            "route" : [ "NTLM (Labs)" ]
+          },
+          "domain" : {
+            "configKey" : "org<dot>knime<dot>rest<dot>auth<dot>ntlm<dot>domain",
+            "route" : [ "NTLM (Labs)" ]
+          },
+          "kerberosAuthParameters" : {
+            "configPaths" : [ ]
+          },
+          "proxyMode" : {
+            "configPaths" : [ [ "Proxy_enabled" ] ]
+          },
+          "nodeSpecificProxyParameters" : {
+            "configPaths" : [ [ "Node-specific Proxy", "Proxy protocol" ], [ "Node-specific Proxy", "Proxy host" ], [ "Node-specific Proxy", "Proxy port" ], [ "Node-specific Proxy", "Use proxy authentication" ], [ "Node-specific Proxy", "Exclude hosts from proxy" ], [ "Node-specific Proxy", "Proxy-excluded hosts" ] ]
+          },
+          "proxyAuth" : {
+            "type" : "object",
+            "properties" : {
+              "proxyAuthcredentialsType" : {
+                "configPaths" : [ ]
+              },
+              "proxyAuthParameters" : {
+                "type" : "object",
+                "properties" : {
+                  "flowVarName" : {
+                    "configKey" : "credentials"
+                  },
+                  "username" : {
+                    "configPaths" : [ [ "username" ] ]
+                  },
+                  "password" : {
+                    "configPaths" : [ [ "password" ] ]
+                  }
+                },
+                "propertiesRoute" : [ ".." ]
+              }
+            },
+            "configKey" : "Proxy auth"
+          },
+          "concurrency" : {
+            "configKey" : "concurrency"
+          },
+          "useDelay" : {
+            "configKey" : "delay_enabled"
+          },
+          "delay" : {
+            "configKey" : "delay"
+          },
+          "sslIgnoreHostNameErrors" : {
+            "configKey" : "SSL ignore hostname errors"
+          },
+          "sslTrustAll" : {
+            "configKey" : "SSL trust all"
+          },
+          "requestHeaders" : {
+            "type" : "array",
+            "items" : {
+              "type" : "object",
+              "properties" : {
+                "key" : {
+                  "route" : [ "..", ".." ],
+                  "configPaths" : [ [ "Request header keys" ] ]
+                },
+                "kind" : {
+                  "route" : [ "..", ".." ],
+                  "configPaths" : [ [ "Request header key kind" ] ]
+                },
+                "constantValueReference" : {
+                  "route" : [ "..", ".." ],
+                  "configPaths" : [ [ "Request header key selector" ] ]
+                },
+                "flowVariableValueReference" : {
+                  "route" : [ "..", ".." ],
+                  "configPaths" : [ [ "Request header key selector" ] ]
+                },
+                "columnValueReference" : {
+                  "route" : [ "..", ".." ],
+                  "configPaths" : [ [ "Request header key selector" ] ]
+                },
+                "credentialValueReference" : {
+                  "route" : [ "..", ".." ],
+                  "configPaths" : [ [ "Request header key selector" ] ]
+                }
+              }
+            }
+          },
+          "failOnMissingHeaders" : {
+            "configPaths" : [ [ "failOnMissingHeaders" ] ],
+            "deprecatedConfigKeys" : [ {
+              "deprecated" : [ ]
+            } ]
+          },
+          "pauseOnRateLimit" : {
+            "configPaths" : [ [ "delayCooldownEnabled" ] ],
+            "route" : [ "delayPolicy" ]
+          },
+          "rateLimitCooldownSeconds" : {
+            "configKey" : "delayRateLimitCooldown",
+            "route" : [ "delayPolicy" ]
+          },
+          "retryOnServerErrors" : {
+            "configKey" : "delayRetriesEnabled",
+            "route" : [ "delayPolicy" ]
+          },
+          "maxRetries" : {
+            "configKey" : "delayMaxRetries",
+            "route" : [ "delayPolicy" ]
+          },
+          "retryDelaySeconds" : {
+            "configKey" : "delayRetryBase",
+            "route" : [ "delayPolicy" ]
+          },
+          "invalidURLPolicy" : {
+            "configPaths" : [ [ "Invalid URL handling" ] ]
+          },
+          "failOnConnectionProblems" : {
+            "configPaths" : [ [ "Fail on connection problems" ] ]
+          },
+          "failOnClientErrors" : {
+            "configPaths" : [ [ "failOnClientError" ] ],
+            "deprecatedConfigKeys" : [ {
+              "deprecated" : [ ]
+            } ]
+          },
+          "failOnServerErrors" : {
+            "configPaths" : [ [ "failOnServerError" ] ],
+            "deprecatedConfigKeys" : [ {
+              "deprecated" : [ ]
+            } ]
+          },
+          "extractAllResponseFields" : {
+            "configPaths" : [ [ "Extract all response fields" ] ]
+          },
+          "responseHeaders" : {
+            "type" : "array",
+            "items" : {
+              "type" : "object",
+              "properties" : {
+                "headerKey" : {
+                  "route" : [ "..", ".." ],
+                  "configPaths" : [ [ "Response header keys" ] ]
+                },
+                "outputColumnName" : {
+                  "route" : [ "..", ".." ],
+                  "configPaths" : [ [ "Response header column name" ] ]
+                },
+                "type" : {
+                  "route" : [ "..", ".." ],
+                  "configPaths" : [ [ "Response header column type" ] ]
+                }
+              }
+            }
+          },
+          "responseBodyColumn" : {
+            "configKey" : "Body column name"
+          },
+          "outputErrorCause" : {
+            "configKey" : "outputErrorCause"
+          },
+          "followRedirects" : {
+            "configKey" : "follow redirects"
+          },
+          "connectTimeoutInSeconds" : {
+            "configKey" : "connectTimeout",
+            "deprecatedConfigKeys" : [ {
+              "deprecated" : [ ]
+            } ]
+          },
+          "readTimeoutInSeconds" : {
+            "configKey" : "readTimeout",
+            "deprecatedConfigKeys" : [ {
+              "deprecated" : [ ]
+            } ]
+          },
+          "legacyTimeout" : {
+            "configKey" : "timeout"
+          },
+          "allowChunking" : {
+            "configKey" : "allowChunking"
+          },
+          "requestBodyParameters" : {
+            "type" : "object",
+            "properties" : {
+              "dataOrBodyContentType" : {
+                "configPaths" : [ [ "Use constant request body" ] ]
+              },
+              "constantRequestBody" : {
+                "configPaths" : [ [ "Constant request body" ] ]
+              },
+              "columnRequestBody" : {
+                "configKey" : "Request body column"
+              }
+            },
+            "propertiesRoute" : [ ".." ]
+          }
+        }
+      }
+    }
+  },
+  "initialUpdates" : [ {
+    "scope" : "#/properties/model/properties/authType",
+    "providedOptionName" : "possibleValues",
+    "values" : [ {
+      "indices" : [ ],
+      "value" : [ {
+        "id" : "AUTH_VIA_INPUT_PORT",
+        "text" : "Auth via input port"
+      } ]
+    } ]
+  }, {
+    "scope" : "#/properties/model/properties/basicAuth/properties/basicAuthParameters/properties/flowVarName",
+    "providedOptionName" : "possibleValues",
+    "values" : [ {
+      "indices" : [ ],
+      "value" : [ ]
+    } ]
+  }, {
+    "scope" : "#/properties/model/properties/bearerAuth/properties/bearerAuthParameters/properties/flowVarName",
+    "providedOptionName" : "possibleValues",
+    "values" : [ {
+      "indices" : [ ],
+      "value" : [ ]
+    } ]
+  }, {
+    "scope" : "#/properties/model/properties/digestAuth/properties/digestAuthParameters/properties/flowVarName",
+    "providedOptionName" : "possibleValues",
+    "values" : [ {
+      "indices" : [ ],
+      "value" : [ ]
+    } ]
+  }, {
+    "scope" : "#/properties/model/properties/nodeSpecificProxyParameters",
+    "values" : [ {
+      "indices" : [ ],
+      "value" : null
+    } ]
+  }, {
+    "scope" : "#/properties/model/properties/nodeSpecificProxyParameters/properties/proxyExcludedHosts",
+    "values" : [ {
+      "indices" : [ ],
+      "value" : [ { } ]
+    } ]
+  }, {
+    "scope" : "#/properties/model/properties/nodeSpecificProxyParameters/properties/proxyExcludedHosts",
+    "providedOptionName" : "elementDefaultValue",
+    "values" : [ {
+      "indices" : [ ],
+      "value" : {
+        "host" : ""
+      }
+    } ]
+  }, {
+    "scope" : "#/properties/model/properties/ntlmAuth/properties/ntlmAuthParameters/properties/flowVarName",
+    "providedOptionName" : "possibleValues",
+    "values" : [ {
+      "indices" : [ ],
+      "value" : [ ]
+    } ]
+  }, {
+    "scope" : "#/properties/model/properties/proxyAuth/properties/proxyAuthParameters/properties/flowVarName",
+    "providedOptionName" : "possibleValues",
+    "values" : [ {
+      "indices" : [ ],
+      "value" : [ ]
+    } ]
+  }, {
+    "scope" : "#/properties/model/properties/requestBodyParameters/properties/columnRequestBody",
+    "providedOptionName" : "possibleValues",
+    "values" : [ {
+      "indices" : [ ],
+      "value" : [ {
+        "id" : "URL",
+        "text" : "URL",
+        "type" : {
+          "id" : "org.knime.core.data.StringValue",
+          "text" : "String"
+        }
+      }, {
+        "id" : "Header1",
+        "text" : "Header1",
+        "type" : {
+          "id" : "org.knime.core.data.StringValue",
+          "text" : "String"
+        }
+      }, {
+        "id" : "Header2",
+        "text" : "Header2",
+        "type" : {
+          "id" : "org.knime.core.data.StringValue",
+          "text" : "String"
+        }
+      }, {
+        "id" : "RequestBody",
+        "text" : "RequestBody",
+        "type" : {
+          "id" : "org.knime.core.data.StringValue",
+          "text" : "String"
+        }
+      } ]
+    } ]
+  }, {
+    "scope" : "#/properties/model/properties/requestHeaders",
+    "values" : [ {
+      "indices" : [ ],
+      "value" : [ {
+        "key" : "",
+        "kind" : "Constant",
+        "constantValueReference" : ""
+      } ]
+    } ]
+  }, {
+    "scope" : "#/properties/model/properties/requestHeaders/items/properties/columnValueReference",
+    "providedOptionName" : "possibleValues",
+    "values" : [ {
+      "indices" : [ ],
+      "value" : [ {
+        "id" : "URL",
+        "text" : "URL",
+        "type" : {
+          "id" : "org.knime.core.data.StringValue",
+          "text" : "String"
+        }
+      }, {
+        "id" : "Header1",
+        "text" : "Header1",
+        "type" : {
+          "id" : "org.knime.core.data.StringValue",
+          "text" : "String"
+        }
+      }, {
+        "id" : "Header2",
+        "text" : "Header2",
+        "type" : {
+          "id" : "org.knime.core.data.StringValue",
+          "text" : "String"
+        }
+      }, {
+        "id" : "RequestBody",
+        "text" : "RequestBody",
+        "type" : {
+          "id" : "org.knime.core.data.StringValue",
+          "text" : "String"
+        }
+      } ]
+    } ]
+  }, {
+    "scope" : "#/properties/model/properties/requestHeaders/items/properties/credentialValueReference",
+    "providedOptionName" : "possibleValues",
+    "values" : [ {
+      "indices" : [ ],
+      "value" : [ ]
+    } ]
+  }, {
+    "scope" : "#/properties/model/properties/requestHeaders/items/properties/flowVariableValueReference",
+    "providedOptionName" : "possibleValues",
+    "values" : [ {
+      "indices" : [ ],
+      "value" : [ {
+        "id" : "knime.workspace",
+        "text" : "knime.workspace",
+        "type" : {
+          "id" : "STRING",
+          "text" : "StringType"
+        }
+      } ]
+    } ]
+  }, {
+    "scope" : "#/properties/model/properties/responseHeaders",
+    "values" : [ {
+      "indices" : [ ],
+      "value" : [ {
+        "headerKey" : "Status",
+        "outputColumnName" : "Status",
+        "type" : "INT"
+      }, {
+        "headerKey" : "Content-Type",
+        "outputColumnName" : "Content type",
+        "type" : "STRING"
+      } ]
+    } ]
+  }, {
+    "scope" : "#/properties/model/properties/responseHeaders",
+    "providedOptionName" : "elementDefaultValue",
+    "values" : [ {
+      "indices" : [ ],
+      "value" : {
+        "headerKey" : "",
+        "outputColumnName" : "",
+        "type" : "STRING"
+      }
+    } ]
+  }, {
+    "scope" : "#/properties/model/properties/urlColumn",
+    "providedOptionName" : "possibleValues",
+    "values" : [ {
+      "indices" : [ ],
+      "value" : [ {
+        "id" : "URL",
+        "text" : "URL",
+        "type" : {
+          "id" : "org.knime.core.data.StringValue",
+          "text" : "String"
+        }
+      }, {
+        "id" : "Header1",
+        "text" : "Header1",
+        "type" : {
+          "id" : "org.knime.core.data.StringValue",
+          "text" : "String"
+        }
+      }, {
+        "id" : "Header2",
+        "text" : "Header2",
+        "type" : {
+          "id" : "org.knime.core.data.StringValue",
+          "text" : "String"
+        }
+      }, {
+        "id" : "RequestBody",
+        "text" : "RequestBody",
+        "type" : {
+          "id" : "org.knime.core.data.StringValue",
+          "text" : "String"
+        }
+      } ]
+    } ]
+  }, {
+    "id" : "#/properties/model/properties/authenticationInputPortSummary",
+    "providedOptionName" : "message",
+    "values" : [ {
+      "indices" : [ ],
+      "value" : {
+        "title" : "Authentication managed by Credential Input Port.",
+        "description" : "Remove the Credential Input Port to use other authentication methods",
+        "type" : "INFO"
+      }
+    } ]
+  } ],
+  "globalUpdates" : [ {
+    "trigger" : {
+      "id" : "after-open-dialog"
+    },
+    "triggerInitially" : true,
+    "dependencies" : [ "#/properties/model/properties/requestBodyParameters/properties/columnRequestBody" ]
+  }, {
+    "trigger" : {
+      "scope" : "#/properties/model/properties/authType"
+    },
+    "dependencies" : [ "#/properties/model/properties/authType" ]
+  }, {
+    "trigger" : {
+      "scope" : "#/properties/model/properties/proxyMode"
+    },
+    "dependencies" : [ "#/properties/model/properties/nodeSpecificProxyParameters", "#/properties/model/properties/proxyMode" ]
+  }, {
+    "trigger" : {
+      "scope" : "#/properties/model/properties/urlMode"
+    },
+    "dependencies" : [ ]
+  } ]
+}

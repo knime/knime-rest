@@ -50,6 +50,7 @@ package org.knime.rest.nodes.common.proxy;
 
 import org.knime.core.node.config.base.ConfigBaseRO;
 import org.knime.core.node.util.ButtonGroupEnumInterface;
+import org.knime.node.parameters.widget.choices.Label;
 
 /**
  * Are the proxy settings taken from the AP's global settings, configured and set by a dialog or should no proxy be
@@ -62,14 +63,24 @@ public enum ProxyMode implements ButtonGroupEnumInterface {
          * Takes the proxy configuration from the KNIME platform. This is passed via Java System.properties, and
          * implemented in {@link GlobalProxyConfiguration}.
          */
+        @Label(value = "Use KNIME-wide proxy settings", description = """
+                Uses the same proxy as the KNIME platform. In the KNIME Analytics Platform, this can be changed under
+                <tt>File > Preferences > General > Network Connections</tt>.
+                """)
         GLOBAL("Use KNIME-wide proxy settings", "The node uses the same proxy as the KNIME platform."),
         /**
          * Uses local, node-specific proxy settings. These are stored in {@link RestProxyConfig}.
          */
+        @Label(value = "Use node-specific proxy settings", description = """
+                This option enables the configuration fields in the "Proxy" section.
+                """)
         LOCAL("Use node-specific proxy settings", "The node uses the proxy configured below."),
         /**
          * Bypasses all proxies and uses a direction connection.
          */
+        @Label(value = "Direct connection", description = """
+                This option disables the proxy for this POST node. This will bypass KNIME-wide proxies as well.
+                """)
         NONE("Direct connection", "The node does not use a proxy for its connection.");
 
     private final String m_text;
@@ -115,4 +126,5 @@ public enum ProxyMode implements ButtonGroupEnumInterface {
     public boolean isDefault() {
         return this == GLOBAL;
     }
+
 }

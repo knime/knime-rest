@@ -50,6 +50,8 @@ package org.knime.rest.util;
 
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.List;
+import java.util.stream.Collectors;
 
 import org.knime.base.data.filter.row.FilterRowGenerator;
 import org.knime.core.data.DataRow;
@@ -59,6 +61,7 @@ import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.defaultnodesettings.SettingsModelString;
 import org.knime.core.node.util.ButtonGroupEnumInterface;
+import org.knime.node.parameters.widget.choices.Label;
 import org.knime.rest.nodes.common.RestNodeModel;
 
 /**
@@ -68,6 +71,7 @@ import org.knime.rest.nodes.common.RestNodeModel;
  */
 public enum InvalidURLPolicy implements ButtonGroupEnumInterface {
         /** Inserts a {@link MissingCell} */
+        @Label(value = "Insert missing value")
         MISSING {
             @Override
             public String getText() {
@@ -75,6 +79,7 @@ public enum InvalidURLPolicy implements ButtonGroupEnumInterface {
             }
         },
         /** Fails on encountering at least one invalid URL. */
+        @Label(value = "Fail node")
         FAIL {
             @Override
             public String getText() {
@@ -82,6 +87,7 @@ public enum InvalidURLPolicy implements ButtonGroupEnumInterface {
             }
         },
         /** Excludes this row in the output table. */
+        @Label(value = "Remove row")
         SKIP {
             @Override
             public String getText() {
@@ -182,5 +188,28 @@ public enum InvalidURLPolicy implements ButtonGroupEnumInterface {
         } catch (MalformedURLException ignored) { // NOSONAR presence of exception is indicator
             return false;
         }
+    }
+
+    /**
+     * Retrieves the {@link InvalidURLPolicy} for the given string value.
+     *
+     * @param value the string value representation of the InvalidURLPolicy
+     * @return {@link InvalidURLPolicy}
+     * @throws InvalidSettingsException if the stringValue does not correspond to any InvalidURLPolicy
+     *
+     * @since 5.10
+     */
+    public static InvalidURLPolicy getFromValue(final String value) throws InvalidSettingsException {
+        for (final InvalidURLPolicy condition : values()) {
+            if (condition.name().equals(value)) {
+                return condition;
+            }
+        }
+        throw new InvalidSettingsException(createInvalidSettingsExceptionMessage(value));
+    }
+
+    private static String createInvalidSettingsExceptionMessage(final String name) {
+        var values = List.of(MISSING.name(), FAIL.name(), SKIP.name()).stream().collect(Collectors.joining(", "));
+        return String.format("Invalid value '%s'. Possible values: %s", name, values);
     }
 }

@@ -55,6 +55,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IConfigurationElement;
@@ -71,6 +72,7 @@ import org.knime.core.node.NotConfigurableException;
 import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.node.util.CheckUtils;
 import org.knime.core.node.workflow.CredentialsProvider;
+import org.knime.node.parameters.widget.choices.Label;
 import org.knime.rest.generic.EnablableUserConfiguration;
 import org.knime.rest.generic.UserConfiguration;
 import org.knime.rest.internals.NoAuthentication;
@@ -307,11 +309,15 @@ public class RestSettings {
     //Request
     /**
      * The enum describing the possible options to refer to values.
+     *
+     * @since 5.10
      */
-    enum ReferenceType {
+    public enum ReferenceType {
             /** A constant value. */
+            @Label(value = "Constant", description = "Use a constant value.")
             Constant,
             /** Value of a flow variable. */
+            @Label(value = "Flow variable", description = "Use the value of a flow variable.")
             FlowVariable {
                 @Override
                 public String toString() {
@@ -319,8 +325,10 @@ public class RestSettings {
                 }
             },
             /** Value of a column in the actual row. */
+            @Label(value = "Column", description = "Use the value of a column in the current row.")
             Column,
             /** The referred credential's user name. */
+            @Label(value = "Username", description = "Use the name of a stored credential.")
             CredentialName {
                 @Override
                 public String toString() {
@@ -328,12 +336,36 @@ public class RestSettings {
                 }
             },
             /** The referred credential's password. */
+            @Label(value = "Password", description = "Use the password of a stored credential.")
             CredentialPassword {
                 @Override
                 public String toString() {
                     return "Credential password";
                 }
             };
+
+        /**
+         * Retrieves the {@link ReferenceType} for the given string value.
+         *
+         * @param value the string value representation of the ReferenceType
+         * @return {@link ReferenceType}
+         * @throws InvalidSettingsException if the stringValue does not correspond to any ReferenceType
+         */
+        public static ReferenceType getFromValue(final String value) throws InvalidSettingsException {
+            for (final ReferenceType condition : values()) {
+                if (condition.name().equals(value)) {
+                    return condition;
+                }
+            }
+            throw new InvalidSettingsException(createInvalidSettingsExceptionMessage(value));
+        }
+
+        private static String createInvalidSettingsExceptionMessage(final String name) {
+            var values = List.of(Constant.name(), FlowVariable.name(), Column.name(), CredentialName.name(),
+                CredentialPassword.name()).stream().collect(Collectors.joining(", "));
+            return String.format("Invalid value '%s'. Possible values: %s", name, values);
+        }
+
     }
 
     /**

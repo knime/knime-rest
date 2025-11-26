@@ -48,16 +48,36 @@
  */
 package org.knime.rest.nodes.head;
 
+import static org.knime.node.impl.description.PortDescription.dynamicPort;
+import static org.knime.node.impl.description.PortDescription.fixedPort;
+
+import java.util.List;
+import java.util.Map;
+
+import org.knime.core.node.NodeDescription;
 import org.knime.core.node.NodeDialogPane;
 import org.knime.core.node.context.NodeCreationConfiguration;
+import org.knime.core.webui.node.dialog.NodeDialog;
+import org.knime.core.webui.node.dialog.NodeDialogFactory;
+import org.knime.core.webui.node.dialog.NodeDialogManager;
+import org.knime.core.webui.node.dialog.SettingsType;
+import org.knime.core.webui.node.dialog.defaultdialog.DefaultKaiNodeInterface;
+import org.knime.core.webui.node.dialog.defaultdialog.DefaultNodeDialog;
+import org.knime.core.webui.node.dialog.kai.KaiNodeInterface;
+import org.knime.core.webui.node.dialog.kai.KaiNodeInterfaceFactory;
+import org.knime.node.impl.description.DefaultNodeDescriptionUtil;
+import org.knime.node.impl.description.PortDescription;
 import org.knime.rest.nodes.common.RestNodeFactory;
 
 /**
  * The node factory of the node of the HEAD http method.
  *
  * @author Magnus Gohm, KNIME AG, Konstanz, Germany
+ * @author AI Migration Pipeline v1.2
  */
-public class RestHeadNodeFactory extends RestNodeFactory<RestHeadNodeModel> {
+@SuppressWarnings("restriction")
+public class RestHeadNodeFactory extends RestNodeFactory<RestHeadNodeModel>
+    implements NodeDialogFactory, KaiNodeInterfaceFactory {
 
     /**
      * Constructor
@@ -71,9 +91,85 @@ public class RestHeadNodeFactory extends RestNodeFactory<RestHeadNodeModel> {
         return new RestHeadNodeModel(creationConfig);
     }
 
+    private static final String NODE_NAME = "HEAD Request";
+
+    private static final String NODE_ICON = "./rest-head.png";
+
+    private static final String SHORT_DESCRIPTION = "HEAD REST client";
+
+    private static final String FULL_DESCRIPTION = """
+            <p>This node can be used to issue HTTP HEAD requests. The HEAD method is identical to the HTTP GET Method,
+            except that the server will not return a message-body as part of the HTTP response. Rather, it will only
+            return the HTTP headers.</p>
+
+            <p>The node allows you to either send a request to a fixed URL (which is specified in the dialog) or to a
+            list of URLs provided by an optional input table. Every URL will result in one request which in turn will
+            result in one row in the output table. You can define custom request headers in the dialog.</p>
+            <p>By default the output table will contain the HTTP status code and the content type. In addition to that
+            it contains one column for each response header defined in the dialog.</p>
+            <p>The node supports several authentication methods, e.g. BASIC and DIGEST. Other authentication methods may
+             be provided by additional extensions.</p>
+
+            <p>
+            The node supports the Credential port as input (see dynamic input ports). If the port is added, it must
+            supply a Credential that can be embedded into the HTTP Authorization header, and all request done by the
+            node will use the Credential from the port, regardless of other node settings. The OAuth2 Authenticator
+            nodes provide such a Credential for example.
+            </p>
+            """;
+
+    private static final List<PortDescription> INPUT_PORTS = List.of(
+        fixedPort("Table", "Optional data table containing the variable parameters of the requests."),
+        dynamicPort("Credential", "Credential", """
+            A Credential, that can be embedded into the HTTP Authorization header. If this port is added, then all
+            request done by the node will always use the Credential from the port, regardless of other node
+            settings. The OAuth2 Authenticator nodes provide such a Credential for example.
+            """)
+    );
+
+    private static final List<PortDescription> OUTPUT_PORTS = List.of(
+        fixedPort("HEAD results", "Data table containing columns from the responses.")
+    );
+
+    /**
+     * @since 5.10
+     */
     @Override
     protected NodeDialogPane createNodeDialogPane(final NodeCreationConfiguration creationConfig) {
-        return new RestHeadNodeDialog(creationConfig);
+        return NodeDialogManager.createLegacyFlowVariableNodeDialog(createNodeDialog());
+    }
+
+    /**
+     * @since 5.10
+     */
+    @Override
+    public NodeDialog createNodeDialog() {
+        return new DefaultNodeDialog(SettingsType.MODEL, RestHeadNodeParameters.class);
+    }
+
+    @Override
+    public NodeDescription createNodeDescription() {
+        return DefaultNodeDescriptionUtil.createNodeDescription(
+            NODE_NAME,
+            NODE_ICON,
+            INPUT_PORTS,
+            OUTPUT_PORTS,
+            SHORT_DESCRIPTION,
+            FULL_DESCRIPTION,
+            List.of(),
+            RestHeadNodeParameters.class,
+            null,
+            NodeType.Manipulator,
+            List.of(),
+            null);
+    }
+
+    /**
+     * @since 5.10
+     */
+    @Override
+    public KaiNodeInterface createKaiNodeInterface() {
+        return new DefaultKaiNodeInterface(Map.of(SettingsType.MODEL, RestHeadNodeParameters.class));
     }
 
 }
