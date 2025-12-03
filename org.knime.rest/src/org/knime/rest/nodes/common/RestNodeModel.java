@@ -702,7 +702,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
         // when no content type was specified. We avoid this by explicitly setting to '*/*'.
         // This default is overwritten below if request headers were specified in the node dialog.
         if (m_settings.getMethod().orElse(null) == HttpMethod.DELETE) {
-            request.header(HttpHeaders.CONTENT_TYPE, "*/*");
+            request.header(HttpHeaders.CONTENT_TYPE, MediaType.WILDCARD);
         }
 
         for (final RequestHeaderKeyItem headerItem : m_settings.getRequestHeaders()) {

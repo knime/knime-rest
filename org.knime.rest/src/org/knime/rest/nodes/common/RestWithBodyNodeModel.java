@@ -73,11 +73,11 @@ import org.knime.core.node.context.NodeCreationConfiguration;
 import org.knime.core.node.port.PortObjectSpec;
 import org.knime.rest.nodes.common.RestSettings.ReferenceType;
 import org.knime.rest.nodes.common.RestSettings.RequestHeaderKeyItem;
-import org.w3c.dom.Document;
 
 import jakarta.ws.rs.client.Entity;
 import jakarta.ws.rs.client.Invocation;
 import jakarta.ws.rs.client.Invocation.Builder;
+import jakarta.ws.rs.core.HttpHeaders;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Variant;
 
@@ -88,6 +88,9 @@ import jakarta.ws.rs.core.Variant;
  * @param <S> Type for the settings.
  */
 public abstract class RestWithBodyNodeModel<S extends RestWithBodySettings> extends RestNodeModel<S> {
+
+    private static final RequestHeaderKeyItem CONTENT_TYPE_WILDCARD =
+        new RequestHeaderKeyItem(HttpHeaders.CONTENT_TYPE, MediaType.WILDCARD, ReferenceType.Constant);
 
     /**
      * The default chunking threshold, i.e. the body size at which 'Transfer-Encoding: chunked' should be enabled.
@@ -118,12 +121,11 @@ public abstract class RestWithBodyNodeModel<S extends RestWithBodySettings> exte
                 throw new InvalidSettingsException(
                     "The node is configured to use an empty request body column. Please change the configuration.");
             } else {
-                final DataTableSpec dataTableSpec = (DataTableSpec)inSpecs[0];
-                if (dataTableSpec != null) {
-                    if (!dataTableSpec.containsName(requestBodyColumn)) {
-                        throw new InvalidSettingsException("The configured request body column '" + requestBodyColumn
-                            + "' is missing in the input table.");
-                    }
+                final var dataTableSpec = (DataTableSpec)inSpecs[0];
+                if (dataTableSpec != null && !dataTableSpec.containsName(requestBodyColumn)) {
+                    throw new InvalidSettingsException("The configured request body column '" + requestBodyColumn
+                        + "' is missing in the input table.");
+
                 } else {
                     throw new InvalidSettingsException(
                         "Input table required to execute. The node is configured to use a request body from the column "
@@ -142,73 +144,60 @@ public abstract class RestWithBodyNodeModel<S extends RestWithBodySettings> exte
      * @return The converted object.
      */
     protected Object createObjectFromCell(final DataCell cell) {
-        if (cell instanceof JSONValue) {
-            JSONValue jv = (JSONValue)cell;
-            if (cell instanceof StringValue) {
-                StringValue sv = (StringValue)cell;
+        if (cell instanceof JSONValue jv) {
+            if (cell instanceof StringValue sv) {
                 return sv.getStringValue();
             }
-            //CXF does not support the javax.json implementation, so we return as String (but currently all implementations are StringValues):
+            // CXF does not support the javax.json implementation, so we return
+            // as String (currently all implementations are `StringValue`s)
             return ((StringValue)JSONCellFactory.create(jv.getJsonValue())).getStringValue();
         }
-        if (cell instanceof PNGImageValue) {
-            PNGImageValue pngv = (PNGImageValue)cell;
+        if (cell instanceof PNGImageValue pngv) {
             return pngv.getImageContent().getByteArray();
         }
-        if (cell instanceof StringValue) {
-            StringValue sv = (StringValue)cell;
+        if (cell instanceof StringValue sv) {
             return sv.getStringValue();
         }
-        if (cell instanceof SvgValue) {
-            return ((SvgValue) cell).getDocumentSupplier().compute(doc -> doc.cloneNode(true));
+        if (cell instanceof SvgValue svgv) {
+            return svgv.getDocumentSupplier().compute(doc -> doc.cloneNode(true));
         }
-        if (cell instanceof XMLValue) {
-            return ((XMLValue<Document>) cell).getDocumentSupplier().compute(doc -> doc.cloneNode(true));
+        if (cell instanceof XMLValue<?> xmlv) {
+            return xmlv.getDocumentSupplier().compute(doc -> doc.cloneNode(true));
         }
-        if (cell instanceof BooleanValue) {
-            BooleanValue bv = (BooleanValue)cell;
+        if (cell instanceof BooleanValue bv) {
             return bv.getBooleanValue();
         }
-        if (cell instanceof IntValue) {
-            IntValue iv = (IntValue)cell;
+        if (cell instanceof IntValue iv) {
             return iv.getIntValue();
         }
-        if (cell instanceof LongValue) {
-            LongValue lv = (LongValue)cell;
+        if (cell instanceof LongValue lv) {
             return lv.getLongValue();
         }
-        if (cell instanceof DoubleValue) {
-            DoubleValue dv = (DoubleValue)cell;
+        if (cell instanceof DoubleValue dv) {
             return dv.getDoubleValue();
         }
-        if (cell instanceof BinaryObjectDataValue) {
-            BinaryObjectDataValue bodv = (BinaryObjectDataValue)cell;
+        if (cell instanceof BinaryObjectDataValue bodv) {
             try {
                 return bodv.openInputStream();
             } catch (IOException e) {
                 throw new IllegalStateException(e);
             }
         }
-        if (cell instanceof ByteVectorValue) {
-            ByteVectorValue bvv = (ByteVectorValue)cell;
+        if (cell instanceof ByteVectorValue bvv) {
             if (bvv.length() > Integer.MAX_VALUE) {
                 throw new IllegalStateException("Too large byte-vector: " + bvv.length());
             }
-            byte[] ret = new byte[(int)bvv.length()];
-            for (int i = ret.length; i-- > 0;) {
+            final var ret = new byte[(int)bvv.length()];
+            for (int i = ret.length; i > 0; i--) {
                 int v = bvv.get(i);
                 v &= 0xff;
                 ret[i] = (byte)v;
             }
             return ret;
         }
-        //TODO how to represent?
         if (cell instanceof BitVectorValue) {
             throw new UnsupportedOperationException("Not supported datatype: bitvector");
-//            BitVectorValue bvv = (BitVectorValue)cell;
-//            return bvv.toString();
         }
-        //TODO should we fail instead?
         return cell.toString();
     }
 
@@ -219,13 +208,13 @@ public abstract class RestWithBodyNodeModel<S extends RestWithBodySettings> exte
     protected Invocation invocation(final Builder request, final DataRow row, final DataTableSpec spec) {
         final RestWithBodySettings settings = getSettings();
         final int bodyColumn = spec == null ? -1 : spec.findColumnIndex(settings.getRequestBodyColumn());
-        final MediaType mediaType = MediaType.valueOf(extractHeaderValue(row, spec,
-            settings.getRequestHeaders().stream().filter(v -> "Content-Type".equals(v.getKey())).findAny()
-                .orElse(new RequestHeaderKeyItem("Content-Type", "application/json", ReferenceType.Constant))));
+        final var mediaType = MediaType.valueOf(extractHeaderValue(row, spec, settings.getRequestHeaders().stream()
+            .filter(v -> HttpHeaders.CONTENT_TYPE.equals(v.getKey())).findAny().orElse(CONTENT_TYPE_WILDCARD)));
 
-        Variant variant = new Variant(mediaType, (String)null, null);
-        Object o = settings.isUseConstantRequestBody()
-                ? settings.getConstantRequestBody() : createObjectFromCell(row.getCell(bodyColumn));
+        // Construct the body entity with a content type, based on constant or row-based content.
+        final var variant = new Variant(mediaType, (String)null, null);
+        Object o = settings.isUseConstantRequestBody() ? settings.getConstantRequestBody()
+            : createObjectFromCell(row.getCell(bodyColumn));
         Entity<?> entity = Entity.entity(o, variant);
 
         HTTPClientPolicy clientPolicy = WebClient.getConfig(request).getHttpConduit().getClient();
@@ -241,11 +230,11 @@ public abstract class RestWithBodyNodeModel<S extends RestWithBodySettings> exte
             bufferSize = chunkingThreshold;
         } else {
             // chunking should not happen, try to guess the size of the body
-            if (o instanceof byte[]) {
-                bufferSize = ((byte[]) o).length;
-            } else if (o instanceof String) {
+            if (o instanceof byte[] bo) {
+                bufferSize = bo.length;
+            } else if (o instanceof String so) {
                 // we don't know the string's encoding, if it's UTF it can be larger than the string length
-                bufferSize = ((String) o).length() * 2;
+                bufferSize = so.length() * 2;
             } else {
                 // use 16 MB in all other cases
                 bufferSize = 16 << 20;
