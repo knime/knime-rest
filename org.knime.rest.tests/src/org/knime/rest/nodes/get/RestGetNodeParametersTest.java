@@ -11,6 +11,7 @@ import org.knime.core.node.NodeSettings;
 import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.webui.node.dialog.SettingsType;
 import org.knime.core.webui.node.dialog.defaultdialog.NodeParametersUtil;
+import org.knime.rest.nodes.common.webui.RestNodeParameters;
 import org.knime.testing.node.dialog.DefaultNodeSettingsSnapshotTest;
 import org.knime.testing.node.dialog.SnapshotTestConfiguration;
 
@@ -32,20 +33,20 @@ final class RestGetNodeParametersTest extends DefaultNodeSettingsSnapshotTest {
     private static SnapshotTestConfiguration getConfig() {
         return SnapshotTestConfiguration.builder() //
             .withInputPortObjectSpecs(INPUT_PORT_SPECS) //
-            .testJsonFormsForModel(RestGetNodeParameters.class) //
+            .testJsonFormsForModel(RestNodeParameters.class) //
             .testJsonFormsWithInstance(SettingsType.MODEL, () -> readSettings()) //
             .testNodeSettingsStructure(() -> readSettings()) //
             .build();
     }
 
-    private static RestGetNodeParameters readSettings() {
+    private static RestNodeParameters readSettings() {
         try {
-            var path = getSnapshotPath(RestGetNodeParameters.class).getParent().resolve("node_settings")
+            var path = getSnapshotPath(RestNodeParameters.class).getParent().resolve("node_settings")
                 .resolve("RestGetNodeParameters.xml");
             try (var fis = new FileInputStream(path.toFile())) {
                 var nodeSettings = NodeSettings.loadFromXML(fis);
                 return NodeParametersUtil.loadSettings(nodeSettings.getNodeSettings(SettingsType.MODEL.getConfigKey()),
-                    RestGetNodeParameters.class);
+                    RestNodeParameters.class);
             }
         } catch (IOException | InvalidSettingsException e) {
             throw new IllegalStateException(e);

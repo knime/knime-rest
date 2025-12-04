@@ -3,6 +3,7 @@
     <entry key="Use constant URI" type="xboolean" value="true"/>
     <entry key="Constant URI" type="xstring" value="https://www.google.com"/>
     <entry key="URI column" type="xstring" isnull="true" value=""/>
+    <entry key="follow redirects" type="xboolean" value="true"/>
     <entry key="None_enabled" type="xboolean" value="true"/>
     <entry key="Basic_enabled" type="xboolean" value="false"/>
     <entry key="Bearer_enabled" type="xboolean" value="false"/>
@@ -44,7 +45,7 @@
         <entry key="org.knime.rest.auth.ntlm.domain" type="xstring" value=""/>
     </config>
     <config key="Kerberos"/>
-    <entry key="Proxy_enabled" type="xboolean" value="false"/>
+    <entry key="Proxy_enabled" type="xboolean" value="true"/>
     <config key="Proxy auth">
         <entry key="selectedType" type="xstring" value="USER_PWD"/>
         <entry key="credentials" type="xstring" value=""/>
@@ -54,6 +55,9 @@
     <entry key="concurrency" type="xint" value="1"/>
     <entry key="delay_enabled" type="xboolean" value="false"/>
     <entry key="delay" type="xlong" value="0"/>
+    <entry key="connectTimeout" type="xint" value="5"/>
+    <entry key="readTimeout" type="xint" value="120"/>
+    <entry key="allowChunking" type="xboolean" value="true"/>
     <entry key="SSL ignore hostname errors" type="xboolean" value="false"/>
     <entry key="SSL trust all" type="xboolean" value="false"/>
     <config key="Request header keys">
@@ -66,6 +70,9 @@
         <entry key="array-size" type="xint" value="0"/>
     </config>
     <entry key="failOnMissingHeaders" type="xboolean" value="true"/>
+    <entry key="Invalid URL handling" type="xstring" value="MISSING"/>
+    <entry key="Fail on connection problems" type="xboolean" value="false"/>
+    <entry key="failOnClientError" type="xboolean" value="false"/>
     <config key="delayPolicy">
         <entry key="delayCooldownEnabled" type="xboolean" value="false"/>
         <entry key="delayRateLimitCooldown" type="xlong" value="60"/>
@@ -73,9 +80,6 @@
         <entry key="delayMaxRetries" type="xint" value="3"/>
         <entry key="delayRetryBase" type="xlong" value="1"/>
     </config>
-    <entry key="Invalid URL handling" type="xstring" value="MISSING"/>
-    <entry key="Fail on connection problems" type="xboolean" value="false"/>
-    <entry key="failOnClientError" type="xboolean" value="false"/>
     <entry key="failOnServerError" type="xboolean" value="false"/>
     <entry key="Extract all response fields" type="xboolean" value="false"/>
     <config key="Response header keys">
@@ -101,11 +105,6 @@
     </config>
     <entry key="Body column name" type="xstring" value="body"/>
     <entry key="outputErrorCause" type="xboolean" value="false"/>
-    <entry key="follow redirects" type="xboolean" value="true"/>
-    <entry key="connectTimeout" type="xint" value="5"/>
-    <entry key="readTimeout" type="xint" value="120"/>
-    <entry key="timeout" type="xint" value="0"/>
-    <entry key="allowChunking" type="xboolean" value="true"/>
     <entry key="Use constant request body" type="xboolean" value="true"/>
     <entry key="Constant request body" type="xstring" value=""/>
     <entry key="Request body column" type="xstring" isnull="true" value=""/>

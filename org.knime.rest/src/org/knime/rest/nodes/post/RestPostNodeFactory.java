@@ -68,6 +68,7 @@ import org.knime.core.webui.node.dialog.kai.KaiNodeInterfaceFactory;
 import org.knime.node.impl.description.DefaultNodeDescriptionUtil;
 import org.knime.node.impl.description.PortDescription;
 import org.knime.rest.nodes.common.RestNodeFactory;
+import org.knime.rest.nodes.common.webui.RestNodeWithBodyParameters;
 
 /**
  * Node factory for the node of POST http method.
@@ -148,7 +149,7 @@ public class RestPostNodeFactory extends RestNodeFactory<RestPostNodeModel>
      */
     @Override
     public NodeDialog createNodeDialog() {
-        return new DefaultNodeDialog(SettingsType.MODEL, RestPostNodeParameters.class);
+        return new DefaultNodeDialog(SettingsType.MODEL, RestNodeWithBodyParameters.class);
     }
 
     @Override
@@ -161,7 +162,7 @@ public class RestPostNodeFactory extends RestNodeFactory<RestPostNodeModel>
             SHORT_DESCRIPTION,
             FULL_DESCRIPTION,
             List.of(),
-            RestPostNodeParameters.class,
+            RestNodeWithBodyParameters.class,
             null,
             NodeType.Manipulator,
             List.of(),
@@ -173,6 +174,6 @@ public class RestPostNodeFactory extends RestNodeFactory<RestPostNodeModel>
      */
     @Override
     public KaiNodeInterface createKaiNodeInterface() {
-        return new DefaultKaiNodeInterface(Map.of(SettingsType.MODEL, RestPostNodeParameters.class));
+        return new DefaultKaiNodeInterface(Map.of(SettingsType.MODEL, RestNodeWithBodyParameters.class));
     }
 }

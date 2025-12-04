@@ -68,6 +68,7 @@ import org.knime.core.webui.node.dialog.kai.KaiNodeInterfaceFactory;
 import org.knime.node.impl.description.DefaultNodeDescriptionUtil;
 import org.knime.node.impl.description.PortDescription;
 import org.knime.rest.nodes.common.RestNodeFactory;
+import org.knime.rest.nodes.common.webui.RestNodeWithBodyParameters;
 
 /**
  * Node factory for the node of DELETE http method.
@@ -151,7 +152,7 @@ public class RestDeleteNodeFactory extends RestNodeFactory<RestDeleteNodeModel>
      */
     @Override
     public NodeDialog createNodeDialog() {
-        return new DefaultNodeDialog(SettingsType.MODEL, RestDeleteNodeParameters.class);
+        return new DefaultNodeDialog(SettingsType.MODEL, RestNodeWithBodyParameters.class);
     }
 
     @Override
@@ -164,7 +165,7 @@ public class RestDeleteNodeFactory extends RestNodeFactory<RestDeleteNodeModel>
             SHORT_DESCRIPTION,
             FULL_DESCRIPTION,
             List.of(),
-            RestDeleteNodeParameters.class,
+            RestNodeWithBodyParameters.class,
             null,
             NodeType.Manipulator,
             List.of(),
@@ -176,6 +177,6 @@ public class RestDeleteNodeFactory extends RestNodeFactory<RestDeleteNodeModel>
      */
     @Override
     public KaiNodeInterface createKaiNodeInterface() {
-        return new DefaultKaiNodeInterface(Map.of(SettingsType.MODEL, RestDeleteNodeParameters.class));
+        return new DefaultKaiNodeInterface(Map.of(SettingsType.MODEL, RestNodeWithBodyParameters.class));
     }
 }

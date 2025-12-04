@@ -75,8 +75,7 @@ enum RestAuthenticationType {
         disabled = true)
     NTLM_AUTH("NTLM"), //
     @Label(value = "Kerberos", description = "Kerberos ticket based authentication")
-    KERBEROS("Kerberos"), //
-    AUTH_VIA_INPUT_PORT("Authenticatin via Input port");
+    KERBEROS("Kerberos");
 
     private final String m_value;
 

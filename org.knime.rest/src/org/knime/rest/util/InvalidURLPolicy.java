@@ -71,7 +71,9 @@ import org.knime.rest.nodes.common.RestNodeModel;
  */
 public enum InvalidURLPolicy implements ButtonGroupEnumInterface {
         /** Inserts a {@link MissingCell} */
-        @Label(value = "Insert missing value")
+        @Label(value = "Insert missing value", description = """
+                The node inserts a missing value in the output table for the corresponding request.
+                """)
         MISSING {
             @Override
             public String getText() {
@@ -79,7 +81,7 @@ public enum InvalidURLPolicy implements ButtonGroupEnumInterface {
             }
         },
         /** Fails on encountering at least one invalid URL. */
-        @Label(value = "Fail node")
+        @Label(value = "Fail node", description = "The node execution fails.")
         FAIL {
             @Override
             public String getText() {
@@ -87,7 +89,9 @@ public enum InvalidURLPolicy implements ButtonGroupEnumInterface {
             }
         },
         /** Excludes this row in the output table. */
-        @Label(value = "Remove row")
+        @Label(value = "Remove row", description = """
+                The node removes the row for the corresponding request.
+                """)
         SKIP {
             @Override
             public String getText() {

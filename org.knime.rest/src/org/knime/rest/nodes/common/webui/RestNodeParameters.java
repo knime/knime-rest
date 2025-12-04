@@ -92,12 +92,10 @@ import org.knime.node.parameters.updates.ParameterReference;
 import org.knime.node.parameters.updates.StateProvider;
 import org.knime.node.parameters.updates.ValueProvider;
 import org.knime.node.parameters.updates.ValueReference;
+import org.knime.node.parameters.updates.legacy.ColumnNameAutoGuessValueProvider;
 import org.knime.node.parameters.widget.choices.ChoicesProvider;
 import org.knime.node.parameters.widget.choices.ColumnChoicesProvider;
-import org.knime.node.parameters.widget.choices.EnumChoice;
-import org.knime.node.parameters.widget.choices.EnumChoicesProvider;
 import org.knime.node.parameters.widget.choices.Label;
-import org.knime.node.parameters.widget.choices.RadioButtonsWidget;
 import org.knime.node.parameters.widget.choices.ValueSwitchWidget;
 import org.knime.node.parameters.widget.choices.util.ColumnSelectionUtil;
 import org.knime.node.parameters.widget.message.TextMessage;
@@ -106,9 +104,9 @@ import org.knime.node.parameters.widget.number.NumberInputWidgetValidation.MinVa
 import org.knime.node.parameters.widget.number.NumberInputWidgetValidation.MinValidation.IsPositiveIntegerValidation;
 import org.knime.node.parameters.widget.text.TextInputWidget;
 import org.knime.node.parameters.widget.text.TextInputWidgetValidation.PatternValidation.IsNotEmptyValidation;
+import org.knime.node.parameters.widget.text.util.ColumnNameValidationUtils.ColumnNameValidation;
 import org.knime.rest.nodes.common.proxy.ProxyMode;
 import org.knime.rest.nodes.common.webui.CredentialsType.CredentialsTypePersistor;
-import org.knime.rest.nodes.common.webui.ResponseHeaderItem.ResponseHeadersArrayPersistor;
 import org.knime.rest.nodes.common.webui.RestAuthenticationParameters.RestAuthenticationParametersModification;
 import org.knime.rest.util.InvalidURLPolicy;
 
@@ -120,37 +118,27 @@ import org.knime.rest.util.InvalidURLPolicy;
  */
 @LoadDefaultsForAbsentFields
 @SuppressWarnings("restriction")
-public abstract class RestNodeParameters implements NodeParameters {
+public class RestNodeParameters implements NodeParameters {
+
+    static final String CFG_LEGACY_TIMEOUT = "timeout";
 
     /**
      * Constructor.
      */
-    protected RestNodeParameters() {
+    public RestNodeParameters() {
+        // intentionally left blank
     }
 
     /**
-     * Modification for rest node parameters.
+     * Modification for making the response body column name input widget visible.
      *
      * @author Magnus Gohm, KNIME GmbH, Konstanz, Germany
      */
-    public abstract static class RestNodeParametersModification implements Modification.Modifier {
-
-        private boolean m_hideResponseBodyColumn;
-
-        /**
-         * Modifier for rest authentication parameters.
-         *
-         * @param hideResponseBodyColumn whether to hide the response body column
-         */
-        protected RestNodeParametersModification(final boolean hideResponseBodyColumn) {
-            m_hideResponseBodyColumn = hideResponseBodyColumn;
-        }
+    public static class RestNodeParametersModification implements Modification.Modifier {
 
         @Override
         public void modify(final WidgetGroupModifier group) {
-            if (m_hideResponseBodyColumn) {
-                group.find(ResponseBodyColumnModRef.class).removeAnnotation(Widget.class);
-            }
+            group.find(ResponseBodyColumnModRef.class).removeAnnotation(Widget.class);
         }
 
     }
@@ -166,7 +154,7 @@ public abstract class RestNodeParameters implements NodeParameters {
 
     @Advanced
     @Section(title = "Proxy")
-    @After(OutputSection.class)
+    @After(AdvancedConnectionOptionsSection.class)
     //@After(AuthenticationSection.class)
     // TODO: In the new design the proxy section is after Authentication and before Performance and Rate Control
     // But since the Proxy section is advanced, it will be for now shown at the end of the dialog until decided how
@@ -235,15 +223,6 @@ public abstract class RestNodeParameters implements NodeParameters {
         interface RetryOnServerErrorsLayout {
         }
 
-        /**
-         * Layout for settings after retry on server errors.
-         *
-         * @author Magnus Gohm, KNIME GmbH, Konstanz, Germany
-         */
-        @After(RetryOnServerErrorsLayout.class)
-        interface AfterRetryOnServerErrorsLayout {
-        }
-
     }
 
     @Section(title = "Output")
@@ -251,11 +230,18 @@ public abstract class RestNodeParameters implements NodeParameters {
     interface OutputSection {
     }
 
+    @Advanced
+    @Section(title = "Advanced Connection Options")
+    @After(OutputSection.class)
+    interface AdvancedConnectionOptionsSection {
+    }
+
     @Layout(APIConnectionSection.class)
     @Widget(title = "Request URL", description = """
             Select a constant URL or a column from the input table that contains the URLs that you want to request.
             """)
     @Persistor(URLModePersistor.class)
+    @ValueSwitchWidget
     @ValueReference(URLModeRef.class)
     URLMode m_urlMode = URLMode.CONSTANT;
 
@@ -272,7 +258,23 @@ public abstract class RestNodeParameters implements NodeParameters {
     @Effect(predicate = IsColumnURLMode.class, type = EffectType.SHOW)
     @Persist(configKey = "URI column")
     @ValueProvider(URLColumnProvider.class)
+    @ValueReference(URLColumnRef.class)
     String m_urlColumn;
+
+    @Layout(APIConnectionSection.class)
+    @TextMessage(UrlColumnInputSummary.class)
+    @Effect(predicate = IsColumnURLMode.class, type = EffectType.SHOW)
+    Void m_urlColumnInputSummary;
+
+    // TODO: The advanced settings which are not entire sections and belong to visible section are for now listed at the
+    // end of the dialog until it is decided how to integrate advanced settings into their respective sections.
+    @Layout(AdvancedConnectionOptionsSection.class)
+    //@Layout(APIConnectionSection.class)
+    @Widget(title = "Follow redirects", description = """
+            If checked, the node will follow redirects (HTTP status code 3xx).
+            """)
+    @Persist(configKey = "follow redirects")
+    boolean m_followRedirects = true;
 
     @Layout(AuthenticationSection.class)
     @TextMessage(AuthenticationInputPortSummary.class)
@@ -282,8 +284,7 @@ public abstract class RestNodeParameters implements NodeParameters {
     @Widget(title = "Authentication type", description = "The type of the used authentication.")
     @Persistor(RestAuthenticationTypePersistor.class)
     @ValueReference(RestAuthenticationTypeRef.class)
-    @ChoicesProvider(RestAuthenticationTypeChoicesProvider.class)
-    @ValueProvider(RestAuthenticationTypeProvider.class)
+    @Effect(predicate = IsAuthViaInputPortEnabled.class, type = EffectType.HIDE)
     RestAuthenticationType m_authType;
 
     @Layout(AuthenticationSection.class)
@@ -312,8 +313,9 @@ public abstract class RestNodeParameters implements NodeParameters {
 
             BasicAuthParametersModification() {
                 super(RequiresFlowVariableCredential.class,
-                    RequiresUsername.class,
-                    RequiresPassword.class);
+                    RequiresCredential.class,
+                    RequiresUsernameProvider.class,
+                    RequiresPasswordProvider.class);
             }
 
         }
@@ -334,12 +336,13 @@ public abstract class RestNodeParameters implements NodeParameters {
 
             @Override
             public EffectPredicate init(final PredicateInitializer i) {
-                return i.getEnum(RestAuthenticationTypeRef.class).isOneOf(RestAuthenticationType.BASIC_AUTH);
+                return i.getEnum(RestAuthenticationTypeRef.class).isOneOf(RestAuthenticationType.BASIC_AUTH)
+                        .and(not(i.getPredicate(IsAuthViaInputPortEnabled.class)));
             }
 
         }
 
-        static final class RequiresUsername implements EffectPredicateProvider {
+        static final class RequiresCredential implements EffectPredicateProvider {
 
             @Override
             public EffectPredicate init(final PredicateInitializer i) {
@@ -349,12 +352,20 @@ public abstract class RestNodeParameters implements NodeParameters {
 
         }
 
-        static final class RequiresPassword implements EffectPredicateProvider {
+        static final class RequiresUsernameProvider extends AuthenticationTypeDependentProvider {
 
             @Override
-            public EffectPredicate init(final PredicateInitializer i) {
-                return i.getPredicate(IsBasicAuth.class)
-                        .and(i.getPredicate(IsManualBasicAuthCredentialInput.class));
+            public Boolean computeState(final NodeParametersInput context) {
+                return m_typeSupplier.get() == RestAuthenticationType.BASIC_AUTH;
+            }
+
+        }
+
+        static final class RequiresPasswordProvider extends AuthenticationTypeDependentProvider {
+
+            @Override
+            public Boolean computeState(final NodeParametersInput context) {
+                return m_typeSupplier.get() == RestAuthenticationType.BASIC_AUTH;
             }
 
         }
@@ -406,11 +417,13 @@ public abstract class RestNodeParameters implements NodeParameters {
 
             BearerAuthParametersModification() {
                 super(RequiresFlowVariableCredential.class,
-                    RequiresUsername.class,
-                    RequiresPassword.class,
-                    "Token", "",
-                    null, null, null, // don't modify description
-                    true);
+                    RequiresCredential.class,
+                    RequiresUsernameProvider.class,
+                    RequiresPasswordProvider.class,
+                    "The flow variable containing the credentials which are used for bearer authorization.",
+                    "Token",
+                    "The bearer token used for authorization.",
+                    false);
             }
 
         }
@@ -431,26 +444,36 @@ public abstract class RestNodeParameters implements NodeParameters {
 
             @Override
             public EffectPredicate init(final PredicateInitializer i) {
-                return i.getEnum(RestAuthenticationTypeRef.class).isOneOf(RestAuthenticationType.BEARER_TOKEN);
+                return i.getEnum(RestAuthenticationTypeRef.class).isOneOf(RestAuthenticationType.BEARER_TOKEN)
+                        .and(not(i.getPredicate(IsAuthViaInputPortEnabled.class)));
             }
 
         }
 
-        static final class RequiresUsername implements EffectPredicateProvider {
-
-            @Override
-            public EffectPredicate init(final PredicateInitializer i) {
-                return i.getConstant(init -> false);
-            }
-
-        }
-
-        static final class RequiresPassword implements EffectPredicateProvider {
+        static final class RequiresCredential implements EffectPredicateProvider {
 
             @Override
             public EffectPredicate init(final PredicateInitializer i) {
                 return i.getPredicate(IsBearerAuth.class)
                         .and(i.getPredicate(IsManualBearerAuthCredentialInput.class));
+            }
+
+        }
+
+        static final class RequiresUsernameProvider extends AuthenticationTypeDependentProvider {
+
+            @Override
+            public Boolean computeState(final NodeParametersInput context) {
+                return false;
+            }
+
+        }
+
+        static final class RequiresPasswordProvider extends AuthenticationTypeDependentProvider {
+
+            @Override
+            public Boolean computeState(final NodeParametersInput context) {
+                return m_typeSupplier.get() == RestAuthenticationType.BEARER_TOKEN;
             }
 
         }
@@ -502,8 +525,9 @@ public abstract class RestNodeParameters implements NodeParameters {
 
             DigestAuthParametersModification() {
                 super(RequiresFlowVariableCredential.class,
-                    RequiresUsername.class,
-                    RequiresPassword.class,
+                    RequiresCredential.class,
+                    RequiresUsernameProvider.class,
+                    RequiresPasswordProvider.class,
                     true);
             }
 
@@ -525,12 +549,13 @@ public abstract class RestNodeParameters implements NodeParameters {
 
             @Override
             public EffectPredicate init(final PredicateInitializer i) {
-                return i.getEnum(RestAuthenticationTypeRef.class).isOneOf(RestAuthenticationType.DIGEST_AUTH);
+                return i.getEnum(RestAuthenticationTypeRef.class).isOneOf(RestAuthenticationType.DIGEST_AUTH)
+                        .and(not(i.getPredicate(IsAuthViaInputPortEnabled.class)));
             }
 
         }
 
-        static final class RequiresUsername implements EffectPredicateProvider {
+        static final class RequiresCredential implements EffectPredicateProvider {
 
             @Override
             public EffectPredicate init(final PredicateInitializer i) {
@@ -540,12 +565,20 @@ public abstract class RestNodeParameters implements NodeParameters {
 
         }
 
-        static final class RequiresPassword implements EffectPredicateProvider {
+        static final class RequiresUsernameProvider extends AuthenticationTypeDependentProvider {
 
             @Override
-            public EffectPredicate init(final PredicateInitializer i) {
-                return i.getPredicate(IsDigestAuth.class)
-                        .and(i.getPredicate(IsManualDigestAuthCredentialInput.class));
+            public Boolean computeState(final NodeParametersInput context) {
+                return m_typeSupplier.get() == RestAuthenticationType.DIGEST_AUTH;
+            }
+
+        }
+
+        static final class RequiresPasswordProvider extends AuthenticationTypeDependentProvider {
+
+            @Override
+            public Boolean computeState(final NodeParametersInput context) {
+                return m_typeSupplier.get() == RestAuthenticationType.DIGEST_AUTH;
             }
 
         }
@@ -597,8 +630,9 @@ public abstract class RestNodeParameters implements NodeParameters {
 
             NTLMAuthParametersModification() {
                 super(RequiresFlowVariableCredential.class,
-                    RequiresUsername.class,
-                    RequiresPassword.class,
+                    RequiresCredential.class,
+                    RequiresUsernameProvider.class,
+                    RequiresPasswordProvider.class,
                     true);
             }
 
@@ -616,7 +650,7 @@ public abstract class RestNodeParameters implements NodeParameters {
 
         }
 
-        static final class RequiresUsername implements EffectPredicateProvider {
+        static final class RequiresCredential implements EffectPredicateProvider {
 
             @Override
             public EffectPredicate init(final PredicateInitializer i) {
@@ -626,12 +660,20 @@ public abstract class RestNodeParameters implements NodeParameters {
 
         }
 
-        static final class RequiresPassword implements EffectPredicateProvider {
+        static final class RequiresUsernameProvider extends AuthenticationTypeDependentProvider {
 
             @Override
-            public EffectPredicate init(final PredicateInitializer i) {
-                return i.getPredicate(IsNTLMAuth.class)
-                        .and(i.getPredicate(IsManualNTLMAuthCredentialInput.class));
+            public Boolean computeState(final NodeParametersInput context) {
+                return m_typeSupplier.get() == RestAuthenticationType.NTLM_AUTH;
+            }
+
+        }
+
+        static final class RequiresPasswordProvider extends AuthenticationTypeDependentProvider {
+
+            @Override
+            public Boolean computeState(final NodeParametersInput context) {
+                return m_typeSupplier.get() == RestAuthenticationType.NTLM_AUTH;
             }
 
         }
@@ -691,6 +733,7 @@ public abstract class RestNodeParameters implements NodeParameters {
         @Widget(title = "Proxy protocol", description = """
                 This option describes the proxy protocol to use. HTTP, HTTPS and SOCKS can be selected.
                 """)
+        @ValueSwitchWidget
         @Effect(predicate = IsLocalProxyMode.class, type = EffectType.SHOW)
         ProxyProtocol m_proxyProtocol = ProxyProtocol.HTTP;
 
@@ -768,11 +811,11 @@ public abstract class RestNodeParameters implements NodeParameters {
 
             ProxyAuthParametersModification() {
                 super(IsProxyAuthRequiredAndVariableInput.class,
-                    IsProxyAuthRequiredAndManualInput.class,
-                    IsProxyAuthRequiredAndManualInput.class,
+                    RequiresCredential.class,
+                    RequiresUsernameProvider.class,
+                    RequiresPasswordProvider.class,
                     "The flow variable containing the credentials which are used for proxy authentication.",
-                    "The user name for proxy authentication.",
-                    "The password for proxy authentication.");
+                    "The user name and password for proxy authentication.");
             }
 
         }
@@ -795,6 +838,34 @@ public abstract class RestNodeParameters implements NodeParameters {
             public EffectPredicate init(final PredicateInitializer i) {
                 return i.getPredicate(IsLocalProxyMode.class)
                     .and(i.getBoolean(UseProxyAuthRef.class).isTrue());
+            }
+
+        }
+
+        static final class RequiresCredential implements EffectPredicateProvider {
+
+            @Override
+            public EffectPredicate init(final PredicateInitializer i) {
+                return i.getPredicate(IsProxyAuthRequired.class)
+                        .and(i.getPredicate(IsManualProxyAuthCredentialInput.class));
+            }
+
+        }
+
+        static final class RequiresUsernameProvider extends ProxyAuthDependentProvider {
+
+            @Override
+            public Boolean computeState(final NodeParametersInput context) {
+                return m_isProxyAuthEnabled.get();
+            }
+
+        }
+
+        static final class RequiresPasswordProvider extends ProxyAuthDependentProvider {
+
+            @Override
+            public Boolean computeState(final NodeParametersInput context) {
+                return m_isProxyAuthEnabled.get();
             }
 
         }
@@ -852,6 +923,72 @@ public abstract class RestNodeParameters implements NodeParameters {
     @Effect(predicate = UseDelayPredicate.class, type = EffectType.SHOW)
     long m_delay;
 
+    @Layout(AdvancedConnectionOptionsSection.class)
+    //@Layout(PerformanceAndRateControlSection.class)
+    @Widget(title = "Connect timeout (s)", description = """
+            The connection timeout is the timeout in making the initial connection. In case of HTTPS, this
+            includes completing the SSL handshake. This timeout is set in seconds.
+            """)
+    @NumberInputWidget(minValidation = IsPositiveIntegerValidation.class)
+    @Persist(configKey = "connectTimeout")
+    @Migration(ConnectionTimeoutMigration.class)
+    int m_connectTimeoutInSeconds = 5;
+
+    static final class ConnectionTimeoutMigration implements NodeParametersMigration<Integer> {
+
+        static Integer loadTimeout(final NodeSettingsRO settings) {
+            return settings.getInt(CFG_LEGACY_TIMEOUT, 5);
+        }
+
+        @Override
+        public List<ConfigMigration<Integer>> getConfigMigrations() {
+            return List.of(
+                ConfigMigration.builder(settings -> 5).withMatcher(settings->
+                    !settings.containsKey(CFG_LEGACY_TIMEOUT) && !settings.containsKey("readTimeout")).build(),
+                ConfigMigration.builder(ConnectionTimeoutMigration::loadTimeout)
+                .withDeprecatedConfigPath(CFG_LEGACY_TIMEOUT).build());
+        }
+
+    }
+
+    @Layout(AdvancedConnectionOptionsSection.class)
+    //@Layout(PerformanceAndRateControlSection.class)
+    @Widget(title = "Read timeout (s)", description = """
+            The read timeout is the time to wait until the first byte of data is read. Increasing this timeout
+            makes sense if you have a slow connection or you expect the server will take a long time to prepare
+            your response. This timeout is set in seconds.
+            """)
+    @NumberInputWidget(minValidation = IsPositiveIntegerValidation.class)
+    @Persist(configKey = "readTimeout")
+    @Migration(ReadTimeoutMigration.class)
+    int m_readTimeoutInSeconds = 120;
+
+    static final class ReadTimeoutMigration implements NodeParametersMigration<Integer> {
+
+        static Integer loadTimeout(final NodeSettingsRO settings) {
+            return settings.getInt(CFG_LEGACY_TIMEOUT, 120);
+        }
+
+        @Override
+        public List<ConfigMigration<Integer>> getConfigMigrations() {
+            return List.of(
+                ConfigMigration.builder(settings -> 120).withMatcher(settings->
+                    !settings.containsKey(CFG_LEGACY_TIMEOUT) && !settings.containsKey("readTimeout")).build(),
+                ConfigMigration.builder(ConnectionTimeoutMigration::loadTimeout)
+                .withDeprecatedConfigPath(CFG_LEGACY_TIMEOUT).build());
+        }
+
+    }
+
+    @Layout(AdvancedConnectionOptionsSection.class)
+    //@Layout(PerformanceAndRateControlSection.class)
+    @Widget(title = "Send large data in chunks", description = """
+            Specifies whether HTTP Chunked Transfer Encoding is allowed to be used by the node. If enabled,
+            messages with a large body size are being sent to the server in a series of chunks.
+            """)
+    @Persist(configKey = "allowChunking")
+    boolean m_allowChunking = true;
+
     @Layout(SecurityAndCertificateSection.class)
     @Widget(title = "Ignore hostname mismatches", description = """
             If checked, the node trusts the server's SSL certificate even if it was generated for a different host.
@@ -873,15 +1010,14 @@ public abstract class RestNodeParameters implements NodeParameters {
     @ArrayWidget(elementLayout = ElementLayout.VERTICAL_CARD, addButtonText = "Add header parameter")
     @PersistArray(RequestHeaderItem.RequestHeadersArrayPersistor.class)
     @ValueReference(RequestHeaderItemRef.class)
-    @ValueProvider(RequestHeaderItemProvider.class)
     RequestHeaderItem[] m_requestHeaders = new RequestHeaderItem[0];
 
     @Layout(RequestHeaderSection.class)
-    @Widget(title = "Fail on missing header value", description = """
-            Setting this option makes the node fail once a header input value is not available anymore,
-            e.g. due to a missing value. Is enabled by default.
+    @Widget(title = "Missing header value handling", description = """
+            How to handle missing header input values.
             """)
     @Persistor(MissingHeaderValuePersistor.class)
+    @ValueSwitchWidget
     @Migration(MissingHeaderValueMigration.class)
     MissingHeaderValue m_failOnMissingHeaders = MissingHeaderValue.FAIL;
 
@@ -895,8 +1031,39 @@ public abstract class RestNodeParameters implements NodeParameters {
     }
 
     @Layout(TimingRetriesAndErrorsSection.class)
-    @Widget(title = "Pause execution (and retry)", description = """
-            Enable to pause execution and retry when receiving rate limiting errors (HTTP 429).
+    @Widget(title = "Handling of invalid URLs", description = """
+            Specifies how invalid URLs are handled. For REST client nodes, all URLs conforming to
+            <a href=\"https://www.rfc-editor.org/rfc/rfc1738\">RFC 1738</a> and using the HTTP or HTTPS protocol are
+            considered valid.
+            """)
+    @ValueSwitchWidget
+    @Persistor(InvalidURLPolicyPersistor.class)
+    InvalidURLPolicy m_invalidURLPolicy = InvalidURLPolicy.MISSING;
+
+    @Layout(TimingRetriesAndErrorsSection.class)
+    @Widget(title = "Fail on connection problems (e.g. timeout, certificate errors, …)", description = """
+            This option describes what should happen if there was a problem establishing the connection to the
+            server. The node either fails in execution or outputs a missing value in the row of the output table.
+            """)
+    @ValueSwitchWidget
+    @Persistor(FailOnConnectionProblemsPersistor.class)
+    ErrorHandlingPolicy m_failOnConnectionProblems = ErrorHandlingPolicy.INSERT_MISSING_VALUE;
+
+    // TODO Missing option for fail on 429 responses
+
+    @Layout(TimingRetriesAndErrorsSection.class)
+    @Widget(title = "Client-side errors (HTTP 4XX)", description = """
+            This option describes what should happen if a response with a 4XX status code is received. These
+            status codes usually describe client-side errors such as malformed requests.
+            """)
+    @ValueSwitchWidget
+    @Persistor(FailOnClientErrorsPersistor.class)
+    @Migration(FailOnServerOrClientErrorsMigration.class)
+    ErrorHandlingPolicy m_failOnClientErrors = ErrorHandlingPolicy.INSERT_MISSING_VALUE;
+
+    @Layout(TimingRetriesAndErrorsSection.class)
+    @Widget(title = "Rate-limiting error handling (HTTP 429)", description = """
+            Decide how to proceed when receiving rate limiting errors (HTTP 429).
             """)
     @ValueSwitchWidget
     @PersistWithin({"delayPolicy"})
@@ -917,6 +1084,39 @@ public abstract class RestNodeParameters implements NodeParameters {
     // TODO Missing "Auto" option for rate limit responses
 
     // TODO Missing maximum wait time setting for for rate limit responses
+
+    @Layout(TimingRetriesAndErrorsSection.class)
+    @Widget(title = "Server-side errors (HTTP 5XX)", description = """
+            This option describes what should happen if a response with a 5XX status code is received. These
+            status codes usually describe errors on the server side.
+            """)
+    @ValueSwitchWidget
+    @Persistor(FailOnServerErrorsPersistor.class)
+    @Migration(FailOnServerOrClientErrorsMigration.class)
+    ErrorHandlingPolicy m_failOnServerErrors = ErrorHandlingPolicy.INSERT_MISSING_VALUE;
+
+    static final class FailOnServerOrClientErrorsMigration implements NodeParametersMigration<ErrorHandlingPolicy> {
+
+        static ErrorHandlingPolicy loadPolicy(final NodeSettingsRO settings) {
+            final var legacyFailOnMissingHeaders = settings.getBoolean("Fail on HTTP errors", false);
+            if (legacyFailOnMissingHeaders) {
+                return ErrorHandlingPolicy.FAIL_NODE;
+            } else {
+                return ErrorHandlingPolicy.INSERT_MISSING_VALUE;
+            }
+        }
+
+        @Override
+        public List<ConfigMigration<ErrorHandlingPolicy>> getConfigMigrations() {
+            return List.of(
+                ConfigMigration.builder(settings -> ErrorHandlingPolicy.INSERT_MISSING_VALUE).withMatcher(settings->
+                    !settings.containsKey("Fail on HTTP errors") &&
+                    (!settings.containsKey("failOnServerError") || !settings.containsKey("failOnClientError"))).build(),
+                ConfigMigration.builder(FailOnServerOrClientErrorsMigration::loadPolicy)
+                .withDeprecatedConfigPath("Fail on HTTP errors").build());
+        }
+
+    }
 
     @Layout(TimingRetriesAndErrorsSection.class)
     @Widget(title = "Retry on server errors",
@@ -947,70 +1147,9 @@ public abstract class RestNodeParameters implements NodeParameters {
     @Effect(predicate = IsRetryEnabled.class, type = EffectType.SHOW)
     long m_retryDelaySeconds = 1L;
 
-    @Layout(TimingRetriesAndErrorsSection.AfterRetryOnServerErrorsLayout.class)
-    @Widget(title = "Handling of invalid URLs", description = """
-            Specifies how invalid URLs are handled. Depending on the selected mode,
-            this node either inserts missing values as responses, fails the node execution on encountering the first
-            invalid URL, or omits such rows from the output. The latter option filters rows based on URL validity of the
-             URL column. For REST client nodes, all URLs conforming to
-             <a href="https://www.rfc-editor.org/rfc/rfc1738">RFC 1738</a> and using the HTTP or HTTPS protocol are
-             considered valid.
-            """)
-    @RadioButtonsWidget
-    @Persistor(InvalidURLPolicyPersistor.class)
-    InvalidURLPolicy m_invalidURLPolicy = InvalidURLPolicy.MISSING;
-
-    @Layout(TimingRetriesAndErrorsSection.AfterRetryOnServerErrorsLayout.class)
-    @Widget(title = "Fail on connection problems (e.g. timeout, certificate errors, …)", description = """
-            This option describes what should happen if there was a problem establishing the connection to the
-            server. The node either fails in execution or outputs a missing value in the row of the output table.
-            """)
-    @ValueSwitchWidget
-    @Persistor(FailOnConnectionProblemsPersistor.class)
-    ErrorHandlingPolicy m_failOnConnectionProblems = ErrorHandlingPolicy.INSERT_MISSING_VALUE;
-
-    // TODO Missing option for fail on 429 responses
-
-    @Layout(TimingRetriesAndErrorsSection.AfterRetryOnServerErrorsLayout.class)
-    @Widget(title = "Client-side errors (HTTP 4XX)", description = """
-            These options describe what should happen if a response with a 4XX status code is received. These
-            status codes usually describe client-side errors such as malformed requests.
-            """)
-    @ValueSwitchWidget
-    @Persistor(FailOnClientErrorsPersistor.class)
-    @Migration(FailOnServerOrClientErrorsMigration.class)
-    ErrorHandlingPolicy m_failOnClientErrors = ErrorHandlingPolicy.INSERT_MISSING_VALUE;
-
-    @Layout(TimingRetriesAndErrorsSection.AfterRetryOnServerErrorsLayout.class)
-    @Widget(title = "Server-side errors (HTTP 5XX)", description = """
-            These options describe what should happen if a response with a 5XX status code is received. These
-            status codes usually describe errors on the server side.
-            """)
-    @ValueSwitchWidget
-    @Persistor(FailOnServerErrorsPersistor.class)
-    @Migration(FailOnServerOrClientErrorsMigration.class)
-    ErrorHandlingPolicy m_failOnServerErrors = ErrorHandlingPolicy.INSERT_MISSING_VALUE;
-
-    static final class FailOnServerOrClientErrorsMigration implements NodeParametersMigration<ErrorHandlingPolicy> {
-
-        @Override
-        public List<ConfigMigration<ErrorHandlingPolicy>> getConfigMigrations() {
-            return List.of(ConfigMigration.builder(settings -> {
-                final var legacyFailOnMissingHeaders = settings.getBoolean("failOnMissingHeaders", false);
-                if (legacyFailOnMissingHeaders) {
-                    return ErrorHandlingPolicy.FAIL_NODE;
-                } else {
-                    return ErrorHandlingPolicy.INSERT_MISSING_VALUE;
-                }
-            }).build());
-
-        }
-
-    }
-
     @Layout(OutputSection.class)
-    @Widget(title = "Extract all fields", description = """
-            If checked, all header fields present in the first response are extracted into columns.
+    @Widget(title = "Extracted request headers", description = """
+            Extracts the defined headers in the first response into columns.
             """)
     @ValueSwitchWidget
     @Persistor(ExtractAllResponseFieldsPersistor.class)
@@ -1025,13 +1164,12 @@ public abstract class RestNodeParameters implements NodeParameters {
         elementDefaultValueProvider = ResponseHeaderItemDefaultProvider.class)
     @PersistArray(ResponseHeaderItem.ResponseHeadersArrayPersistor.class)
     @ValueReference(ResponseHeaderItemRef.class)
-    @ValueProvider(ResponseHeaderItemProvider.class)
     @Effect(predicate = IsExtractAllResponseHeadersPredicate.class, type = EffectType.HIDE)
     ResponseHeaderItem[] m_responseHeaders = new ResponseHeaderItem[0];
 
     @Layout(OutputSection.class)
-    @Widget(title = "Body", description = "Name of the response body column in the output table.")
-    @TextInputWidget(minLengthValidation = IsNotEmptyValidation.class)
+    @Widget(title = "Body column name", description = "Name of the response body column in the output table.")
+    @TextInputWidget(patternValidation = ColumnNameValidation.class)
     @Persist(configKey = "Body column name")
     @Modification.WidgetReference(ResponseBodyColumnModRef.class)
     String m_responseBodyColumn = "body";
@@ -1049,75 +1187,10 @@ public abstract class RestNodeParameters implements NodeParameters {
 
     // TODO Missing option to rename error cause column
 
-    // TODO: The advanced settings which are not entire sections and belong to visible section are for now listed at the
-    // end of the dialog until it is decided how to integrate advanced settings into their respective sections.
-    @Advanced
-    @Layout(OutputSection.class)
-    //@Layout(APIConnectionSection.class)
-    @Widget(title = "Follow redirects", description = """
-            If checked, the node will follow redirects (HTTP status code 3xx).
-            """)
-    @Persist(configKey = "follow redirects")
-    boolean m_followRedirects = true;
-
-    @Advanced
-    @Layout(OutputSection.class)
-    //@Layout(PerformanceAndRateControlSection.class)
-    @Widget(title = "Connect timeout (s)", description = """
-            The connection timeout is the timeout in making the initial connection. In case of HTTPS, this
-            includes completing the SSL handshake. This timeout is set in seconds.
-            """)
-    @NumberInputWidget(minValidation = IsPositiveIntegerValidation.class)
-    @Persist(configKey = "connectTimeout")
-    @Migration(ConnectionTimeoutMigration.class)
-    int m_connectTimeoutInSeconds = 5;
-
-    static final class ConnectionTimeoutMigration implements NodeParametersMigration<Integer> {
-
-        @Override
-        public List<ConfigMigration<Integer>> getConfigMigrations() {
-            return List.of(ConfigMigration.builder(settings -> settings.getInt("timeout", 5)).build());
-        }
-
-    }
-
-    @Advanced
-    @Layout(OutputSection.class)
-    //@Layout(PerformanceAndRateControlSection.class)
-    @Widget(title = "Read timeout (s)", description = """
-            The read timeout is the time to wait until the first byte of data is read. Increasing this timeout
-            makes sense if you have a slow connection or you expect the server will take a long time to prepare
-            your response. This timeout is set in seconds.
-            """)
-    @NumberInputWidget(minValidation = IsPositiveIntegerValidation.class)
-    @Persist(configKey = "readTimeout")
-    @Migration(ReadTimeoutMigration.class)
-    int m_readTimeoutInSeconds = 120;
-
-    static final class ReadTimeoutMigration implements NodeParametersMigration<Integer> {
-
-        @Override
-        public List<ConfigMigration<Integer>> getConfigMigrations() {
-            return List.of(ConfigMigration.builder(settings -> settings.getInt("timeout", 120)).build());
-        }
-
-    }
-
-    // Legacy timeout parameter kept for backward compatibility (not visible in dialog)
-    @Persist(configKey = "timeout")
-    int m_legacyTimeout;
-
-    @Advanced
-    @Layout(OutputSection.class)
-    //@Layout(PerformanceAndRateControlSection.class)
-    @Widget(title = "Send large data in chunks", description = """
-            Specifies whether HTTP Chunked Transfer Encoding is allowed to be used by the node. If enabled,
-            messages with a large body size are being sent to the server in a series of chunks.
-            """)
-    @Persist(configKey = "allowChunking")
-    boolean m_allowChunking = true;
-
     static final class URLModeRef implements ParameterReference<URLMode> {
+    }
+
+    static final class URLColumnRef implements ParameterReference<String> {
     }
 
     static final class RestAuthenticationTypeRef implements ParameterReference<RestAuthenticationType> {
@@ -1174,11 +1247,21 @@ public abstract class RestNodeParameters implements NodeParameters {
 
     }
 
+    static final class IsAuthViaInputPortEnabled implements EffectPredicateProvider {
+
+        @Override
+        public EffectPredicate init(final PredicateInitializer i) {
+            return i.getConstant(parametersInput -> parametersInput.getInPortObjects().length != 1);
+        }
+
+    }
+
     static final class IsNTLMAuth implements EffectPredicateProvider {
 
         @Override
         public EffectPredicate init(final PredicateInitializer i) {
-            return i.getEnum(RestAuthenticationTypeRef.class).isOneOf(RestAuthenticationType.NTLM_AUTH);
+            return i.getEnum(RestAuthenticationTypeRef.class).isOneOf(RestAuthenticationType.NTLM_AUTH)
+                    .and(not(i.getPredicate(IsAuthViaInputPortEnabled.class)));
         }
 
     }
@@ -1241,86 +1324,34 @@ public abstract class RestNodeParameters implements NodeParameters {
 
         @Override
         public List<DataColumnSpec> columnChoices(final NodeParametersInput context) {
-            final var tableSpec = context.getInTableSpec(0);
-            if (tableSpec.isEmpty()) {
-                return List.of();
-            }
-            return tableSpec.get().stream()
-                .filter(colSpec -> StringValue.class.isAssignableFrom(colSpec.getType().getPreferredValueClass()) ||
-                                  URIDataValue.class.isAssignableFrom(colSpec.getType().getPreferredValueClass()))
-                .toList();
+            return ColumnSelectionUtil.getCompatibleColumnsOfFirstPort(
+                context, StringValue.class, URIDataValue.class);
         }
 
     }
 
-    static final class URLColumnProvider implements StateProvider<String> {
-        @Override
-        public void init(final StateProviderInitializer initializer) {
-            initializer.computeOnValueChange(URLModeRef.class);
+    static final class URLColumnProvider extends ColumnNameAutoGuessValueProvider {
+
+        protected URLColumnProvider() {
+            super(URLColumnRef.class);
         }
 
         @Override
-        public String computeState(final NodeParametersInput parametersInput) throws StateComputationFailureException {
-            final var specOpt = parametersInput.getInTableSpec(0);
-            if (specOpt.isEmpty()) {
-                return null;
-            }
-            final var spec = specOpt.get();
-            return ColumnSelectionUtil.getCompatibleColumns(spec, StringValue.class, URIDataValue.class).stream()
-                .map(DataColumnSpec::getName)
-                .findFirst()
-                .orElse(null);
+        protected Optional<DataColumnSpec> autoGuessColumn(final NodeParametersInput parametersInput) {
+            return ColumnSelectionUtil.getFirstCompatibleColumnOfFirstPort(
+                parametersInput, StringValue.class, URIDataValue.class);
         }
+
     }
 
-    static final class RestAuthenticationTypeChoicesProvider implements EnumChoicesProvider<RestAuthenticationType> {
+    abstract static class AuthenticationTypeDependentProvider implements StateProvider<Boolean> {
 
-        private static final List<RestAuthenticationType> DEFAULT_CHOICE = List.of(RestAuthenticationType.NONE,
-            RestAuthenticationType.BASIC_AUTH, RestAuthenticationType.BEARER_TOKEN,
-            RestAuthenticationType.DIGEST_AUTH, RestAuthenticationType.NTLM_AUTH, RestAuthenticationType.KERBEROS);
+        protected Supplier<RestAuthenticationType> m_typeSupplier;
 
         @Override
         public void init(final StateProviderInitializer initializer) {
             initializer.computeBeforeOpenDialog();
-        }
-
-        @Override
-        public List<RestAuthenticationType> choices(final NodeParametersInput context) {
-            if (context.getInPortObjects().length == 1) {
-                return DEFAULT_CHOICE;
-            }
-
-            return List.of(RestAuthenticationType.AUTH_VIA_INPUT_PORT);
-        }
-
-    }
-
-    static final class RestAuthenticationTypeProvider implements StateProvider<RestAuthenticationType> {
-
-        Supplier<List<EnumChoice<RestAuthenticationType>>> m_restAuthTypeChoicesSupplier;
-        Supplier<RestAuthenticationType> m_restAuthTypeSupplier;
-
-        @Override
-        public void init(final StateProviderInitializer initializer) {
-            initializer.computeBeforeOpenDialog();
-            m_restAuthTypeChoicesSupplier =
-                initializer.computeFromProvidedState(RestAuthenticationTypeChoicesProvider.class);
-            m_restAuthTypeSupplier = initializer.getValueSupplier(RestAuthenticationTypeRef.class);
-        }
-
-        @Override
-        public RestAuthenticationType computeState(final NodeParametersInput parametersInput)
-            throws StateComputationFailureException {
-            final var availableChoices = m_restAuthTypeChoicesSupplier.get();
-            if (availableChoices.size() == 1) {
-                try {
-                    return RestAuthenticationType.getFromValue(availableChoices.get(0).text());
-                } catch (InvalidSettingsException e) {
-                    throw new StateComputationFailureException();
-                }
-            } else {
-                return m_restAuthTypeSupplier.get();
-            }
+            m_typeSupplier = initializer.computeFromValueSupplier(RestAuthenticationTypeRef.class);
         }
 
     }
@@ -1353,6 +1384,18 @@ public abstract class RestNodeParameters implements NodeParameters {
 
             return new NodeSpecificProxyParameters(ProxyMode.LOCAL, ProxyProtocol.HTTP, "localhost", 8080, false,
                 false, new ProxyExcludedHosts[] {new ProxyExcludedHosts("localhost|127.0.0.1")});
+        }
+
+    }
+
+    abstract static class ProxyAuthDependentProvider implements StateProvider<Boolean> {
+
+        protected Supplier<Boolean> m_isProxyAuthEnabled;
+
+        @Override
+        public void init(final StateProviderInitializer initializer) {
+            initializer.computeBeforeOpenDialog();
+            m_isProxyAuthEnabled = initializer.computeFromValueSupplier(UseProxyAuthRef.class);
         }
 
     }
@@ -1410,29 +1453,6 @@ public abstract class RestNodeParameters implements NodeParameters {
 
     }
 
-    static final class RequestHeaderItemProvider implements StateProvider<RequestHeaderItem[]> {
-
-        Supplier<RequestHeaderItem[]> m_requestHeaderItems;
-
-        @Override
-        public void init(final StateProviderInitializer initializer) {
-            initializer.computeBeforeOpenDialog();
-            m_requestHeaderItems = initializer.getValueSupplier(RequestHeaderItemRef.class);
-        }
-
-        @Override
-        public RequestHeaderItem[] computeState(final NodeParametersInput context)
-            throws StateComputationFailureException {
-            final var requestHeaders = m_requestHeaderItems.get();
-            if (requestHeaders.length > 0) {
-                return requestHeaders;
-            } else {
-                return new RequestHeaderItem[] {new RequestHeaderItem()};
-            }
-        }
-
-    }
-
     static final class ResponseHeaderItemDefaultProvider implements StateProvider<ResponseHeaderItem> {
 
         @Override
@@ -1444,37 +1464,6 @@ public abstract class RestNodeParameters implements NodeParameters {
         public ResponseHeaderItem computeState(final NodeParametersInput parametersInput)
             throws StateComputationFailureException {
             return new ResponseHeaderItem();
-        }
-
-    }
-
-    static final class ResponseHeaderItemProvider implements StateProvider<ResponseHeaderItem[]> {
-
-        Supplier<ResponseHeaderItem[]> m_responseHeaderItems;
-
-        @Override
-        public void init(final StateProviderInitializer initializer) {
-            initializer.computeBeforeOpenDialog();
-            m_responseHeaderItems = initializer.getValueSupplier(ResponseHeaderItemRef.class);
-        }
-
-        @Override
-        public ResponseHeaderItem[] computeState(final NodeParametersInput context)
-            throws StateComputationFailureException {
-            final var requestHeaders = m_responseHeaderItems.get();
-            if (requestHeaders.length > 0) {
-                return requestHeaders;
-            } else {
-                return new ResponseHeaderItem[] {
-                    new ResponseHeaderItem(
-                        ResponseHeadersArrayPersistor.DEFAULT_RESPONSE_HEADERS[0],
-                        ResponseHeadersArrayPersistor.DEFAULT_RESPONSE_HEADER_COLUMN_NAMES[0],
-                        ResponseHeaderItem.DataTypeOptions.INT),
-                    new ResponseHeaderItem(
-                        ResponseHeadersArrayPersistor.DEFAULT_RESPONSE_HEADERS[1],
-                        ResponseHeadersArrayPersistor.DEFAULT_RESPONSE_HEADER_COLUMN_NAMES[1],
-                        ResponseHeaderItem.DataTypeOptions.STRING)};
-            }
         }
 
     }
@@ -1509,7 +1498,7 @@ public abstract class RestNodeParameters implements NodeParameters {
             if (settings.getBoolean("Kerberos_enabled", false)) {
                 return RestAuthenticationType.KERBEROS;
             }
-            return RestAuthenticationType.AUTH_VIA_INPUT_PORT;
+            return RestAuthenticationType.NONE;
         }
 
         @Override
@@ -1587,7 +1576,7 @@ public abstract class RestNodeParameters implements NodeParameters {
         @Override
         public void save(final ProxyMode value, final NodeSettingsWO settings) {
             switch (value) {
-                case GLOBAL -> settings.addBoolean("Proxy_enabled", false);
+                case GLOBAL -> settings.addBoolean("Proxy_enabled", true);
                 case LOCAL -> settings.addBoolean("Proxy_enabled", true);
                 case NONE -> settings.addBoolean("Proxy_enabled", false);
             }
@@ -1736,14 +1725,34 @@ public abstract class RestNodeParameters implements NodeParameters {
 
     }
 
-    static final class AuthenticationInputPortSummary implements StateProvider<Optional<TextMessage.Message>> {
-
-        Supplier<RestAuthenticationType> m_authTypeSupplier;
+    static final class UrlColumnInputSummary implements StateProvider<Optional<TextMessage.Message>> {
 
         @Override
         public void init(final StateProviderInitializer initializer) {
             initializer.computeBeforeOpenDialog();
-            m_authTypeSupplier = initializer.computeFromValueSupplier(RestAuthenticationTypeRef.class);
+        }
+
+        @Override
+        public Optional<TextMessage.Message> computeState(final NodeParametersInput context)
+            throws StateComputationFailureException {
+            final var compatibleUrlColumns = ColumnSelectionUtil.getCompatibleColumnsOfFirstPort(
+                context, StringValue.class, URIDataValue.class);
+
+            if (!compatibleUrlColumns.isEmpty()) {
+                return Optional.empty();
+            }
+
+            return Optional.of(new TextMessage.Message("No input table connected or missing URL column.",
+                "Connect an input table which contains a URL column", TextMessage.MessageType.INFO));
+        }
+
+    }
+
+    static final class AuthenticationInputPortSummary implements StateProvider<Optional<TextMessage.Message>> {
+
+        @Override
+        public void init(final StateProviderInitializer initializer) {
+            initializer.computeBeforeOpenDialog();
         }
 
         @Override
@@ -1756,6 +1765,28 @@ public abstract class RestNodeParameters implements NodeParameters {
 
             return Optional.of(new TextMessage.Message("Authentication managed by Credential Input Port.",
                 "Remove the Credential Input Port to use other authentication methods", TextMessage.MessageType.INFO));
+        }
+
+    }
+
+    static final class NoTableInputSummary implements StateProvider<Optional<TextMessage.Message>> {
+
+        @Override
+        public void init(final StateProviderInitializer initializer) {
+            initializer.computeBeforeOpenDialog();
+        }
+
+        @Override
+        public Optional<TextMessage.Message> computeState(final NodeParametersInput context)
+            throws StateComputationFailureException {
+            final var compatibleColumns = ColumnSelectionUtil.getAllColumnsOfFirstPort(context);
+
+            if (!compatibleColumns.isEmpty()) {
+                return Optional.empty();
+            }
+
+            return Optional.of(new TextMessage.Message("No input table connected.",
+                "Connect an input table first.", TextMessage.MessageType.INFO));
         }
 
     }
@@ -1810,36 +1841,44 @@ public abstract class RestNodeParameters implements NodeParameters {
 
     enum MissingHeaderValue {
 
-        @Label(value = "Fail")
+        @Label(value = "Fail", description = """
+                The node fails if any of the specified headers are missing in the response.
+                """)
         FAIL, //
-        @Label(value = "Skip")
+        @Label(value = "Skip", description = """
+                The node skips the row if any of the specified headers are missing in the response.
+                """)
         SKIP;
 
     }
 
     enum RateLimitingRetryPolicy {
 
-        @Label(value = "False")
+        @Label(value = "Fail node", description = "The node execution fails.")
         FALSE, //
-        @Label(value = "Fixed delay")
+        @Label(value = "Fixed delay", description = """
+            Pauses execution for a fixed delay before retrying the request.
+            """)
         FIXED_DELAY;
 
     }
 
     enum ErrorHandlingPolicy {
 
-        @Label(value = "Insert missing value")
+        @Label(value = "Insert missing value", description = """
+            The node inserts a missing value in the output table for the corresponding request.
+            """)
         INSERT_MISSING_VALUE, //
-        @Label(value = "Fail node")
+        @Label(value = "Fail node", description = "The node execution fails.")
         FAIL_NODE;
 
     }
 
     enum ResponseHeaderPolicy {
 
-        @Label(value = "Custom")
+        @Label(value = "Custom", description = "Extract only the custom defined headers into output columns.")
         CUSTOM, //
-        @Label(value = "All")
+        @Label(value = "All", description = "Extract all response headers into output columns.")
         ALL;
 
     }

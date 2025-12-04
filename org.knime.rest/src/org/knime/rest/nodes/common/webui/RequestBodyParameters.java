@@ -52,14 +52,10 @@ import java.util.Optional;
 
 import org.knime.core.data.DataColumnSpec;
 import org.knime.core.data.DataValue;
-import org.knime.core.node.InvalidSettingsException;
-import org.knime.core.node.NodeSettingsRO;
-import org.knime.core.node.NodeSettingsWO;
 import org.knime.node.parameters.NodeParameters;
 import org.knime.node.parameters.NodeParametersInput;
 import org.knime.node.parameters.Widget;
-import org.knime.node.parameters.migration.LoadDefaultsForAbsentFields;
-import org.knime.node.parameters.persistence.NodeParametersPersistor;
+import org.knime.node.parameters.migration.Migrate;
 import org.knime.node.parameters.persistence.Persist;
 import org.knime.node.parameters.persistence.Persistor;
 import org.knime.node.parameters.persistence.legacy.EnumBooleanPersistor;
@@ -73,9 +69,12 @@ import org.knime.node.parameters.updates.ValueReference;
 import org.knime.node.parameters.updates.legacy.ColumnNameAutoGuessValueProvider;
 import org.knime.node.parameters.widget.choices.ChoicesProvider;
 import org.knime.node.parameters.widget.choices.Label;
+import org.knime.node.parameters.widget.choices.ValueSwitchWidget;
 import org.knime.node.parameters.widget.choices.util.ColumnSelectionUtil;
 import org.knime.node.parameters.widget.choices.util.CompatibleColumnsProvider;
+import org.knime.node.parameters.widget.message.TextMessage;
 import org.knime.node.parameters.widget.text.TextAreaWidget;
+import org.knime.rest.nodes.common.webui.RestNodeParameters.NoTableInputSummary;
 
 /**
  * Node parameters for request body configuration.
@@ -83,7 +82,6 @@ import org.knime.node.parameters.widget.text.TextAreaWidget;
  * @author Magnus Gohm, KNIME GmbH, Konstanz, Germany
  */
 @SuppressWarnings("restriction")
-@LoadDefaultsForAbsentFields
 public class RequestBodyParameters implements NodeParameters {
 
     /**
@@ -96,13 +94,16 @@ public class RequestBodyParameters implements NodeParameters {
     @Widget(title = "Data / Body content", description = "The body of the request.")
     @Persistor(RequestBodyDataOrBodyContentTypePersistor.class)
     @ValueReference(DataOrBodyContentTypeRef.class)
+    @ValueSwitchWidget
+    @Migrate(loadDefaultIfAbsent=true)
     DataOrBodyContentType m_dataOrBodyContentType = DataOrBodyContentType.CUSTOM;
 
     @Widget(title = "Custom body content", description = "The custom body content used for the request body.")
     @TextAreaWidget(rows = 5)
-    @Persistor(ConstantRequestBodyPersistor.class)
+    @Persist(configKey = "Constant request body")
     @Effect(predicate = IsConstantRequestBodyMode.class, type = EffectType.SHOW)
-    String m_constantRequestBody;
+    @Migrate(loadDefaultIfAbsent=true)
+    String m_constantRequestBody = "";
 
     @Widget(title = "Body column", description = "The column containing the body content for the request.")
     @Persist(configKey = "Request body column")
@@ -110,7 +111,12 @@ public class RequestBodyParameters implements NodeParameters {
     @ChoicesProvider(BodyColumnChoicesProvider.class)
     @ValueProvider(BodyColumnProvider.class)
     @ValueReference(BodyColumnRef.class)
+    @Migrate(loadDefaultIfAbsent=true)
     String m_columnRequestBody;
+
+    @TextMessage(NoTableInputSummary.class)
+    @Effect(predicate = IsColumnRequestBodyMode.class, type = EffectType.SHOW)
+    Void m_noColumnRequestBodySummary;
 
     static final class DataOrBodyContentTypeRef implements ParameterReference<DataOrBodyContentType>{
     }
@@ -164,26 +170,6 @@ public class RequestBodyParameters implements NodeParameters {
 
         protected RequestBodyDataOrBodyContentTypePersistor() {
             super("Use constant request body", DataOrBodyContentType.class, DataOrBodyContentType.CUSTOM);
-        }
-
-    }
-
-    static final class ConstantRequestBodyPersistor implements NodeParametersPersistor<String> {
-
-        @Override
-        public String load(final NodeSettingsRO settings) throws InvalidSettingsException {
-            final var requestBody = settings.getString("Constant request body", "");
-            return requestBody != null ? requestBody : "";
-        }
-
-        @Override
-        public void save(final String param, final NodeSettingsWO settings) {
-            settings.addString("Constant request body", param != null ? param : "");
-        }
-
-        @Override
-        public String[][] getConfigPaths() {
-            return new String[][]{{"Constant request body"}};
         }
 
     }

@@ -56,6 +56,7 @@ import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.util.CheckUtils;
 import org.knime.core.node.workflow.FlowVariable;
 import org.knime.core.node.workflow.VariableType;
+import org.knime.core.webui.node.dialog.defaultdialog.internal.widget.CredentialsWidgetInternal;
 import org.knime.core.webui.node.dialog.defaultdialog.internal.widget.WidgetInternal;
 import org.knime.core.webui.node.dialog.defaultdialog.widget.Modification;
 import org.knime.core.webui.node.dialog.defaultdialog.widget.Modification.WidgetGroupModifier;
@@ -69,11 +70,11 @@ import org.knime.node.parameters.updates.Effect;
 import org.knime.node.parameters.updates.Effect.EffectType;
 import org.knime.node.parameters.updates.EffectPredicateProvider;
 import org.knime.node.parameters.updates.ParameterReference;
+import org.knime.node.parameters.updates.StateProvider;
 import org.knime.node.parameters.widget.choices.ChoicesProvider;
 import org.knime.node.parameters.widget.choices.FlowVariableChoicesProvider;
 import org.knime.node.parameters.widget.credentials.Credentials;
-import org.knime.node.parameters.widget.credentials.PasswordWidget;
-import org.knime.node.parameters.widget.credentials.UsernameWidget;
+import org.knime.node.parameters.widget.credentials.CredentialsWidget;
 
 /**
  * Node parameters class for rest authentication settings used in the rest request nodes.
@@ -83,7 +84,7 @@ import org.knime.node.parameters.widget.credentials.UsernameWidget;
 @SuppressWarnings("restriction")
 final class RestAuthenticationParameters implements NodeParameters {
 
-    private final static String SECRET_KEY = "c-rH4Tkyk";
+    private static final String SECRET_KEY = "c-rH4Tkyk";
 
     static final String HIDE_CONTROL_IN_NODE_DESCRIPTION_REASON = """
                 Hided because the different authentication settings would duplicate each other in the node description.
@@ -93,64 +94,64 @@ final class RestAuthenticationParameters implements NodeParameters {
 
         private Class<? extends EffectPredicateProvider> m_flowVarNameWidgetShowEffect;
 
-        private Class<? extends EffectPredicateProvider> m_userNameWidgetShowEffect;
+        private Class<? extends EffectPredicateProvider> m_credentialWidgetShowEffect;
 
-        private Class<? extends EffectPredicateProvider> m_passwordWidgetShowEffect;
+        private Class<? extends StateProvider<Boolean>> m_hasUserNameProvider;
 
-        private String m_passwordTitle;
-
-        private String m_passwordLabel;
+        private Class<? extends StateProvider<Boolean>> m_hasPasswordProvider;
 
         private String m_flowVarNameDescription;
 
-        private String m_usernameDescription;
+        private String m_passwordLabel;
 
-        private String m_passwordDescription;
+        private String m_credentialDescription;
 
         private boolean m_hideControlInNodeDescription;
 
         protected RestAuthenticationParametersModification(
             final Class<? extends EffectPredicateProvider> flowVarNameWidgetShowEffect,
-            final Class<? extends EffectPredicateProvider> userNameWidgetShowEffect,
-            final Class<? extends EffectPredicateProvider> passwordWidgetShowEffect,
-            final String passwordTitle, final String passwordLabel,
-            final String flowVarNameDescription, final String usernameDescription, final String passwordDescription,
+            final Class<? extends EffectPredicateProvider> credentialWidgetShowEffect,
+            final Class<? extends StateProvider<Boolean>> userNameWidgetShowEffect,
+            final Class<? extends StateProvider<Boolean>> passwordWidgetShowEffect,
+            final String flowVarNameDescription, final String passwordLabel, final String credentialDescription,
             final boolean hideControlInNodeDescription) {
             m_flowVarNameWidgetShowEffect = flowVarNameWidgetShowEffect;
-            m_userNameWidgetShowEffect = userNameWidgetShowEffect;
-            m_passwordWidgetShowEffect = passwordWidgetShowEffect;
-            m_passwordTitle = passwordTitle;
+            m_credentialWidgetShowEffect = credentialWidgetShowEffect;
+            m_hasUserNameProvider = userNameWidgetShowEffect;
+            m_hasPasswordProvider = passwordWidgetShowEffect;
+            m_credentialDescription = credentialDescription;
             m_passwordLabel = passwordLabel;
             m_flowVarNameDescription = flowVarNameDescription;
-            m_usernameDescription = usernameDescription;
-            m_passwordDescription = passwordDescription;
             m_hideControlInNodeDescription = hideControlInNodeDescription;
         }
 
         protected RestAuthenticationParametersModification(
             final Class<? extends EffectPredicateProvider> flowVarNameWidgetShowEffect,
-            final Class<? extends EffectPredicateProvider> userNameWidgetShowEffect,
-            final Class<? extends EffectPredicateProvider> passwordWidgetShowEffect,
+            final Class<? extends EffectPredicateProvider> credentialWidgetShowEffect,
+            final Class<? extends StateProvider<Boolean>> userNameWidgetShowEffect,
+            final Class<? extends StateProvider<Boolean>> passwordWidgetShowEffect,
             final boolean hideControlInNodeDescription) {
-            this(flowVarNameWidgetShowEffect, userNameWidgetShowEffect, passwordWidgetShowEffect,
-                null, null, null, null, null, hideControlInNodeDescription);
+            this(flowVarNameWidgetShowEffect, credentialWidgetShowEffect, userNameWidgetShowEffect,
+                passwordWidgetShowEffect, null, null, null, hideControlInNodeDescription);
         }
 
         protected RestAuthenticationParametersModification(
             final Class<? extends EffectPredicateProvider> flowVarNameWidgetShowEffect,
-            final Class<? extends EffectPredicateProvider> userNameWidgetShowEffect,
-            final Class<? extends EffectPredicateProvider> passwordWidgetShowEffect,
-            final String flowVarNameDescription, final String usernameDescription, final String passwordDescription) {
-            this(flowVarNameWidgetShowEffect, userNameWidgetShowEffect, passwordWidgetShowEffect, null, null,
-                flowVarNameDescription, usernameDescription, passwordDescription, false);
+            final Class<? extends EffectPredicateProvider> credentialWidgetShowEffect,
+            final Class<? extends StateProvider<Boolean>> userNameWidgetShowEffect,
+            final Class<? extends StateProvider<Boolean>> passwordWidgetShowEffect,
+            final String flowVarNameDescription, final String credentialDescription) {
+            this(flowVarNameWidgetShowEffect, credentialWidgetShowEffect, userNameWidgetShowEffect,
+                passwordWidgetShowEffect, flowVarNameDescription, null, credentialDescription, false);
         }
 
         protected RestAuthenticationParametersModification(
             final Class<? extends EffectPredicateProvider> flowVarNameWidgetShowEffect,
-            final Class<? extends EffectPredicateProvider> userNameWidgetShowEffect,
-            final Class<? extends EffectPredicateProvider> passwordWidgetShowEffect) {
-            this(flowVarNameWidgetShowEffect, userNameWidgetShowEffect, passwordWidgetShowEffect,
-                null, null, null, null, null, false);
+            final Class<? extends EffectPredicateProvider> credentialWidgetShowEffect,
+            final Class<? extends StateProvider<Boolean>> userNameWidgetShowEffect,
+            final Class<? extends StateProvider<Boolean>> passwordWidgetShowEffect) {
+            this(flowVarNameWidgetShowEffect, credentialWidgetShowEffect, userNameWidgetShowEffect,
+                passwordWidgetShowEffect, null, null, null, false);
         }
 
         @Override
@@ -162,52 +163,42 @@ final class RestAuthenticationParameters implements NodeParameters {
                 .modify();
             }
 
-            CheckUtils.checkArgument(!(m_userNameWidgetShowEffect == null ^ m_passwordWidgetShowEffect == null), """
-                If either a provider for the user name or password input fields is given
-                the other one needs to be defined as well.
-                """);
-            if (m_userNameWidgetShowEffect != null && m_passwordWidgetShowEffect != null) {
-                group.find(UsernameWidgetRef.class).addAnnotation(Effect.class)
-                    .withProperty("predicate", m_userNameWidgetShowEffect)
-                    .withProperty("type", EffectType.SHOW)
-                    .modify();
-                group.find(PasswordWidgetRef.class).addAnnotation(Effect.class)
-                .withProperty("predicate", m_passwordWidgetShowEffect)
+            if (m_credentialWidgetShowEffect != null) {
+                group.find(CredentialWidgetRef.class).addAnnotation(Effect.class)
+                .withProperty("predicate", m_credentialWidgetShowEffect)
                 .withProperty("type", EffectType.SHOW)
                 .modify();
             }
 
-            if (m_passwordTitle != null) {
-                group.find(PasswordWidgetRef.class).modifyAnnotation(Widget.class)
-                    .withProperty("title", m_passwordTitle).modify();
+            CheckUtils.checkArgument(!(m_hasUserNameProvider == null ^ m_hasPasswordProvider == null), """
+                If either a provider for the user name or password input fields is given
+                the other one needs to be defined as well.
+                """);
+            if (m_hasUserNameProvider != null && m_hasPasswordProvider != null) {
+                group.find(CredentialWidgetRef.class).addAnnotation(CredentialsWidgetInternal.class)
+                    .withProperty("hasUsernameProvider", m_hasUserNameProvider)
+                    .withProperty("hasPasswordProvider", m_hasPasswordProvider)
+                    .modify();
             }
 
-            if (m_passwordLabel != null) {
-                group.find(PasswordWidgetRef.class).modifyAnnotation(PasswordWidget.class)
-                    .withProperty("passwordLabel", m_passwordLabel).modify();
-            }
             if (m_flowVarNameDescription != null) {
                 group.find(FlowVariableCredentialsRef.class).modifyAnnotation(Widget.class)
-                    .withProperty("description", m_flowVarNameDescription).modify();
+                .withProperty("description", m_flowVarNameDescription).modify();
             }
-            if (m_usernameDescription != null) {
-                group.find(UsernameWidgetRef.class).modifyAnnotation(Widget.class)
-                    .withProperty("description", m_usernameDescription).modify();
+            if (m_passwordLabel != null) {
+                group.find(CredentialWidgetRef.class).modifyAnnotation(CredentialsWidget.class)
+                    .withProperty("passwordLabel", m_passwordLabel).modify();
             }
-            if (m_passwordDescription != null) {
-                group.find(PasswordWidgetRef.class).modifyAnnotation(Widget.class)
-                    .withProperty("description", m_passwordDescription).modify();
+            if (m_credentialDescription != null) {
+                group.find(CredentialWidgetRef.class).modifyAnnotation(Widget.class)
+                    .withProperty("description", m_credentialDescription).modify();
             }
             if (m_hideControlInNodeDescription) {
                 group.find(FlowVariableCredentialsRef.class)
                     .addAnnotation(WidgetInternal.class)
                     .withProperty("hideControlInNodeDescription", HIDE_CONTROL_IN_NODE_DESCRIPTION_REASON)
                     .modify();
-                group.find(UsernameWidgetRef.class)
-                    .addAnnotation(WidgetInternal.class)
-                    .withProperty("hideControlInNodeDescription", HIDE_CONTROL_IN_NODE_DESCRIPTION_REASON)
-                    .modify();
-                group.find(PasswordWidgetRef.class)
+                group.find(CredentialWidgetRef.class)
                     .addAnnotation(WidgetInternal.class)
                     .withProperty("hideControlInNodeDescription", HIDE_CONTROL_IN_NODE_DESCRIPTION_REASON)
                     .modify();
@@ -230,25 +221,16 @@ final class RestAuthenticationParameters implements NodeParameters {
     @Modification.WidgetReference(FlowVariableCredentialsRef.class)
     String m_flowVarName;
 
-    @Persistor(UserNamePersistor.class)
-    @Widget(title = "Username", description = "The user name for authentication.")
-    @UsernameWidget
-    @Modification.WidgetReference(UsernameWidgetRef.class)
-    final Credentials m_username;
-
-    @Persistor(PasswordPersistor.class)
-    @Widget(title = "Password", description = "The password for authentication.")
-    @PasswordWidget
-    @Modification.WidgetReference(PasswordWidgetRef.class)
-    final Credentials m_password;
+    @Persistor(CredentialsPersistor.class)
+    @Widget(title = "Credentials", description = "The credentials used for the authentication.")
+    @CredentialsWidget
+    @Modification.WidgetReference(CredentialWidgetRef.class)
+    final Credentials m_credentials;
 
     interface FlowVariableCredentialsRef extends ParameterReference<String>, Modification.Reference {
     }
 
-    interface UsernameWidgetRef extends ParameterReference<String>, Modification.Reference {
-    }
-
-    interface PasswordWidgetRef extends ParameterReference<String>, Modification.Reference {
+    interface CredentialWidgetRef extends ParameterReference<Credentials>, Modification.Reference {
     }
 
     static final class CredentialFlowVariablesProvider implements FlowVariableChoicesProvider {
@@ -261,59 +243,35 @@ final class RestAuthenticationParameters implements NodeParameters {
 
     }
 
-    static final class UserNamePersistor implements NodeParametersPersistor<Credentials> {
+    static final class CredentialsPersistor implements NodeParametersPersistor<Credentials> {
 
         @Override
         public Credentials load(final NodeSettingsRO settings) throws InvalidSettingsException {
             final var username = settings.getString(SETTINGS_MODEL_KEY_USERNAME, null);
             final var password = settings.getPassword(SETTINGS_MODEL_KEY_PASSWORD, SECRET_KEY, null);
-            if ((username == null || username.isEmpty()) && (password != null && !password.isEmpty())
-                && !settings.getKey().equals("Bearer auth")) {
-                throw new InvalidSettingsException("Username must not be empty.");
-            }
-            return new Credentials(username, null);
+            return new Credentials(username, password);
         }
 
         @Override
         public void save(final Credentials param, final NodeSettingsWO settings) {
             settings.addString(SETTINGS_MODEL_KEY_USERNAME, param.getUsername());
-        }
-
-        @Override
-        public String[][] getConfigPaths() {
-            return new String[][]{{SETTINGS_MODEL_KEY_USERNAME}};
-        }
-
-    }
-
-    static final class PasswordPersistor implements NodeParametersPersistor<Credentials> {
-
-        @Override
-        public Credentials load(final NodeSettingsRO settings) throws InvalidSettingsException {
-            return new Credentials(null, settings.getPassword(SETTINGS_MODEL_KEY_PASSWORD, SECRET_KEY, null));
-        }
-
-        @Override
-        public void save(final Credentials param, final NodeSettingsWO settings) {
             settings.addPassword(SETTINGS_MODEL_KEY_PASSWORD, SECRET_KEY, param.getPassword());
         }
 
         @Override
         public String[][] getConfigPaths() {
-            return new String[][]{{SETTINGS_MODEL_KEY_PASSWORD}};
+            return new String[][]{{SETTINGS_MODEL_KEY_USERNAME}}; // AP-14067: Only possible to overwrite user name
         }
 
     }
 
     RestAuthenticationParameters() {
-        this(null, new Credentials(), new Credentials());
+        this(null, new Credentials());
     }
 
-    RestAuthenticationParameters(final String flowVarName,
-        final Credentials username, final Credentials password) {
+    RestAuthenticationParameters(final String flowVarName, final Credentials credential) {
         m_flowVarName = flowVarName;
-        m_username = username;
-        m_password = password;
+        m_credentials = credential;
     }
 
 }
