@@ -44,27 +44,25 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   Nov 25, 2025 (magnus): created
+ *   Dec 4, 2025 (magnus): created
  */
-package org.knime.rest.nodes.patch;
+package org.knime.rest.nodes.common.webui;
 
 import org.knime.core.webui.node.dialog.defaultdialog.internal.widget.PersistWithin;
 import org.knime.node.parameters.layout.Layout;
 import org.knime.node.parameters.migration.LoadDefaultsForAbsentFields;
-import org.knime.rest.nodes.common.webui.RequestBodyParameters;
-import org.knime.rest.nodes.common.webui.RestNodeParameters;
 
 /**
- * Node parameters for PATCH request node.
+ * Node parameters for POST, PUT and PATCH request node.
  *
  * @author Magnus Gohm, KNIME GmbH, Konstanz, Germany
  * @author AI Migration Pipeline v1.2
  */
 @SuppressWarnings("restriction")
 @LoadDefaultsForAbsentFields
-class RestPatchNodeParameters extends RestNodeParameters {
+public class RestNodeWithBodyParameters extends RestNodeParameters {
 
-    RestPatchNodeParameters() {
+    RestNodeWithBodyParameters() {
         super();
     }
 

@@ -48,12 +48,10 @@
  */
 package org.knime.rest.nodes.head;
 
-import org.knime.core.webui.node.dialog.defaultdialog.internal.widget.PersistWithin;
 import org.knime.core.webui.node.dialog.defaultdialog.widget.Modification;
-import org.knime.node.parameters.NodeParameters;
 import org.knime.node.parameters.migration.LoadDefaultsForAbsentFields;
 import org.knime.rest.nodes.common.webui.RestNodeParameters;
-import org.knime.rest.nodes.head.RestHeadNodeParameters.CommonRestNodeParameters.CommonRestParametersModification;
+import org.knime.rest.nodes.common.webui.RestNodeParameters.RestNodeParametersModification;
 
 /**
  * Node parameters for HEAD request node.
@@ -63,38 +61,11 @@ import org.knime.rest.nodes.head.RestHeadNodeParameters.CommonRestNodeParameters
  */
 @SuppressWarnings("restriction")
 @LoadDefaultsForAbsentFields
-class RestHeadNodeParameters implements NodeParameters {
+@Modification(RestNodeParametersModification.class)
+class RestHeadNodeParameters extends RestNodeParameters {
 
     RestHeadNodeParameters() {
         super();
-    }
-
-    @PersistWithin.PersistEmbedded
-    @Modification(RestHeadNodeParametersModification.class)
-    CommonRestNodeParameters m_commonRestNodeParameters = new CommonRestNodeParameters();
-
-    @LoadDefaultsForAbsentFields
-    static final class CommonRestNodeParameters extends RestNodeParameters {
-
-        abstract static class CommonRestParametersModification extends RestNodeParametersModification {
-
-            protected CommonRestParametersModification(final boolean hideResponseBodyColumn) {
-                super(hideResponseBodyColumn);
-            }
-
-        }
-
-        CommonRestNodeParameters() {
-        }
-
-    }
-
-    static final class RestHeadNodeParametersModification extends CommonRestParametersModification {
-
-        RestHeadNodeParametersModification() {
-            super(true);
-        }
-
     }
 
 }

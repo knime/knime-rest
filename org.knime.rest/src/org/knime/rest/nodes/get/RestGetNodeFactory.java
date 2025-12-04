@@ -69,6 +69,7 @@ import org.knime.node.impl.description.DefaultNodeDescriptionUtil;
 import org.knime.node.impl.description.ExternalResource;
 import org.knime.node.impl.description.PortDescription;
 import org.knime.rest.nodes.common.RestNodeFactory;
+import org.knime.rest.nodes.common.webui.RestNodeParameters;
 
 /**
  * Node factory for the node of GET http method.
@@ -143,7 +144,7 @@ public class RestGetNodeFactory extends RestNodeFactory<RestGetNodeModel>
 
     @Override
     public NodeDialog createNodeDialog() {
-        return new DefaultNodeDialog(SettingsType.MODEL, RestGetNodeParameters.class);
+        return new DefaultNodeDialog(SettingsType.MODEL, RestNodeParameters.class);
     }
 
     @Override
@@ -156,7 +157,7 @@ public class RestGetNodeFactory extends RestNodeFactory<RestGetNodeModel>
             SHORT_DESCRIPTION,
             FULL_DESCRIPTION,
             LINKS,
-            RestGetNodeParameters.class,
+            RestNodeParameters.class,
             null,
             NodeType.Manipulator,
             List.of(),
@@ -166,7 +167,7 @@ public class RestGetNodeFactory extends RestNodeFactory<RestGetNodeModel>
 
     @Override
     public KaiNodeInterface createKaiNodeInterface() {
-        return new DefaultKaiNodeInterface(Map.of(SettingsType.MODEL, RestGetNodeParameters.class));
+        return new DefaultKaiNodeInterface(Map.of(SettingsType.MODEL, RestNodeParameters.class));
     }
 
 
