@@ -8,16 +8,16 @@ Bundle-Vendor: KNIME AG, Zurich, Switzerland
 Export-Package: org.knime.rest.generic,
  org.knime.rest.nodes.common;x-friends:="org.knime.rest.webpageretriever",
  org.knime.rest.util
-Require-Bundle: org.knime.base;bundle-version="[5.9.0,6.0.0)",
+Require-Bundle: org.knime.base;bundle-version="[5.10.0,6.0.0)",
  jakarta.ws.rs-api;bundle-version="[3.1.0,4.0.0)",
  org.apache.cxf.cxf-core;bundle-version="[4.0.3,5.0.0)",
  org.apache.cxf.cxf-rt-frontend-jaxrs;bundle-version="[4.0.3,5.0.0)",
  org.apache.cxf.cxf-rt-rs-client;bundle-version="[4.0.3,5.0.0)",
  org.apache.cxf.cxf-rt-transports-http;bundle-version="[4.0.3,5.0.0)",
  org.apache.cxf.cxf-rt-transports-http-hc;bundle-version="[4.0.3,5.0.0)",
- org.knime.json;bundle-version="[5.9.0,6.0.0)",
+ org.knime.json;bundle-version="[5.10.0,6.0.0)",
  org.knime.core.data.uritype;bundle-version="[5.9.0,6.0.0)",
- org.knime.ext.svg;bundle-version="[5.9.0,6.0.0)",
+ org.knime.ext.svg;bundle-version="[5.10.0,6.0.0)",
  org.eclipse.e4.core.di;bundle-version="[1.5.0,2.0.0)",
  org.apache.commons.lang3;bundle-version="[3.2.1,4.0.0)",
  org.apache.httpcomponents.httpclient;bundle-version="[4.5.4,5.0.0)",
@@ -25,7 +25,7 @@ Require-Bundle: org.knime.base;bundle-version="[5.9.0,6.0.0)",
  org.knime.credentials.base;bundle-version="[5.9.0,6.0.0)",
  org.knime.credentials.base.oauth;bundle-version="[5.9.0,6.0.0)",
  org.apache.commons.commons-io;bundle-version="[2.15.1,3.0.0)",
- org.knime.core.ui;bundle-version="[5.9.0,6.0.0)"
+ org.knime.core.ui;bundle-version="[5.10.0,6.0.0)"
 Bundle-RequiredExecutionEnvironment: JavaSE-17
 Bundle-ActivationPolicy: lazy
 Automatic-Module-Name: org.knime.rest
