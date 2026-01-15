@@ -70,9 +70,7 @@ enum RestAuthenticationType {
     @Label(value = "Digest auth", //
         description = "Authentication with username and password using digest authentication.")
     DIGEST_AUTH("Digest auth"), //
-    @Deprecated
-    @Label(value = "NTLM", description = "Authentication with username and password using NTLM authentication.",
-        disabled = true)
+    @Label(value = "NTLM", description = "Authentication with username and password using NTLM authentication.")
     NTLM_AUTH("NTLM"), //
     @Label(value = "Kerberos", description = "Kerberos ticket based authentication")
     KERBEROS("Kerberos");
