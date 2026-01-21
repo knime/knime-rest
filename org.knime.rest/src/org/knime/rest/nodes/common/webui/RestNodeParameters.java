@@ -130,11 +130,11 @@ public class RestNodeParameters implements NodeParameters {
     }
 
     /**
-     * Modification for making the response body column name input widget visible.
+     * Modification for making the response body column name text input widget invisible.
      *
      * @author Magnus Gohm, KNIME GmbH, Konstanz, Germany
      */
-    public static class RestNodeParametersModification implements Modification.Modifier {
+    public static class RemoveResponseBodyColumnNameModification implements Modification.Modifier {
 
         @Override
         public void modify(final WidgetGroupModifier group) {
@@ -225,9 +225,14 @@ public class RestNodeParameters implements NodeParameters {
 
     }
 
+    /**
+     * Output section of the request nodes.
+     *
+     * @author Magnus Gohm, KNIME GmbH, Konstanz, Germany
+     */
     @Section(title = "Output")
     @After(TimingRetriesAndErrorsSection.class)
-    interface OutputSection {
+    public interface OutputSection {
     }
 
     @Advanced
@@ -1154,7 +1159,17 @@ public class RestNodeParameters implements NodeParameters {
     @ValueSwitchWidget
     @Persistor(ExtractAllResponseFieldsPersistor.class)
     @ValueReference(ExtractAllResponseFieldsRef.class)
+    @Modification.WidgetReference(ResponseHeaderPolicyModRef.class)
     ResponseHeaderPolicy m_extractAllResponseFields = ResponseHeaderPolicy.CUSTOM;
+
+    /**
+     * Reference to the response header policy widget for use in modifications.
+     *
+     * @author Magnus Gohm, KNIME GmbH, Konstanz, Germany
+     */
+    public interface ResponseHeaderPolicyModRef extends
+        ParameterReference<ResponseHeaderPolicy>, Modification.Reference {
+    }
 
     @Layout(OutputSection.class)
     @Widget(title = "Response headers", description = """
@@ -1164,8 +1179,17 @@ public class RestNodeParameters implements NodeParameters {
         elementDefaultValueProvider = ResponseHeaderItemDefaultProvider.class)
     @PersistArray(ResponseHeaderItem.ResponseHeadersArrayPersistor.class)
     @ValueReference(ResponseHeaderItemRef.class)
+    @Modification.WidgetReference(ResponseHeadersModRef.class)
     @Effect(predicate = IsExtractAllResponseHeadersPredicate.class, type = EffectType.HIDE)
     ResponseHeaderItem[] m_responseHeaders = new ResponseHeaderItem[0];
+
+    /**
+     * Reference to the response header widget for use in modifications.
+     *
+     * @author Magnus Gohm, KNIME GmbH, Konstanz, Germany
+     */
+    public interface ResponseHeadersModRef extends ParameterReference<String>, Modification.Reference {
+    }
 
     @Layout(OutputSection.class)
     @Widget(title = "Body column name", description = "Name of the response body column in the output table.")
@@ -1174,7 +1198,12 @@ public class RestNodeParameters implements NodeParameters {
     @Modification.WidgetReference(ResponseBodyColumnModRef.class)
     String m_responseBodyColumn = "body";
 
-    interface ResponseBodyColumnModRef extends ParameterReference<String>, Modification.Reference {
+    /**
+     * Reference to the response body column name widget for use in modifications.
+     *
+     * @author Magnus Gohm, KNIME GmbH, Konstanz, Germany
+     */
+    public interface ResponseBodyColumnModRef extends ParameterReference<String>, Modification.Reference {
     }
 
     @Layout(OutputSection.class)
