@@ -7,6 +7,7 @@ Bundle-Activator: org.knime.rest.internals.RESTActivator
 Bundle-Vendor: KNIME AG, Zurich, Switzerland
 Export-Package: org.knime.rest.generic,
  org.knime.rest.nodes.common;x-friends:="org.knime.rest.webpageretriever",
+ org.knime.rest.nodes.common.webui;x-friends:="org.knime.rest.webpageretriever",
  org.knime.rest.util
 Require-Bundle: org.knime.base;bundle-version="[5.10.0,6.0.0)",
  jakarta.ws.rs-api;bundle-version="[3.1.0,4.0.0)",
