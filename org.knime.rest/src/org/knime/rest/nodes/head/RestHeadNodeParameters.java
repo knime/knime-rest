@@ -51,7 +51,7 @@ package org.knime.rest.nodes.head;
 import org.knime.core.webui.node.dialog.defaultdialog.widget.Modification;
 import org.knime.node.parameters.migration.LoadDefaultsForAbsentFields;
 import org.knime.rest.nodes.common.webui.RestNodeParameters;
-import org.knime.rest.nodes.common.webui.RestNodeParameters.RestNodeParametersModification;
+import org.knime.rest.nodes.common.webui.RestNodeParameters.RemoveResponseBodyColumnNameModification;
 
 /**
  * Node parameters for HEAD request node.
@@ -61,7 +61,7 @@ import org.knime.rest.nodes.common.webui.RestNodeParameters.RestNodeParametersMo
  */
 @SuppressWarnings("restriction")
 @LoadDefaultsForAbsentFields
-@Modification(RestNodeParametersModification.class)
+@Modification(RemoveResponseBodyColumnNameModification.class)
 class RestHeadNodeParameters extends RestNodeParameters {
 
     RestHeadNodeParameters() {

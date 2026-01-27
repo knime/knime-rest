@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<config xmlns="http://www.knime.org/2008/09/XMLConfig" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.knime.org/2008/09/XMLConfig http://www.knime.org/XMLConfig_2008_09.xsd" key="test">
+    <entry key="Use constant URI" type="xboolean" value="true"/>
+    <entry key="Constant URI" type="xstring" value="https://www.google.com"/>
+    <entry key="URI column" type="xstring" isnull="true" value=""/>
+    <entry key="follow redirects" type="xboolean" value="true"/>
+    <entry key="None_enabled" type="xboolean" value="true"/>
+    <entry key="Basic_enabled" type="xboolean" value="false"/>
+    <entry key="Bearer_enabled" type="xboolean" value="false"/>
+    <entry key="Digest_enabled" type="xboolean" value="false"/>
+    <entry key="NTLM (Labs)_enabled" type="xboolean" value="false"/>
+    <entry key="Kerberos_enabled" type="xboolean" value="false"/>
+    <config key="None"/>
+    <config key="Basic">
+        <config key="BASIC auth">
+            <entry key="selectedType" type="xstring" value="USER_PWD"/>
+            <entry key="credentials" type="xstring" isnull="true" value=""/>
+            <entry key="username" type="xstring" value=""/>
+            <entry key="password" type="xpassword" value=""/>
+        </config>
+    </config>
+    <config key="Bearer">
+        <config key="Bearer auth">
+            <entry key="selectedType" type="xstring" value="PWD"/>
+            <entry key="credentials" type="xstring" isnull="true" value=""/>
+            <entry key="username" type="xstring" value=""/>
+            <entry key="password" type="xpassword" value=""/>
+        </config>
+    </config>
+    <config key="Digest">
+        <config key="Digest auth">
+            <entry key="selectedType" type="xstring" value="USER_PWD"/>
+            <entry key="credentials" type="xstring" isnull="true" value=""/>
+            <entry key="username" type="xstring" value=""/>
+            <entry key="password" type="xpassword" value=""/>
+        </config>
+    </config>
+    <config key="NTLM (Labs)">
+        <config key="NTLM-auth">
+            <entry key="selectedType" type="xstring" value="USER_PWD"/>
+            <entry key="credentials" type="xstring" isnull="true" value=""/>
+            <entry key="username" type="xstring" value=""/>
+            <entry key="password" type="xpassword" value=""/>
+        </config>
+        <entry key="org.knime.rest.auth.ntlm.domain" type="xstring" value=""/>
+    </config>
+    <config key="Kerberos"/>
+    <entry key="Proxy_enabled" type="xboolean" value="true"/>
+    <config key="Proxy auth">
+        <entry key="selectedType" type="xstring" value="USER_PWD"/>
+        <entry key="credentials" type="xstring" value=""/>
+        <entry key="username" type="xstring" value=""/>
+        <entry key="password" type="xpassword" isnull="true" value=""/>
+    </config>
+    <entry key="concurrency" type="xint" value="1"/>
+    <entry key="delay_enabled" type="xboolean" value="false"/>
+    <entry key="delay" type="xlong" value="0"/>
+    <entry key="connectTimeout" type="xint" value="5"/>
+    <entry key="readTimeout" type="xint" value="120"/>
+    <entry key="allowChunking" type="xboolean" value="true"/>
+    <entry key="SSL ignore hostname errors" type="xboolean" value="false"/>
+    <entry key="SSL trust all" type="xboolean" value="false"/>
+    <config key="Request header keys">
+        <entry key="array-size" type="xint" value="0"/>
+    </config>
+    <config key="Request header key selector">
+        <entry key="array-size" type="xint" value="0"/>
+    </config>
+    <config key="Request header key kind">
+        <entry key="array-size" type="xint" value="0"/>
+    </config>
+    <entry key="failOnMissingHeaders" type="xboolean" value="true"/>
+    <entry key="Invalid URL handling" type="xstring" value="MISSING"/>
+    <entry key="Fail on connection problems" type="xboolean" value="true"/>
+    <entry key="failOnClientError" type="xboolean" value="true"/>
+    <config key="delayPolicy">
+        <entry key="delayCooldownEnabled" type="xboolean" value="false"/>
+        <entry key="delayRateLimitCooldown" type="xlong" value="60"/>
+        <entry key="delayRetriesEnabled" type="xboolean" value="false"/>
+        <entry key="delayMaxRetries" type="xint" value="3"/>
+        <entry key="delayRetryBase" type="xlong" value="1"/>
+    </config>
+    <entry key="failOnServerError" type="xboolean" value="true"/>
+    <entry key="Extract all response fields" type="xboolean" value="false"/>
+    <config key="Response header keys">
+        <entry key="array-size" type="xint" value="0"/>
+    </config>
+    <config key="Response header column name">
+        <entry key="array-size" type="xint" value="0"/>
+    </config>
+    <config key="Response header column type">
+        <entry key="array-size" type="xint" value="0"/>
+    </config>
+    <entry key="Body column name" type="xstring" value="body"/>
+    <entry key="outputErrorCause" type="xboolean" value="false"/>
+    <entry key="Output column name" type="xstring" value="Document"/>
+    <entry key="Output as XML" type="xboolean" value="true"/>
+    <entry key="Replace relative URLS" type="xboolean" value="true"/>
+    <entry key="Extract cookies" type="xboolean" value="false"/>
+    <entry key="Cookie output column name" type="xstring" value="Cookies"/>
+</config>
