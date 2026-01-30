@@ -2,9 +2,9 @@ Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
 Bundle-Name: Unit-Tests for org.knime.rest.webpageretriever
 Bundle-SymbolicName: org.knime.rest.webpageretriever.tests;singleton:=true
-Bundle-Version: 5.10.0.qualifier
+Bundle-Version: 5.11.0.qualifier
 Bundle-Vendor: KNIME AG, Zurich, Switzerland
-Fragment-Host: org.knime.rest.webpageretriever;bundle-version="[5.10.0,6.0.0)"
+Fragment-Host: org.knime.rest.webpageretriever;bundle-version="[5.11.0,6.0.0)"
 Require-Bundle: org.knime.testing;bundle-version="[5.9.0,6.0.0)",
  junit-jupiter-api;bundle-version="[5.9.2,6.0.0)",
  org.knime.core.ui.testing;bundle-version="[5.9.0,6.0.0)"

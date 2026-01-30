@@ -2,7 +2,7 @@ Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
 Bundle-Name: KNIME REST Client Node (Webpage Retriever)
 Bundle-SymbolicName: org.knime.rest.webpageretriever;singleton:=true
-Bundle-Version: 5.10.0.qualifier
+Bundle-Version: 5.11.0.qualifier
 Bundle-ClassPath: .,
  lib/jsoup-1.17.2.jar
 Bundle-Vendor: KNIME AG, Zurich, Switzerland
