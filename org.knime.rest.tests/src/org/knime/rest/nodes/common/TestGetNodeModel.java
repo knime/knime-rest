@@ -91,7 +91,7 @@ public final class TestGetNodeModel extends RestNodeModel<RestSettings> {
         CheckUtils.checkArgument((proxyMode == ProxyMode.NONE) == (proxyConfig == null),
             "Either set proxy mode to NONE and don't specify a config object, or set a different proxy mode!");
         m_settings.getProxyManager().setProxyMode(proxyMode);
-        m_settings.m_currentProxyConfig = Optional.ofNullable(proxyConfig);
+        m_settings.m_localProxyConfig = Optional.ofNullable(proxyConfig);
         // Useful for testing: extract all response headers.
         m_settings.setExtractAllResponseFields(true);
     }
