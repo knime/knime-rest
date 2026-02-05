@@ -2,7 +2,7 @@
 <feature
       id="org.knime.features.rest"
       label="KNIME REST Client Extension"
-      version="5.3.3.qualifier"
+      version="5.3.4.qualifier"
       provider-name="KNIME AG, Zurich, Switzerland">
 
    <description>
@@ -729,7 +729,7 @@ propagated with or for interoperation with KNIME.
    </license>
    
    <requires>
-      <import feature="org.knime.features.credentials.base" version="0.0.0"/>
+      <import feature="org.knime.features.credentials.base" version="5.3.4"/>
    </requires>
 
    <plugin
