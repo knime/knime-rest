@@ -96,7 +96,7 @@ final class ProxyLocalConfigurationTest {
 
     @BeforeAll
     static void initializeConfigs() {
-        proxyManager = RestProxyConfigManager.createDefaultProxyManager();
+        proxyManager = new RestProxyConfigManager();
         proxyManager.setProxyMode(ProxyMode.LOCAL);
     }
 

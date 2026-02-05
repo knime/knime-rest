@@ -1399,7 +1399,7 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
         final var proxyMode = getProxyMode();
         proxyManager.setProxyMode(proxyMode);
         if (proxyMode == ProxyMode.LOCAL) {
-            m_settings.m_currentProxyConfig = Optional.of(RestProxyConfig.builder()//
+            m_settings.m_localProxyConfig = Optional.of(RestProxyConfig.builder()//
                 .setProtocol((ProxyProtocol)m_proxyProtocolCombo.getSelectedItem())//
                 .setProxyHost(m_proxyHostPanel.getSelectedString())//
                 .setProxyPort(m_proxyPortPanel.getSelectedString())//
@@ -1410,7 +1410,7 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
                 .build());
         } else {
             // Don't save any node-specific proxy settings in case of GLOBAL or NONE mode.
-            m_settings.m_currentProxyConfig = Optional.empty();
+            m_settings.m_localProxyConfig = Optional.empty();
         }
 
         m_proxyHostPanel.commitSelectedToHistory();
@@ -1539,7 +1539,7 @@ public abstract class RestNodeDialog<S extends RestSettings> extends NodeDialogP
 
         // Proxy settings.
         m_proxyModeSelector.getButton(ProxyMode.fromSettings(settings).name()).doClick();
-        m_settings.getCurrentProxyConfig().ifPresent(this::configurePanelsWithProxy);
+        m_settings.getLocalProxyConfig().ifPresent(this::configurePanelsWithProxy);
         m_proxyAuthenticatorPanel.setEnabled(m_useAuthenticationChecker.isSelected());
     }
 

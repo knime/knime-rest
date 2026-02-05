@@ -59,13 +59,13 @@ import org.apache.cxf.transports.http.configuration.ProxyServerType;
 import org.knime.core.data.DataTableSpec;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeLogger;
-import org.knime.core.node.NodeSettings;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
+import org.knime.core.node.config.base.ConfigBaseRO;
 import org.knime.core.node.defaultnodesettings.SettingsModelString;
 import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.node.workflow.CredentialsProvider;
-import org.knime.core.util.proxy.GlobalProxyConfig;
+import org.knime.core.util.proxy.ExcludedHostsTokenizer;
 import org.knime.core.util.proxy.ProxyProtocol;
 import org.knime.core.util.proxy.search.GlobalProxySearch;
 import org.knime.rest.internals.BasicAuthentication;
@@ -84,29 +84,29 @@ public final class RestProxyConfigManager {
 
     private static final NodeLogger LOGGER = NodeLogger.getLogger(RestProxyConfigManager.class);
 
-    static final String USE_PROXY_KEY = "Proxy_enabled";
-
-    static final String PROXY_AUTH_KEY = "Proxy auth";
-
     private static final ProxyMode DEFAULT_PROXY_MODE = ProxyMode.GLOBAL;
 
     private ProxyMode m_proxyMode = DEFAULT_PROXY_MODE;
 
     private Optional<BasicAuthentication> m_authReference = Optional.empty();
 
-    private RestProxyConfigManager() {
+    /**
+     * Creates a default proxy manager that searches for a global {@link RestProxyConfig}
+     * via the {@link GlobalProxySearch}, reading the Eclipse's proxy preferences.
+     */
+    public RestProxyConfigManager() {
+        // nothing to do
     }
 
     /**
-     * Creates default proxy settings which are global and read the System properties's proxy configuration.
+     * Whether a proxy (i.e. the proxy settings in {@link RestProxyConfig}) should be used.
+     * If is in use, if the settings contain the corresponding identifier for enablement.
      *
-     * @return KNIME-wide REST proxy settings
+     * @param settings the node settings
+     * @return to be used?
      */
-    public static RestProxyConfigManager createDefaultProxyManager() {
-        var settings = new RestProxyConfigManager();
-        // Make System properties proxy configuration available.
-        settings.m_proxyMode = ProxyMode.GLOBAL;
-        return settings;
+    public static boolean useProxy(final ConfigBaseRO settings) {
+        return settings.containsKey(RestProxyConfig.USE_PROXY_KEY);
     }
 
     /**
@@ -115,7 +115,7 @@ public final class RestProxyConfigManager {
      * @return SettingsModel for the proxy mode
      */
     public static SettingsModelString createProxyModeSettingsModel() {
-        return new SettingsModelString(USE_PROXY_KEY, DEFAULT_PROXY_MODE.name());
+        return new SettingsModelString(RestProxyConfig.USE_PROXY_KEY, DEFAULT_PROXY_MODE.name());
     }
 
     /**
@@ -125,30 +125,10 @@ public final class RestProxyConfigManager {
      * @return Authentication model for the proxy authentication
      */
     public static BasicAuthentication createProxyAuthSettingsModel() {
-        final var auth = new BasicAuthentication(PROXY_AUTH_KEY);
+        final var auth = new BasicAuthentication(RestProxyConfig.PROXY_AUTH_KEY);
         // No password is null, because an empty string is possible.
         auth.setPassword(null);
         return auth;
-    }
-
-    /**
-     * Use the proxy mode key as necessary identifier that proxy config has been saved to the settings before. Enables
-     * backwards compatibility.
-     *
-     * @return String identifier
-     */
-    public static String getProxyConfigIdentifier() {
-        return USE_PROXY_KEY;
-    }
-
-    static <E extends Enum<E>> E safeParseEnum(final Class<E> enumClass, final String value, final E defaultValue) {
-        try {
-            return Enum.valueOf(enumClass, Objects.requireNonNullElse(value, ""));
-        } catch (IllegalArgumentException e) {
-            // NPE cannot occur, we make sure value is not null.
-            LOGGER.debug(e);
-            return defaultValue;
-        }
     }
 
     /**
@@ -164,28 +144,6 @@ public final class RestProxyConfigManager {
         // Ignore connections for all hosts.
         policy.setNonProxyHosts("*");
         return policy;
-    }
-
-    /**
-     * Strips all semicolon-separated hosts and formats them using '|'-separators.
-     *
-     * @param nonProxyHosts
-     * @return formatted hosts
-     */
-    private static String formatNonProxyHosts(final String nonProxyHosts) {
-        if (nonProxyHosts == null) {
-            return null;
-        }
-        var builder = new StringBuilder();
-        var excludeHosts = nonProxyHosts.split(";");
-        int i;
-        for (i = 0; i < excludeHosts.length - 1; i++) {
-            builder.append(excludeHosts[i].strip());
-            // Non-proxy hosts must be separated by a vertical bar.
-            builder.append('|');
-        }
-        builder.append(excludeHosts[i].strip());
-        return builder.toString();
     }
 
     /**
@@ -220,16 +178,16 @@ public final class RestProxyConfigManager {
      * request builder client if needed. Sets the server, port, user and password to a <code>HTTPClientPolicy</code> and
      * <code>ProxyAuthorizationPolicy</code> and adds them to the client configuration.
      *
-     * @param maybeConfig
-     * @param request Builder that creates the invocation.
-     * @param credsProvider
+     * @param optProxyConfig effective {@link RestProxyConfig}
+     * @param request builder that creates the invocation
+     * @param credsProvider credentials provider (via flow variables)
      * @throws InvalidSettingsException
      */
-    public void configureRequest(final Optional<RestProxyConfig> maybeConfig, final Builder request, // NOSONAR
+    public void configureRequest(final Optional<RestProxyConfig> optProxyConfig, final Builder request, // NOSONAR
         final CredentialsProvider credsProvider) throws InvalidSettingsException {
-        var conduit = WebClient.getConfig(request).getHttpConduit();
+        final var conduit = WebClient.getConfig(request).getHttpConduit();
 
-        if (maybeConfig.isEmpty()) {
+        if (optProxyConfig.isEmpty()) {
             switch (m_proxyMode) {
                 case LOCAL:
                     // Setting the proxy mode to local requires a proxy connection and a non-empty host.
@@ -245,7 +203,7 @@ public final class RestProxyConfigManager {
                     return;
             }
         }
-        final var config = maybeConfig.orElseThrow(); // must be present
+        final var config = optProxyConfig.orElseThrow(); // must be present
 
         // Setting proxy credentials.
         config.getProxyTarget().configure(conduit);
@@ -255,7 +213,7 @@ public final class RestProxyConfigManager {
         // Previous behavior: explicitly set null when excluded hosts are empty.
         policy.setNonProxyHosts(config.getExcludeHosts() //
             .filter(x -> config.isExcludeHosts()) // set excluded hosts to null if disabled
-            .map(RestProxyConfigManager::formatNonProxyHosts) //
+            .map(x -> String.join("|", ExcludedHostsTokenizer.tokenize(x))) //
             .orElse(null));
         conduit.setClient(policy);
 
@@ -266,7 +224,7 @@ public final class RestProxyConfigManager {
             // We currently only support basic authorization.
             conduit.getProxyAuthorization().setAuthorizationType("Basic");
         } else {
-            // ensure authorization fields are clear when authentication is disabled
+            // Clear when authentication is disabled.
             final var authorization = conduit.getProxyAuthorization();
             if (authorization != null) {
                 authorization.setUserName(null);
@@ -281,9 +239,8 @@ public final class RestProxyConfigManager {
     /**
      * Saves the internal state to {@code settings}.
      *
-     * @param config
-     *
-     * @param settings A writable {@link NodeSettingsWO}.
+     * @param config local {@link RestProxyConfig}
+     * @param settings a writable {@link NodeSettingsWO}
      */
     public void saveSettings(final RestProxyConfig config, final NodeSettingsWO settings) {
         // Saving empty auth settings to initialize the fields.
@@ -292,7 +249,7 @@ public final class RestProxyConfigManager {
             config.saveSettings(settings);
         }
         // Coming from the RestNodeDialog, the proxy-mode is saved by the proxyModeSettingsModel.
-        settings.addBoolean(USE_PROXY_KEY, m_proxyMode != ProxyMode.NONE);
+        settings.addBoolean(RestProxyConfig.USE_PROXY_KEY, m_proxyMode != ProxyMode.NONE);
     }
 
     /**
@@ -304,7 +261,7 @@ public final class RestProxyConfigManager {
      */
     public Optional<RestProxyConfig> loadConfigFrom(final NodeSettingsRO settings) throws InvalidSettingsException {
         m_proxyMode = ProxyMode.fromSettings(settings);
-        return getProxyConfig(getLocalConfig(settings, null, (DataTableSpec[])null).orElse(null));
+        return getEffectiveConfig(readLocalConfigFrom(settings, null, (DataTableSpec[])null).orElse(null));
     }
 
     /**
@@ -314,8 +271,8 @@ public final class RestProxyConfigManager {
      *        {@link ProxyMode#LOCAL})
      * @return proxy configuration
      */
-    public Optional<RestProxyConfig> getProxyConfig(final RestProxyConfig localConfig) {
-        return getProxyConfig(localConfig, null);
+    public Optional<RestProxyConfig> getEffectiveConfig(final RestProxyConfig localConfig) {
+        return getEffectiveConfig(localConfig, null);
     }
 
     /**
@@ -326,9 +283,9 @@ public final class RestProxyConfigManager {
      * @param uri the URI to select the proxy for
      * @return proxy configuration
      */
-    public Optional<RestProxyConfig> getProxyConfig(final RestProxyConfig localConfig, final URI uri) {
+    public Optional<RestProxyConfig> getEffectiveConfig(final RestProxyConfig localConfig, final URI uri) {
         return switch (m_proxyMode) {
-            case GLOBAL -> Optional.ofNullable(getGlobalConfig(uri));
+            case GLOBAL -> Optional.ofNullable(searchForGlobalConfig(uri));
             case LOCAL -> Optional.of(localConfig);
             case NONE -> Optional.empty();
         };
@@ -337,87 +294,45 @@ public final class RestProxyConfigManager {
     /**
      * Loads the settings for the dialog with defaults.
      *
-     * @param settings The read-only {@link NodeSettingsRO}.
-     * @param credentialNames
-     * @param specs
+     * @param settings a read-only {@link NodeSettingsRO}
+     * @param credsProvider credentials provider (via flow variables)
+     * @param specs the input specs
      * @return Optional of RestProxyConfig
-     * @throws InvalidSettingsException
+     * @throws InvalidSettingsException if something went wrong
      */
     public Optional<RestProxyConfig> loadConfigForDialog(final NodeSettingsRO settings,
-        final CredentialsProvider credentialNames, final PortObjectSpec... specs) throws InvalidSettingsException {
+        final CredentialsProvider credsProvider, final PortObjectSpec... specs) throws InvalidSettingsException {
         m_proxyMode = ProxyMode.fromSettings(settings);
         if (m_proxyMode != ProxyMode.LOCAL) {
             // Despite the non-local proxy mode, the auth panel needs to be loaded to update the credentials chooser.
             m_authReference.ifPresent(auth -> {
                 try {
-                    RestProxyConfigBuilder.loadAuthenticationFromSettings(auth, settings, credentialNames, specs);
+                    RestProxyConfigBuilder.loadAuthenticationFromSettings(auth, settings, credsProvider, specs);
                 } catch (InvalidSettingsException e) {
                     LOGGER.debug("Could not load proxy authentication from settings", e);
                 }
             });
         }
-        return getProxyConfig(getLocalConfig(settings, credentialNames, specs).orElse(null));
-    }
-
-    /**
-     * Loads a global proxy config from {@link GlobalProxySearch}. Package scope for tests.
-     *
-     * @return RestProxyConfig
-     */
-    static RestProxyConfig getGlobalConfig() {
-        return getGlobalConfig(null);
+        return getEffectiveConfig(readLocalConfigFrom(settings, credsProvider, specs).orElse(null));
     }
 
     /**
      * Loads a global proxy config from {@link GlobalProxySearch#getCurrentFor(URI)}.
      * If the provided {@link URI} is not null, the proxy selection is based on the URI.
      *
-     * @param uri the URI to reach via a proxy
-     * @return RestProxyConfig
+     * @param uri the URI to reach via a proxy (can be {@code null})
+     * @return RestProxyConfig (can be {@code null})
      */
-    private static RestProxyConfig getGlobalConfig(final URI uri) {
+    // package scope for tests
+    static RestProxyConfig searchForGlobalConfig(final URI uri) {
         // select proxy for URI directly if non-null, otherwise any HTTP(S) proxy
         final var maybeProxyConfig = uri != null //
-                ? GlobalProxySearch.getCurrentFor(uri) //
-                : GlobalProxySearch.getCurrentFor(ProxyProtocol.HTTP, ProxyProtocol.HTTPS);
+            ? GlobalProxySearch.getCurrentFor(uri) //
+            : GlobalProxySearch.getCurrentFor(ProxyProtocol.HTTP, ProxyProtocol.HTTPS);
         return maybeProxyConfig //
-                .map(RestProxyConfigManager::toRestProxyConfig) //
-                .filter(Objects::nonNull) //
-                .orElse(null);
-    }
-
-    /**
-     * Converts a {@link GlobalProxyConfig} to a {@link RestProxyConfig} with identical contents.
-     * Package scope for tests.
-     * <p>
-     * Distinction between these configs mainly stems earlier proxy-related development in "org.knime.rest"
-     * (than in "org.knime.core.util.proxy") and an additional integration of {@link NodeSettings} for REST nodes.
-     * These two config types might be unified at some point.
-     * </p>
-     *
-     * @param config GlobalProxyConfig
-     * @return RestProxyConfig
-     */
-    static RestProxyConfig toRestProxyConfig(final GlobalProxyConfig config) {
-        try {
-            // convert to RestProxyConfig and validate in #build() step
-            final var b = RestProxyConfig.builder();
-            b.setProtocol(config.protocol());
-            b.setProxyHost(config.host());
-            b.setProxyPort(config.port());
-            b.setUseAuthentication(config.useAuthentication());
-            if (config.useAuthentication()) {
-                b.setUsername(config.username());
-                b.setPassword(config.password());
-            }
-            b.setUseExcludeHosts(config.useExcludedHosts());
-            if (config.useExcludedHosts()) {
-                b.setExcludedHosts(config.excludedHosts());
-            }
-            return b.build();
-        } catch (InvalidSettingsException e) { // NOSONAR
-            return null;
-        }
+            .map(RestProxyConfig::fromGlobalProxyConfig) //
+            .filter(Objects::nonNull) //
+            .orElse(null);
     }
 
     /**
@@ -428,15 +343,15 @@ public final class RestProxyConfigManager {
      * @return RestProxyConfig
      * @throws InvalidSettingsException
      */
-    private Optional<RestProxyConfig> getLocalConfig(final NodeSettingsRO settings,
-            final CredentialsProvider credentialNames, final PortObjectSpec... specs) throws InvalidSettingsException {
+    private Optional<RestProxyConfig> readLocalConfigFrom(final NodeSettingsRO settings,
+        final CredentialsProvider credentialNames, final PortObjectSpec... specs) throws InvalidSettingsException {
         if (!settings.containsKey(RestProxyConfig.PROXY_SETTINGS_KEY)) {
             return Optional.empty();
         }
 
         return Optional.of(RestProxyConfig.builder()//
-                .setBasicAuthentication(m_authReference.orElse(null))//
-                .useNodeSettings(settings, credentialNames, specs)//
-                .build());
+            .setBasicAuthentication(m_authReference.orElse(null))//
+            .useNodeSettings(settings, credentialNames, specs)//
+            .build());
     }
 }
