@@ -275,10 +275,10 @@ public class RestSettings {
 
     private boolean m_isFailOnMissingHeaders = DEFAULT_FAIL_MISSING_HEADERS;
 
-    private final RestProxyConfigManager m_proxyManager = RestProxyConfigManager.createDefaultProxyManager();
+    private final RestProxyConfigManager m_proxyManager = new RestProxyConfigManager();
 
     // Package scope needed for tests.
-    Optional<RestProxyConfig> m_currentProxyConfig = Optional.empty();
+    Optional<RestProxyConfig> m_localProxyConfig = Optional.empty();
 
     /**
      * Whether the node should output a missing value or fail in execution when a response returns a HTTP status code
@@ -951,23 +951,24 @@ public class RestSettings {
      *
      * @return RestProxyConfig, if present
      */
-    protected Optional<RestProxyConfig> getCurrentProxyConfig() {
-        return m_currentProxyConfig;
+    protected Optional<RestProxyConfig> getLocalProxyConfig() {
+        return m_localProxyConfig;
     }
 
     /**
-     * Takes the current proxy config from {@link RestSettings#getCurrentProxyConfig()},
+     * Takes the local proxy config from {@link RestSettings#getLocalProxyConfig()},
      * and updates it based on the proxy manager's mode:
      *  - NONE: clears the proxy config
      *  - LOCAL: returns config as is
-     *  - GLOBAL: re-fetches System properties
+     *  - GLOBAL: uses global proxy settings via `GlobalProxySearch`
      *
-     * Does not update the cached {@link #m_currentProxyConfig}.
+     * Does not update the cached {@link #m_localProxyConfig}.
+     * @param uri the {@link URI} for which to use the proxy
      *
      * @return RestProxyConfig, if present
      */
-    protected Optional<RestProxyConfig> getUpdatedProxyConfig(final URI uri) {
-        return getProxyManager().getProxyConfig(getCurrentProxyConfig().orElse(null), uri);
+    protected Optional<RestProxyConfig> getEffectiveProxyConfig(final URI uri) {
+        return getProxyManager().getEffectiveConfig(getLocalProxyConfig().orElse(null), uri);
     }
 
     /**
@@ -1014,7 +1015,7 @@ public class RestSettings {
         m_allowChunking.ifPresent(allowChunking -> settings.addBoolean(ALLOW_CHUNKING_KEY, allowChunking));
         m_invalidURLPolicy.saveSettingsTo(settings);
         settings.addBoolean(FAIL_MISSING_HEADERS_KEY, m_isFailOnMissingHeaders);
-        m_proxyManager.saveSettings(m_currentProxyConfig.orElse(null), settings);
+        m_proxyManager.saveSettings(m_localProxyConfig.orElse(null), settings);
     }
 
     /**
@@ -1089,8 +1090,8 @@ public class RestSettings {
          * Otherwise, the new default (see DEFAULT_FAIL_MISSING_HEADERS) is to fail. */
         m_isFailOnMissingHeaders = settings.getBoolean(FAIL_MISSING_HEADERS_KEY, false);
 
-        if (!m_forValidationOnly && settings.containsKey(RestProxyConfigManager.getProxyConfigIdentifier())) {
-            m_currentProxyConfig = m_proxyManager.loadConfigFrom(settings);
+        if (!m_forValidationOnly && RestProxyConfigManager.useProxy(settings)) {
+            m_localProxyConfig = m_proxyManager.loadConfigFrom(settings);
         }
     }
 
@@ -1193,7 +1194,7 @@ public class RestSettings {
 
         // Even if settings do not yet contain proxy settings, loading for the dialog uses default values.
         if (!m_forValidationOnly) {
-            m_currentProxyConfig = m_proxyManager.loadConfigForDialog(settings, credentialNames, specs);
+            m_localProxyConfig = m_proxyManager.loadConfigForDialog(settings, credentialNames, specs);
         }
     }
 }
