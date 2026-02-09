@@ -187,7 +187,7 @@ public abstract class RestNodeModel<S extends RestSettings> extends NodeModel {
      * If the constant URL is enabled, we can safely use the row with id 'Row0',
      * it cannot be overwritten. Also compatible with the output table.
      */
-    private static final RowKey CONSTANT_URL_KEY = RowKey.createRowKey(0L);
+    private static final RowKey CONSTANT_URL_KEY = RowKey.createRowKey(1000L);
 
     /**
      * The settings of this node model.
