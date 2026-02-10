@@ -53,6 +53,7 @@ import java.util.List;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
+import org.knime.core.node.workflow.CredentialsProvider;
 import org.knime.core.node.workflow.FlowVariable;
 import org.knime.core.node.workflow.VariableType;
 import org.knime.core.node.workflow.VariableType.BooleanType;
@@ -60,6 +61,7 @@ import org.knime.core.node.workflow.VariableType.DoubleType;
 import org.knime.core.node.workflow.VariableType.IntType;
 import org.knime.core.node.workflow.VariableType.LongType;
 import org.knime.core.node.workflow.VariableType.StringType;
+import org.knime.core.webui.node.dialog.defaultdialog.NodeParametersInputImpl;
 import org.knime.core.webui.node.dialog.defaultdialog.internal.persistence.ArrayPersistor;
 import org.knime.core.webui.node.dialog.defaultdialog.internal.persistence.ElementFieldPersistor;
 import org.knime.core.webui.node.dialog.defaultdialog.internal.persistence.PersistArrayElement;
@@ -201,6 +203,14 @@ final class RequestHeaderItem implements NodeParameters {
 
         @Override
         public List<FlowVariable> flowVariableChoices(final NodeParametersInput context) {
+            // can't just use 'context.getAvailableInputFlowVariables(VariableType.CredentialsType.INSTANCE)'
+            // as this will not provide workflow variables (deprecated concept but still supported in migrations)
+            if (context instanceof NodeParametersInputImpl impl) {
+                return impl.getCredentialsProvider() //
+                    .map(CredentialsProvider::listVariables) //
+                    .map(List::copyOf) //
+                    .orElse(List.of());
+            }
             return context.getAvailableInputFlowVariables(VariableType.CredentialsType.INSTANCE)
                     .values().stream().toList();
         }
