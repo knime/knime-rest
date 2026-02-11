@@ -60,7 +60,7 @@ import java.net.MalformedURLException;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicLong;
 
-import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.Strings;
 import org.junit.jupiter.api.Test;
 import org.knime.core.data.DataCell;
 import org.knime.core.data.DataColumnSpec;
@@ -176,7 +176,7 @@ class AbstractRequestExecutorTest {
             }
 
             @Override
-            public DataCell[] handleFollowingResponse(final DataTableSpec spec, final Response response,
+            public DataCell[] handleFollowingResponse(final DataTableSpec spec, final Response response, // NOSONAR
                 final MissingCell missing) {
                 assertResponse(response, missing);
                 return null;
@@ -210,7 +210,7 @@ class AbstractRequestExecutorTest {
         private static void assertResponse(final Response response, final MissingCell missing) {
             assertNull(response, "GET request response should be null since no request was executed");
             assertTrue(
-                missing != null && StringUtils.startsWith(missing.getError(), InvalidURLPolicy.INVALID_URL_ERROR), //
+                missing != null && Strings.CS.startsWith(missing.getError(), InvalidURLPolicy.INVALID_URL_ERROR), //
                 "GET request should have generated a missing cell specifying an invalid URL as cause");
         }
 
@@ -223,7 +223,7 @@ class AbstractRequestExecutorTest {
             }
 
             @Override
-            public DataCell[] handleFollowingResponse(final DataTableSpec spec, final Response response,
+            public DataCell[] handleFollowingResponse(final DataTableSpec spec, final Response response, // NOSONAR
                 final MissingCell missing) {
                 assertResponse(response, missing);
                 return null;
