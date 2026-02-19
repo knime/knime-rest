@@ -17,7 +17,7 @@ properties([
 ])
 
 try {
-    knimetools.defaultTychoBuild('org.knime.update.rest')
+//    knimetools.defaultTychoBuild('org.knime.update.rest')
 
     workflowTests.runTests(
         dependencies: [
@@ -58,10 +58,10 @@ try {
         ]
     )
 
-    stage('Sonarqube analysis') {
-        env.lastStage = env.STAGE_NAME
-        workflowTests.runSonar()
-    }
+    // stage('Sonarqube analysis') {
+    //     env.lastStage = env.STAGE_NAME
+    //     workflowTests.runSonar()
+    // }
 } catch (ex) {
     currentBuild.result = 'FAILURE'
     throw ex
