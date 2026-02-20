@@ -84,12 +84,11 @@ public final class PassthroughMarker extends ResponseTransformer {
     public Response transform(final Request request, final Response response, final FileSource files,
         final Parameters parameters) {
         // Same response, but with an added "Via" header.
-        return Response.response()//
-            .like(response)//
+        return Response.Builder.like(response)//
             .headers(response.getHeaders().plus(new HttpHeader(VIA, getMarkerString())))//
             .build();
     }
-    
+
     /**
      * Checks if the marker is present in the given array,
      * which represents the parsed response contents.

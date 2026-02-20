@@ -99,7 +99,7 @@ public enum ProxyMode implements ButtonGroupEnumInterface {
      * @return ProxyMode
      */
     public static ProxyMode fromSettings(final ConfigBaseRO settings) {
-        var proxyEnabled = settings.getBoolean(RestProxyConfigManager.USE_PROXY_KEY, true);
+        var proxyEnabled = settings.getBoolean(RestProxyConfig.USE_PROXY_KEY, true);
         var containProxySettings = settings.containsKey(RestProxyConfig.PROXY_SETTINGS_KEY);
         if (proxyEnabled) {
             return containProxySettings ? ProxyMode.LOCAL : ProxyMode.GLOBAL;

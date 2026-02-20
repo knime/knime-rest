@@ -110,6 +110,7 @@ public final class TestPostNodeModel extends RestWithBodyNodeModel<RestWithBodyS
      *
      * @param newThreshold chunking threshold in bytes
      */
+    @SuppressWarnings("static-method")
     public void setChunkingThreshold(final int newThreshold) {
         chunkingThreshold = newThreshold;
     }

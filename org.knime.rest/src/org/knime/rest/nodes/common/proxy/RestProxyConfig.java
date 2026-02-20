@@ -52,15 +52,18 @@ import java.util.Arrays;
 import java.util.Objects;
 import java.util.Optional;
 
+import org.apache.commons.lang3.EnumUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeLogger;
+import org.knime.core.node.NodeSettings;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.NotConfigurableException;
 import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.node.util.ConvenienceMethods;
 import org.knime.core.node.workflow.CredentialsProvider;
+import org.knime.core.util.proxy.GlobalProxyConfig;
 import org.knime.core.util.proxy.ProxyProtocol;
 import org.knime.rest.internals.BasicAuthentication;
 
@@ -88,6 +91,18 @@ public final class RestProxyConfig {
     private static final String USE_EXCLUDE_HOSTS_KEY = "Exclude hosts from proxy";
 
     private static final String EXCLUDED_HOSTS_KEY = "Proxy-excluded hosts";
+
+    /**
+     * Key for boolean setting, whether proxies are to be used.
+     * @see RestProxyConfigManager#createProxyModeSettingsModel()
+     */
+    static final String USE_PROXY_KEY = "Proxy_enabled";
+
+    /**
+     * Key for a proxy authentication settings model.
+     * @see RestProxyConfigManager#createProxyAuthSettingsModel()
+     */
+    static final String PROXY_AUTH_KEY = "Proxy auth";
 
     // Settings values.
 
@@ -194,6 +209,41 @@ public final class RestProxyConfig {
 
         config.addBoolean(USE_EXCLUDE_HOSTS_KEY, m_isUseExcludeHosts);
         config.addString(EXCLUDED_HOSTS_KEY, m_excludedHosts);
+    }
+
+
+    /**
+     * Converts a {@link GlobalProxyConfig} to a {@link RestProxyConfig} with identical contents.
+     * <p>
+     * Distinction between these configs mainly stems earlier proxy-related development in "org.knime.rest"
+     * (than in "org.knime.core.util.proxy") and an additional integration of {@link NodeSettings} for REST nodes.
+     * These two config types might be unified at some point.
+     * </p>
+     *
+     * @param config GlobalProxyConfig
+     * @return RestProxyConfig
+     */
+    // package scope for tests
+    static RestProxyConfig fromGlobalProxyConfig(final GlobalProxyConfig config) {
+        try {
+            // convert to RestProxyConfig and validate in #build() step
+            final var b = RestProxyConfig.builder();
+            b.setProtocol(config.protocol());
+            b.setProxyHost(config.host());
+            b.setProxyPort(config.port());
+            b.setUseAuthentication(config.useAuthentication());
+            if (config.useAuthentication()) {
+                b.setUsername(config.username());
+                b.setPassword(config.password());
+            }
+            b.setUseExcludeHosts(config.useExcludedHosts());
+            if (config.useExcludedHosts()) {
+                b.setExcludedHosts(config.excludedHosts());
+            }
+            return b.build();
+        } catch (InvalidSettingsException e) { // NOSONAR
+            return null;
+        }
     }
 
     // String history IDs for certain node config panels.
@@ -442,7 +492,7 @@ public final class RestProxyConfig {
 
         private void loadFromSettings() throws InvalidSettingsException {
             var config = m_builderNodeSettings.getConfig(PROXY_SETTINGS_KEY);
-            m_builderProtocol = RestProxyConfigManager.safeParseEnum(ProxyProtocol.class,
+            m_builderProtocol = EnumUtils.getEnum(ProxyProtocol.class, // safe parse enum
                 config.getString(PROTOCOL_KEY, null), m_builderProtocol);
             m_builderHost = config.getString(HOST_KEY, m_builderHost);
             m_builderPortInt = config.getInt(PORT_KEY, Objects.requireNonNullElse(m_builderPortInt, -1));
@@ -456,7 +506,7 @@ public final class RestProxyConfig {
         static BasicAuthentication loadAuthenticationFromSettings(BasicAuthentication auth,
             final NodeSettingsRO settings, final CredentialsProvider credentialNames, final PortObjectSpec[] specs)
             throws InvalidSettingsException {
-            if (!settings.containsKey(RestProxyConfigManager.PROXY_AUTH_KEY)) {
+            if (!settings.containsKey(PROXY_AUTH_KEY)) {
                 return null;
             }
             auth = Objects.requireNonNullElseGet(auth, RestProxyConfigManager::createProxyAuthSettingsModel);
