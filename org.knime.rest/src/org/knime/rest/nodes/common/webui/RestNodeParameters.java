@@ -106,6 +106,7 @@ import org.knime.node.parameters.widget.text.TextInputWidget;
 import org.knime.node.parameters.widget.text.TextInputWidgetValidation.PatternValidation.IsNotEmptyValidation;
 import org.knime.node.parameters.widget.text.util.ColumnNameValidationUtils.ColumnNameValidation;
 import org.knime.rest.nodes.common.proxy.ProxyMode;
+import org.knime.rest.nodes.common.webui.BearerAuthenticationParameters.IsBearerAuth;
 import org.knime.rest.nodes.common.webui.CredentialsType.CredentialsTypePersistor;
 import org.knime.rest.nodes.common.webui.RestAuthenticationParameters.RestAuthenticationParametersModification;
 import org.knime.rest.util.InvalidURLPolicy;
@@ -410,87 +411,14 @@ public class RestNodeParameters implements NodeParameters {
         @ValueSwitchWidget
         @WidgetInternal(hideControlInNodeDescription =
             RestAuthenticationParameters.HIDE_CONTROL_IN_NODE_DESCRIPTION_REASON)
-        @ValueReference(DigestAuthCredentialsTypeRef.class)
+        @ValueReference(BearerAuthCredentialsTypeRef.class)
         @Effect(predicate = IsBearerAuth.class, type = EffectType.SHOW)
         CredentialsType m_bearerAuthcredentialsType = CredentialsType.MANUAL;
 
         @PersistWithin.PersistEmbedded
-        @Modification(BearerAuthParametersModification.class)
-        RestAuthenticationParameters m_bearerAuthParameters = new RestAuthenticationParameters();
+        BearerAuthenticationParameters m_bearerAuthParameters = new BearerAuthenticationParameters();
 
-        static final class BearerAuthParametersModification extends RestAuthenticationParametersModification {
-
-            BearerAuthParametersModification() {
-                super(RequiresFlowVariableCredential.class,
-                    RequiresCredential.class,
-                    RequiresUsernameProvider.class,
-                    RequiresPasswordProvider.class,
-                    "The flow variable containing the credentials which are used for bearer authorization.",
-                    "Token",
-                    "The bearer token used for authorization.",
-                    false);
-            }
-
-        }
-
-        static final class DigestAuthCredentialsTypeRef implements ParameterReference<CredentialsType>{
-        }
-
-        static final class IsManualBearerAuthCredentialInput implements EffectPredicateProvider {
-
-            @Override
-            public EffectPredicate init(final PredicateInitializer i) {
-                return i.getEnum(DigestAuthCredentialsTypeRef.class).isOneOf(CredentialsType.MANUAL);
-            }
-
-        }
-
-        static final class IsBearerAuth implements EffectPredicateProvider {
-
-            @Override
-            public EffectPredicate init(final PredicateInitializer i) {
-                return i.getEnum(RestAuthenticationTypeRef.class).isOneOf(RestAuthenticationType.BEARER_TOKEN)
-                        .and(not(i.getPredicate(IsAuthViaInputPortEnabled.class)));
-            }
-
-        }
-
-        static final class RequiresCredential implements EffectPredicateProvider {
-
-            @Override
-            public EffectPredicate init(final PredicateInitializer i) {
-                return i.getPredicate(IsBearerAuth.class)
-                        .and(i.getPredicate(IsManualBearerAuthCredentialInput.class));
-            }
-
-        }
-
-        static final class RequiresUsernameProvider extends AuthenticationTypeDependentProvider {
-
-            @Override
-            public Boolean computeState(final NodeParametersInput context) {
-                return false;
-            }
-
-        }
-
-        static final class RequiresPasswordProvider extends AuthenticationTypeDependentProvider {
-
-            @Override
-            public Boolean computeState(final NodeParametersInput context) {
-                return m_typeSupplier.get() == RestAuthenticationType.BEARER_TOKEN;
-            }
-
-        }
-
-        static final class RequiresFlowVariableCredential implements EffectPredicateProvider {
-
-            @Override
-            public EffectPredicate init(final PredicateInitializer i) {
-                return i.getPredicate(IsBearerAuth.class)
-                        .and(not(i.getPredicate(IsManualBearerAuthCredentialInput.class)));
-            }
-
+        static final class BearerAuthCredentialsTypeRef implements ParameterReference<CredentialsType>{
         }
 
         static final class BearerAuthCredentialsTypePersistor extends CredentialsTypePersistor {

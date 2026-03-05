@@ -66,7 +66,6 @@ import org.knime.node.parameters.NodeParameters;
 import org.knime.node.parameters.NodeParametersInput;
 import org.knime.node.parameters.Widget;
 import org.knime.node.parameters.persistence.NodeParametersPersistor;
-import org.knime.node.parameters.persistence.Persist;
 import org.knime.node.parameters.persistence.Persistor;
 import org.knime.node.parameters.updates.Effect;
 import org.knime.node.parameters.updates.Effect.EffectType;
@@ -215,7 +214,7 @@ final class RestAuthenticationParameters implements NodeParameters {
 
     static final String SETTINGS_MODEL_KEY_USERNAME = "username";
 
-    @Persist(configKey = SETTINGS_MODEL_KEY_CREDENTIAL)
+    @Persistor(FlowVarNamePersistor.class)
     @Widget(title = "Credentials variable", description = """
             The flow variable containing the credentials which are used for authentication.
             """)
@@ -249,6 +248,25 @@ final class RestAuthenticationParameters implements NodeParameters {
             }
             return context.getAvailableInputFlowVariables(VariableType.CredentialsType.INSTANCE)
                     .values().stream().toList();
+        }
+
+    }
+
+    static final class FlowVarNamePersistor implements NodeParametersPersistor<String> {
+
+        @Override
+        public String load(final NodeSettingsRO settings) throws InvalidSettingsException {
+            return settings.getString(SETTINGS_MODEL_KEY_CREDENTIAL, null);
+        }
+
+        @Override
+        public void save(final String param, final NodeSettingsWO settings) {
+            settings.addString(SETTINGS_MODEL_KEY_CREDENTIAL, param);
+        }
+
+        @Override
+        public String[][] getConfigPaths() {
+            return new String[][]{};
         }
 
     }
