@@ -220,7 +220,7 @@
                         "default" : ""
                       }
                     },
-                    "title" : "Credentials",
+                    "title" : "Token",
                     "description" : "The bearer token used for authorization.",
                     "default" : {
                       "isHiddenPassword" : false,
@@ -231,7 +231,7 @@
                   "flowVarName" : {
                     "type" : "string",
                     "title" : "Credentials variable",
-                    "description" : "The flow variable containing the credentials which are used for bearer authorization."
+                    "description" : "The flow variable containing the credentials which are used for bearer authorization.\n"
                   }
                 },
                 "default" : {
@@ -1166,7 +1166,7 @@
         "type" : "Control",
         "scope" : "#/properties/model/properties/bearerAuth/properties/bearerAuthParameters/properties/credentials",
         "options" : {
-          "passwordLabel" : "Token",
+          "passwordLabel" : "Password",
           "usernameLabel" : "Username",
           "format" : "credentials"
         },
@@ -2199,7 +2199,7 @@
                 "type" : "object",
                 "properties" : {
                   "flowVarName" : {
-                    "configKey" : "credentials"
+                    "configPaths" : [ ]
                   },
                   "credentials" : {
                     "configPaths" : [ [ "username" ] ]
@@ -2221,10 +2221,10 @@
                 "type" : "object",
                 "properties" : {
                   "flowVarName" : {
-                    "configKey" : "credentials"
+                    "configPaths" : [ ]
                   },
                   "credentials" : {
-                    "configPaths" : [ [ "username" ] ]
+                    "configPaths" : [ ]
                   }
                 },
                 "propertiesRoute" : [ ".." ]
@@ -2243,7 +2243,7 @@
                 "type" : "object",
                 "properties" : {
                   "flowVarName" : {
-                    "configKey" : "credentials"
+                    "configPaths" : [ ]
                   },
                   "credentials" : {
                     "configPaths" : [ [ "username" ] ]
@@ -2265,7 +2265,7 @@
                 "type" : "object",
                 "properties" : {
                   "flowVarName" : {
-                    "configKey" : "credentials"
+                    "configPaths" : [ ]
                   },
                   "credentials" : {
                     "configPaths" : [ [ "username" ] ]
@@ -2300,7 +2300,7 @@
                 "type" : "object",
                 "properties" : {
                   "flowVarName" : {
-                    "configKey" : "credentials"
+                    "configPaths" : [ ]
                   },
                   "credentials" : {
                     "configPaths" : [ [ "username" ] ]
