@@ -1,7 +1,7 @@
 # KNIME® REST Client Extension
 
 [![Jenkins](https://jenkins.knime.com/buildStatus/icon?job=knime-rest%2Fmaster)](https://jenkins.knime.com/job/knime-rest/job/master/)
-[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=KNIME_knime-rest&metric=alert_status&token=55129ac721eacd76417f57921368ed587ad8339d)](https://sonarcloud.io/summary/new_code?id=KNIME_knime-rest)
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=knime_knime-rest&metric=alert_status&token=55129ac721eacd76417f57921368ed587ad8339d)](https://sonarcloud.io/summary/new_code?id=knime_knime-rest)
 This repository is maintained by the [KNIME Core Development Team](mailto:ap-core@knime.com).
 
 This repository contains the [KNIME REST Client Extension](https://hub.knime.com/knime/extensions/org.knime.features.rest/latest). This extension enables the use of several KNIME REST nodes for interacting with REST-ful web services via GET, POST, PUT, or DELETE requests.
