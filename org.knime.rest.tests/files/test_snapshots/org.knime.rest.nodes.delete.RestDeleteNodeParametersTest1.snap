@@ -2548,16 +2548,10 @@
       "value" : [ ]
     } ]
   }, {
-    "scope" : "#/properties/model/properties/nodeSpecificProxyParameters",
-    "values" : [ {
-      "indices" : [ ],
-      "value" : null
-    } ]
-  }, {
     "scope" : "#/properties/model/properties/nodeSpecificProxyParameters/properties/proxyExcludedHosts",
     "values" : [ {
       "indices" : [ ],
-      "value" : [ { } ]
+      "value" : null
     } ]
   }, {
     "scope" : "#/properties/model/properties/nodeSpecificProxyParameters/properties/proxyExcludedHosts",
@@ -2594,14 +2588,14 @@
     "providedOptionName" : "hasPassword",
     "values" : [ {
       "indices" : [ ],
-      "value" : false
+      "value" : null
     } ]
   }, {
     "scope" : "#/properties/model/properties/proxyAuth/properties/proxyAuthParameters/properties/credentials",
     "providedOptionName" : "hasUsername",
     "values" : [ {
       "indices" : [ ],
-      "value" : false
+      "value" : null
     } ]
   }, {
     "scope" : "#/properties/model/properties/proxyAuth/properties/proxyAuthParameters/properties/flowVarName",
@@ -2753,12 +2747,6 @@
     } ]
   } ],
   "globalUpdates" : [ {
-    "trigger" : {
-      "id" : "after-open-dialog"
-    },
-    "triggerInitially" : true,
-    "dependencies" : [ "#/properties/model/properties/requestBodyParameters/properties/columnRequestBody", "#/properties/model/properties/urlColumn" ]
-  }, {
     "trigger" : {
       "scope" : "#/properties/model/properties/authType"
     },
