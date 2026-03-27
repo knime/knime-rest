@@ -8,7 +8,7 @@ This repository contains the [KNIME REST Client Extension](https://hub.knime.com
 
 ## Introduction in the KNIME Data Science E-Learning Course
 
-You can find an introduction to the extension in our [Data Science E-Learning Course](https://www.knime.com/knime-introductory-course/chapter2/section3/sending-get-request-to-rest-service).
+You can find an introduction to the extension in our [Data Science E-Learning Course](https://www.knime.com/learning).
 
 ## Example Workflows on the KNIME Hub
 
