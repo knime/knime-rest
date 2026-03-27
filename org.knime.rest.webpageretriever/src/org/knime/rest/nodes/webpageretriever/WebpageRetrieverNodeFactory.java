@@ -134,8 +134,8 @@ public final class WebpageRetrieverNodeFactory extends RestNodeFactory<WebpageRe
 
     private static final List<ExternalResource> LINKS = List.of(
          new ExternalResource(
-            "https://www.knime.com/knime-introductory-course/chapter2/section3/sending-get-request-to-rest-service", """
-                KNIME E-Learning Course: Sending a GET Request to a REST service
+            "https://www.knime.com/learning", """
+                KNIME E-Learning Course (see "REST Request" section)
                 """)
     );
 
