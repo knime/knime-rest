@@ -703,7 +703,6 @@ public class RestNodeParameters implements NodeParameters {
         @ArrayWidget(elementLayout = ElementLayout.HORIZONTAL_SINGLE_LINE, addButtonText = "Add host",
             elementDefaultValueProvider = ProxyExcludedHostsDefaultProvider.class)
         @ValueReference(ProxyExcludedHostsRef.class)
-        @ValueProvider(ProxyExcludedHostsProvider.class)
         @Effect(predicate = IsProxyExcludeHostsRequired.class, type = EffectType.SHOW)
         ProxyExcludedHosts[] m_proxyExcludedHosts = new ProxyExcludedHosts[0];
 
@@ -1373,29 +1372,6 @@ public class RestNodeParameters implements NodeParameters {
 
     }
 
-    static final class ProxyExcludedHostsProvider implements StateProvider<ProxyExcludedHosts[]> {
-
-        Supplier<ProxyExcludedHosts[]> m_excludedHosts;
-
-        @Override
-        public void init(final StateProviderInitializer initializer) {
-            initializer.computeBeforeOpenDialog();
-            m_excludedHosts = initializer.getValueSupplier(ProxyExcludedHostsRef.class);
-        }
-
-        @Override
-        public ProxyExcludedHosts[] computeState(final NodeParametersInput context)
-            throws StateComputationFailureException {
-            final var excludedHosts = m_excludedHosts.get();
-            if (excludedHosts == null || excludedHosts.length > 0) {
-                return excludedHosts;
-            } else {
-                return new ProxyExcludedHosts[] {new ProxyExcludedHosts()};
-            }
-        }
-
-    }
-
     static final class RequestHeaderItemsDefaultProvider implements StateProvider<RequestHeaderItem> {
 
         @Override
@@ -1559,22 +1535,7 @@ public class RestNodeParameters implements NodeParameters {
                     return null;
                 }
                 final var nodeSpecificSettings = settings.getNodeSettings(CFG_KEY_NODE_SPECIFIC_PROXY);
-                final var excludedHostsString = nodeSpecificSettings.getString("Proxy-excluded hosts", "");
-                String[] excludedHosts;
-                if (excludedHostsString == null || excludedHostsString.trim().isEmpty()) {
-                    excludedHosts = new String[]{""};
-                } else {
-                    excludedHosts = excludedHostsString.split(";");
-                }
-                ProxyExcludedHosts[] proxyExcludedHosts = new ProxyExcludedHosts[excludedHosts.length];
-                if (excludedHostsString == null || excludedHostsString.trim().isEmpty()) {
-                    proxyExcludedHosts = new ProxyExcludedHosts[]{new ProxyExcludedHosts("localhost|127.0.0.1")};
-                } else {
-                    excludedHosts = excludedHostsString.split(";");
-                    for (int i = 0; i < excludedHosts.length; i++) {
-                        proxyExcludedHosts[i] = new ProxyExcludedHosts(excludedHosts[i].trim());
-                    }
-                }
+                final var proxyExcludedHosts = loadProxyExcludedHosts(nodeSpecificSettings);
                 return new NodeSpecificProxyParameters(proxyMode, ProxyProtocol.getFromValue(
                     nodeSpecificSettings.getString("Proxy protocol", ProxyProtocol.HTTP.name())),
                     nodeSpecificSettings.getString("Proxy host", "localhost"),
@@ -1585,6 +1546,17 @@ public class RestNodeParameters implements NodeParameters {
             } catch (InvalidSettingsException e) {
                 return null;
             }
+        }
+
+        private static ProxyExcludedHosts[] loadProxyExcludedHosts(final NodeSettingsRO nodeSpecificSettings) {
+            final var excludedHostsString = nodeSpecificSettings.getString("Proxy-excluded hosts", "");
+            if (excludedHostsString == null || excludedHostsString.trim().isEmpty()) {
+                /**
+                 * This is only the case initially since we validate that the list is non-empty afterwards.
+                 */
+                return new ProxyExcludedHosts[]{new ProxyExcludedHosts("localhost|127.0.0.1")};
+            }
+            return Arrays.stream(excludedHostsString.split(";")).map(ProxyExcludedHosts::new).toArray(ProxyExcludedHosts[]::new);
         }
 
         @Override
@@ -1758,7 +1730,7 @@ public class RestNodeParameters implements NodeParameters {
         }
 
         public ProxyExcludedHosts(final String host) {
-            m_host = host;
+            m_host = host.trim();
         }
     }
 

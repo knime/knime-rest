@@ -2430,12 +2430,6 @@
     } ]
   }, {
     "scope" : "#/properties/model/properties/nodeSpecificProxyParameters/properties/proxyExcludedHosts",
-    "values" : [ {
-      "indices" : [ ],
-      "value" : null
-    } ]
-  }, {
-    "scope" : "#/properties/model/properties/nodeSpecificProxyParameters/properties/proxyExcludedHosts",
     "providedOptionName" : "elementDefaultValue",
     "values" : [ {
       "indices" : [ ],
